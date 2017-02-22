@@ -1,0 +1,82 @@
+#!/bin/sh
+
+set -e
+
+SOC=mt7623n
+MACH=mt7623_evb
+PLATFORM=
+BOARD=
+TOPDIR=`pwd`
+TARGET_PLATFORM="mt"
+TARGET_PRODUCT="bpi-r2"
+BPILINUX=linxu-mt
+BPIPACK=mt-pack
+BPISOC=mtk
+
+CUR_DIR=$PWD
+
+list_boards() {
+	(cd ${BPIPACK}/${BPISOC}/${TARGET_PRODUCT}/configs ; ls -1d BPI* )
+}
+
+# keep the output `sh` friendly
+# i.e., no spaces around the '='
+generate_board_mk() {
+	
+	cat <<-EOT
+	BOARD=$BOARD
+	SOC=$SOC
+	MACH=$MACH
+	UBOOT_CONFIG=${MACH}_config
+	KERNEL_CONFIG=mt7623n_evb_bpi_defconfig
+	TARGET_PLATFORM=${TARGET_PLATFORM}
+	EOT
+
+}
+
+
+generate_board_envsh() {
+	
+	cat <<-EOT
+	export ARCH=arm
+	export BOARD=$BOARD
+	export SOC=$SOC
+	export MACH=$MACH
+	export CROSS_COMPILE=arm-linux-gnueabihf-
+	export UBOOT_CONFIG=${MACH}_config
+	export KERNEL_CONFIG=mt7623n_evb_bpi_defconfig
+	export LICHEE_PLATFORM="linux"
+	export GPU_TYPE="mali450"
+	export TOPDIR=${TOPDIR}
+	export TARGET_PLATFORM=${TARGET_PLATFORM}
+	export TARGET_PRODUCT=${TARGET_PRODUCT}
+	EOT
+
+}
+
+usage() {
+	cat <<-EOT >&2
+	Usage: $0 <board>
+
+	supported boards:
+	EOT
+	list_boards  #DK, update later
+}
+
+if [ $# -eq 0 ]; then
+	usage
+	exit 1
+fi
+
+BOARD=$1
+
+generate_board_envsh "$1" > env.sh
+
+out=chosen_board.mk
+if generate_board_mk "$1" > $out~; then
+	mv $out~ $out
+	echo "$1 configured. Now run \`make\`"
+else
+	rm $out~
+	exit 1
+fi

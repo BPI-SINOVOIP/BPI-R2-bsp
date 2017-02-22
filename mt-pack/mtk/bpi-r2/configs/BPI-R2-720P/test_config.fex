@@ -1,0 +1,298 @@
+;-------------------------------------------------------------------------------
+;
+; [example]
+; display_name= "Example"
+; activated   = 1
+; program     = "example.sh"
+; category    = 0
+; run_type    = 0
+;
+; display_name
+;   pc software dragonst display name , max:64bytes
+; activated
+;   0: un-activated this testcase
+;   1: activated this testcase
+;
+; program
+;   testcase exec program name,max:16bytes
+;
+; category
+;   0: auto test mode  testcase
+;   1: manual test mode testcase
+;
+; run_type
+;   0: waiting for  pre-testcase finish
+;   1: do not waiting pre-testcase finish
+;-------------------------------------------------------------------------------
+
+;-------------------------------------------------------------------------------
+; test_size
+;   unit: MB
+;-------------------------------------------------------------------------------
+[dram]
+display_name= "DDR"
+activated   = 1
+program     = "memtester.sh"
+category    = 0
+run_type    = 1
+platform    = r40
+dram_size   = 512
+test_size   = 8
+
+[rtc]
+display_name= "RTC"
+activated   = 1
+program     = "rtctester.sh"
+category    = 0
+run_type    = 1
+
+;-------------------------------------------------------------------------------
+; module_path
+;   The full path of wifi module file.
+; module_args
+;   The arguments of wifi module.
+;-------------------------------------------------------------------------------
+[wifi]
+display_name= "WIFI"
+activated   = 1
+program     = "wifitester.sh"
+category    = 0
+run_type    = 1
+
+[eth]
+display_name= "Ethernet"
+activated   = 1
+program     = "ethtester.sh"
+category    = 0
+run_type    = 1
+
+;-------------------------------------------------------------------------------
+; module_path
+;   The full path of g-sensor module file.
+; device_name
+;   The name of g-sensor device.
+;-------------------------------------------------------------------------------
+[gsensor]
+display_name= "Gsenser"
+activated   = 0
+program     = "gsensortester.sh"
+category    = 0
+run_type    = 1
+module_count= 1
+
+;-------------------------------------------------------------------------------
+; test_size
+;   Test size for nand read and write test.
+;-------------------------------------------------------------------------------
+[nand]
+display_name= "Nand Flash"
+activated   = 0
+program     = "nandtester.sh"
+category    = 0
+run_type    = 1
+test_size   = 16
+
+[emmc]
+display_name= "eMMC Flash"
+activated   = 1
+program     = "emmctester.sh"
+category    = 0
+run_type    = 1
+test_size   = 128
+
+[bluetooth]
+display_name= "BlueTooth"
+activated   = 1
+program     = "bttester.sh"
+test_time   = 3
+category    = 0
+dst_bt      = ":"
+run_type    = 1
+module_path = "/lib/firmware/bcm43438a0.hcd"
+device_node = "/dev/ttyS3"
+baud_rate   = 1500000
+
+[mmc]
+display_name= "SD/TF Card"
+activated   = 1
+program     = "mmctester.sh"
+category    = 0
+run_type    = 1
+nr          = 0
+
+[sata]
+display_name= "SATA"
+activated   = 1
+program     = "satatester.sh"
+category    = 0
+run_type    = 1
+
+[udisk]
+display_name= "USB UDISK"
+activated   = 0
+program     = "udisktester.sh"
+category    = 1
+run_type    = 1
+
+[Usb_HOST1]
+display_name= "USB_HOST1"
+activated   = 1
+program     = "host1tester.sh"
+category    = 0
+run_type    = 1
+
+[Usb_HOST2]
+display_name= "USB_HOST2"
+activated   = 1
+program     = "host2tester.sh"
+category    = 0
+run_type    = 1
+
+[Usb_OTG]
+display_name= "USB_OTG"
+activated   = 1
+program     = "otgtester.sh"
+category    = 0
+run_type    = 1
+
+[pmu]
+display_name= "PMU"
+activated   = 1
+program     = "pmutester.sh"
+category    = 0
+run_type    = 1
+;-------------------------------------------------------------------------------
+; sound_file
+;   The full path of sound file.
+; samplerate
+;   The samplerate of sound file.
+; support_mode
+;   0 : 480I
+;   1 : 576I
+;   2 : 480P
+;   3 : 576P
+;   4 : 720P 50HZ
+;   5 : 720P 60HZ
+;   6 : 1080I 50HZ
+;   7 : 1080I 60HZ
+;   8 : 1080P 24HZ
+;   9 : 1080P 50HZ
+;   10: 1080P 60HZ
+;-------------------------------------------------------------------------------
+[hdmi]
+display_name= "HDMI"
+activated   = 1
+program     = "hdmitester"
+category    = 1
+run_type    = 1
+sound_file  = "/media/test48000.pcm"
+samplerate  = 48000
+support_mode= 2
+
+;-------------------------------------------------------------------------------
+; module_path
+;   The full path of key module file.
+;-------------------------------------------------------------------------------
+[key]
+display_name= "KEY"
+activated   = 1
+program     = "keytester"
+category    = 1
+run_type    = 1
+
+;-------------------------------------------------------------------------------
+; module_path
+;   The full path of ir module file.
+;-------------------------------------------------------------------------------
+[ir]
+display_name= "Infrared"
+activated   = 1
+program     = "irtester"
+category    = 1
+run_type    = 1
+module_path = "/lib/modules/3.4.39/sun6i-ir.ko"
+
+;-------------------------------------------------------------------------------
+; music_playtime:
+; music_file:
+; the sound_file you want to play
+;------------------------------------------------------------------------------------
+[mic]
+display_name= "MIC"
+activated   = 1
+program     = "mictester.sh"
+category    = 1
+platform    = r40
+run_type    = 1
+delay       = 3
+volume      = 40
+samplerate  = 48000
+music_playtime =10
+mic1_used   = 1
+mic2_used   = 0
+mic1_gain   = 1
+mic2_gain   = 1
+mic1_threshold =64
+mic2_threshold =64
+music_file  = "/media/send.pcm"
+
+[headphone]
+display_name= "Headphone"
+activated   = 1
+program     = "headtester.sh"
+category    = 1
+platform    = r40
+run_type    = 1
+delay       = 3
+volume      = 40
+samplerate  = 48000
+music_playtime =10
+
+;-------------------------------------------------------------------------------
+; type
+;   0: rtp
+;   1: ctp
+; module_path
+;   The full path of tp module.
+;-------------------------------------------------------------------------------
+[tp]
+display_name= "TP"
+activated   = 1
+program     = "tptester"
+tp_name	    = "ft5x_ts"
+run_type    = 1
+category    = 1
+module_path = "/lib/modules/3.4.39/gt9xxf_ts.ko"
+event_num   = 3
+
+;-------------------------------------------------------------------------------
+; type
+;   0: flow
+;   1: flash
+; module_path
+;   The full path of tp module.
+;-------------------------------------------------------------------------------
+[led]
+display_name= "LED"
+activated   = 1
+program     = "ledtester.sh"
+type        = 1
+run_type    = 1
+category    = 1
+module_path = "/lib/modules/3.4.39/led.ko"
+event_num   = 3
+
+;-------------------------------------------------------------------------------
+; module_count
+;   The number of module need to be insmod.
+; modulex_path
+;   'x' is the index of module, starts from 0.
+;-------------------------------------------------------------------------------
+[camera]
+display_name=  "Camera"
+activated   = 1
+run_type    = 1
+category    = 1
+dev_cnt     = 2
+csi_cnt     = 1
+fps         = 30
