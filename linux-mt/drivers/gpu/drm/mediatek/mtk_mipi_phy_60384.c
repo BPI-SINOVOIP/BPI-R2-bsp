@@ -83,7 +83,11 @@ static int ext_mipi_phy_pll_prepare(struct clk_hw *hw)
 {
 	struct ext_mipi_phy *ext_phy = ext_mipi_phy_from_clk_hw(hw);
 	u8 txdiv, txdiv0, txdiv1;
+#ifdef BPI
 	u64 pcw;
+#else
+	u64 pcw=0;
+#endif
 
 	dev_dbg(ext_phy->dev, "prepare: %u Hz\n", ext_phy->data_rate);
 
