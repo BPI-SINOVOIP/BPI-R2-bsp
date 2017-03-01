@@ -16,7 +16,7 @@
 #include "mt7623.dtsi"
 
 / {
-	model = "Banana Pi BPI-R2 (MediaTek MT7623N)";
+	model = "Banana Pi BPI-R2 (MediaTek MT7623N 20170301)";
 	compatible = "mediatek,mt7623-evb", "mediatek,mt7623";
 
 	chosen {
@@ -142,7 +142,9 @@
 	max-frequency = <50000000>;
 	cap-sd-highspeed;
 	cd-gpios = <&pio 261 0>;
+/*
 	wp-gpios = <&pio 29 0>;
+*/
 	vmmc-supply = <&mt6323_vmch_reg>;
 	vqmmc-supply = <&mt6323_vmc_reg>;
 };
