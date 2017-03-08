@@ -9,6 +9,7 @@
 #
 
 # This file is called by the Linux build system.
+$(info "build Mali: TARGET_PLATFORM: $(TARGET_PLATFORM)")
 
 # set up defaults if not defined by the user
 TIMESTAMP ?= default
@@ -27,7 +28,9 @@ MALI_ENABLE_CPU_CYCLES ?= 0
 TARGET_PLATFORM ?= mediatek
 MALI_PLATFORM = $(TARGET_PLATFORM)
 EXTRA_DEFINES += -DMALI_FAKE_PLATFORM_DEVICE=1
-MALI_PLATFORM_FILES = $(subst $(srctree)/$(src)/,,$(wildcard $(srctree)/$(src)/platform/$(TARGET_PLATFORM)/*.c))
+#BPI
+#MALI_PLATFORM_FILES = $(subst $(srctree)/$(src)/,,$(wildcard $(srctree)/$(src)/platform/$(TARGET_PLATFORM)/*.c))
+MALI_PLATFORM_FILES = $(subst $(srctree)/$(src)/,,$(wildcard $(srctree)/$(src)/platform/arm/*.c))
 ccflags-y += -Iinclude/soc/mediatek -I$(srctree)/drivers/misc/mediatek/base/power/$(TARGET_PLATFORM)
 
 ifneq ($(CONFIG_MALI_DVFS),y)
