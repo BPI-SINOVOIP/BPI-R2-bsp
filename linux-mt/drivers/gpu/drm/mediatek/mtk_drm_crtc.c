@@ -239,7 +239,6 @@ static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 		if (encoder->crtc != crtc)
 			continue;
 
-		mutex_lock(&crtc->dev->mode_config.mutex);
 		drm_for_each_connector(connector, crtc->dev) {
 			if (connector->encoder != encoder)
 				continue;
@@ -247,7 +246,6 @@ static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
 			    bpc > connector->display_info.bpc)
 				bpc = connector->display_info.bpc;
 		}
-		mutex_unlock(&crtc->dev->mode_config.mutex);
 	}
 
 	ret = pm_runtime_get_sync(crtc->dev->dev);
