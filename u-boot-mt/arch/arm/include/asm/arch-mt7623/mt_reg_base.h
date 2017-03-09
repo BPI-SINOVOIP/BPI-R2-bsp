@@ -209,7 +209,9 @@
 #else
 //#define COMMANDLINE_TO_KERNEL  "console=tty0 console=ttyMT3,921600n1 root=/dev/ram"
 //#define COMMANDLINE_TO_KERNEL  "console=ttyMT2,115200n1 rdinit=/init root=/dev/ram androidboot.selinux=disabled androidboot.serialno=0123456789ABCDEF printk.disable_uart=0 boot_reason=0"
-#define COMMANDLINE_TO_KERNEL "console=tty0 console=ttyMT2,115200n1 root=/dev/ram lcm=1-hx8392a_vdo_cmd fps=4433 vram=13631488 androidboot.selinux=disabled bootprof.pl_t=1149 bootprof.lk_t=9849 printk.disable_uart=0 boot_reason=0 androidboot.serialno=0123456789ABCDEF androidboot.bootreason=power_key"
+//BPI
+//#define COMMANDLINE_TO_KERNEL "console=tty0 console=ttyMT2,115200n1 root=/dev/ram lcm=1-hx8392a_vdo_cmd fps=4433 vram=13631488 androidboot.selinux=disabled bootprof.pl_t=1149 bootprof.lk_t=9849 printk.disable_uart=0 boot_reason=0 androidboot.serialno=0123456789ABCDEF androidboot.bootreason=power_key"
+#define COMMANDLINE_TO_KERNEL "board=bpi-r2 earlyprintk console=tty1 fbcon=map:0 console=ttyS0,115200 vmalloc=496M debug=7 initcall_debug=0 root=/dev/mmcblk0p2 rootfstype=ext4 rootwait"
 #endif
 #define CFG_FACTORY_NAME	"factory.img"
 #define HAVE_LK_TEXT_MENU

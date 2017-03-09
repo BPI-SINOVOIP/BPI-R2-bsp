@@ -455,6 +455,8 @@
     "device=mmc\0" \
     "partition=1:1\0" \
     "kernel=uImage\0" \
+    "root=/dev/mmcblk0p2\0" \
+    "debug=7\0" \
     "bootenv=uEnv.txt\0" \
     "checksd=fatinfo ${device} 1:1\0" \
     "loadbootenv=fatload ${device} ${partition} ${scriptaddr} ${bpi}/${board}/${service}/${bootenv} || fatload ${device} ${partition} ${scriptaddr} ${bootenv}\0" \
@@ -472,7 +474,7 @@
  *                                       UBoot Command
  **********************************************************************************************/
 /* Shell */
-#define CONFIG_SYS_MAXARGS		            9
+#define CONFIG_SYS_MAXARGS		            32
 #define CONFIG_SYS_PROMPT		            "BPI-IoT> "
 #define CONFIG_COMMAND_HISTORY
 

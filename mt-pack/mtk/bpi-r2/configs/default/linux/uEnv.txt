@@ -1,40 +1,46 @@
+#
+## uEnv.txt
+#
 bpi=bananapi
 board=bpi-r2
 chip=mt7623n
 service=linux
 #
+##
+#
 kernel=uImage
-#kernel=uImage.3.10
-#kernel=root_uImage
+#
+##
 #
 kaddr=0x84000000
 rdaddr=0x86000000
 #
+##
 #
-root=/dev/mmcblk0p2
+#root=/dev/ram
+root=/dev/mmcblk0p2 rootfstype=ext4 rootwait
+console=earlyprintk console=tty1 fbcon=map:0 console=ttyS0,115200
+bootopts=vmalloc=496M debug=7 initcall_debug=0
 #
-
+##
+#
+abootargs=setenv bootargs board=${board} console=${console} root=${root} service=${service} ${bootopts}
+#
+##
+#
 ahello=echo Banana Pi ${board} chip: $chip Service: $service
-
-asetargs_mmc=setenv -f bootargs "board=${board} earlyprintk console=ttyS0,115200 vmalloc=496M debug=7 initcall_debug=0 root=${root} rootfstype=ext4 rootwait"
-
+#
+##
+#
 aboot=if fatload $device $partition $rdaddr ${bpi}/berryboot.img; then bootm $kaddr $rdaddr ; else bootm $kaddr; fi
+#
+##
+#
 aload_kernel=fatload $device $partition $kaddr ${bpi}/${board}/${service}/${kernel}
-
-uenvcmd=run ahello aload_kernel aboot
-
-# ref. 
-#bootargs=board=bpi-r2 console=tty0 console=ttyMT2,115200n1 root=/dev/mmcblk0p2 lcm=1-hx8392a_vdo_cmd fps=4433 vram=13631488 androidboot.selinux=disabled bootprof.pl_t=1149 bootprof.lk_t=9849 printk.disable_uart=0 boot_reason=0 androidboot.serialno=0123456789ABCDEF androidboot.bootreason=power_key bootmenutimeout=10 datadev=mmcblk0p2
 #
-## for kernel 3.10
+##
 #
-#bootargs=board=bpi-r2 earlyprintk console=tty1 console=ttyMT2,115200n1 fbcon=map:0  root=/dev/mmcblk1p2 rootfstype=ext4 vmalloc=496M slub_max_order=0 slub_debug=O coherent_pool=4M androidboot.      selinux=disabled androidboot.serialno=0123456789ABCDEF printk.disable_uart=0 boot_reason=0 lcm=1-hx8392a_vdo_cmd fps=4433 vram=13631488 androidboot.selinux=disabled bootprof.pl_t=1149 bootprof.lk_t=9849 printk.disable_uart=0 boot_reason=0 androidboot.serialno=0123456789ABCDEF androidboot.bootreason=power_key
+uenvcmd=run ahello abootargs aload_kernel aboot
 #
-## kernel 4.4
+## END
 #
-#bootargs=board=bpi-r2 earlyprintk console=tty0 console=ttyS0,115200 fbcon=map:0 vmalloc=496M debug=7 initcall_debug=0 root=/dev/mmcblk0p2 rootfstype=ext4 rootwait
-bootargs=board=bpi-r2 earlyprintk console=ttyS0,115200 vmalloc=496M debug=7 initcall_debug=0 root=/dev/mmcblk0p2 rootfstype=ext4 rootwait
-#
-## kernel 4.4 ramdisk
-#
-#bootargs=board=bpi-r2 earlyprintk console=tty0 console=ttyS0,115200 fbcon=map:0 vmalloc=496M debug=7 initcall_debug=0 root=/dev/ram
