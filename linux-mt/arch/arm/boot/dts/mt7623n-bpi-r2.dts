@@ -380,6 +380,12 @@
 			output-high;
 		};
 	};
+
+        pwm4_default_pin: pwm4 {
+                pins_cmd_dat {
+                        pinmux = <MT7623_PIN_207_PWM4_FUNC_PWM4>;
+                };
+        };
 };
 
 &pwrap {
@@ -650,5 +656,13 @@
 
 &usb2 {
 	vusb33-supply = <&mt6323_vusb_reg>;
+	status = "okay";
+};
+
+&ir {
+        status = "okay";
+};
+
+&pwm {
 	status = "okay";
 };

@@ -348,11 +348,6 @@ static void mtk_dpi_config_2n_h_fre(struct mtk_dpi *dpi)
 	mtk_dpi_mask(dpi, dpi->conf->reg_h_fre_con, H_FRE_2N, H_FRE_2N);
 }
 
-static void mtk_dpi_config_disable_edge(struct mtk_dpi *dpi)
-{
-	mtk_dpi_mask(dpi, dpi->conf->reg_h_fre_con, 0, EDGE_SEL_EN);
-}
-
 static void mtk_dpi_config_color_format(struct mtk_dpi *dpi,
 					enum mtk_dpi_out_color_format format)
 {
@@ -525,7 +520,6 @@ static int mtk_dpi_set_display_mode(struct mtk_dpi *dpi,
 	mtk_dpi_config_yc_map(dpi, dpi->yc_map);
 	mtk_dpi_config_color_format(dpi, dpi->color_format);
 	mtk_dpi_config_2n_h_fre(dpi);
-	mtk_dpi_config_disable_edge(dpi);
 	mtk_dpi_sw_reset(dpi, false);
 
 	return 0;
@@ -676,6 +670,11 @@ static unsigned int mt8173_calculate_factor(int clock)
 		return 2 * 3;
 }
 
+static unsigned int mt8173_lvdsdpi_factor(int clock)
+{
+	return 1;
+}
+
 static unsigned int mt2701_calculate_factor(int clock)
 {
 	if (clock <= 64000)
@@ -688,8 +687,18 @@ static unsigned int mt2701_calculate_factor(int clock)
 		return 2;
 }
 
+static unsigned int mt2712_calculate_factor(int clock)
+{
+	return 1;
+}
+
 static const struct mtk_dpi_conf mt8173_conf = {
 	.cal_factor = mt8173_calculate_factor,
+	.reg_h_fre_con = 0xe0,
+};
+
+static const struct mtk_dpi_conf mt8173_lvdsdpi_conf = {
+	.cal_factor = mt8173_lvdsdpi_factor,
 	.reg_h_fre_con = 0xe0,
 };
 
@@ -698,12 +707,23 @@ static const struct mtk_dpi_conf mt2701_conf = {
 	.reg_h_fre_con = 0xb0,
 };
 
+static const struct mtk_dpi_conf mt2712_conf = {
+	.cal_factor = mt2712_calculate_factor,
+	.reg_h_fre_con = 0xe0,
+};
+
 static const struct of_device_id mtk_dpi_of_ids[] = {
 	{ .compatible = "mediatek,mt8173-dpi",
 	  .data = &mt8173_conf,
 	},
+	{ .compatible = "mediatek,mt8173-lvdsdpi",
+	  .data = &mt8173_lvdsdpi_conf,
+	},
 	{ .compatible = "mediatek,mt2701-dpi",
 	  .data = &mt2701_conf,
+	},
+	{ .compatible = "mediatek,mt2712-dpi",
+	  .data = &mt2712_conf,
 	}
 };
 MODULE_DEVICE_TABLE(of, mtk_dpi_of_ids);

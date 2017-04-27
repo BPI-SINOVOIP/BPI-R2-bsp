@@ -770,29 +770,28 @@ bssBuildBeaconProbeRespFrameCommonIEs(IN P_MSDU_INFO_T prMsduInfo, IN P_BSS_INFO
 	pucBuffer = (PUINT_8) ((ULONG) prMsduInfo->prPacket + (ULONG) prMsduInfo->u2FrameLength);
 	ASSERT(pucBuffer);
 
-	/* Compose the frame body of the Probe Response frame. */
 	/* 4 <1> Fill the SSID element. */
 	SSID_IE(pucBuffer)->ucId = ELEM_ID_SSID;
-#if 0
-	SSID_IE(pucBuffer)->ucLength = prBssInfo->ucSSIDLen;
-	if (prBssInfo->ucSSIDLen)
-		kalMemCopy(SSID_IE(pucBuffer)->aucSSID, prBssInfo->aucSSID, prBssInfo->ucSSIDLen);
-#else
-	if (prBssInfo->eHiddenSsidType == ENUM_HIDDEN_SSID_LEN) {
-		if ((!pucDestAddr) &&	/* For Beacon only. */
-		    (prBssInfo->eCurrentOPMode == OP_MODE_ACCESS_POINT)) {
+
+	if ((!pucDestAddr) && (prBssInfo->eCurrentOPMode == OP_MODE_ACCESS_POINT)) {
+		/* For Beacon */
+		if (prBssInfo->eHiddenSsidType == ENUM_HIDDEN_SSID_ZERO_CONTENT) {
+			/* clear the data, but keep the correct length of the SSID */
+			SSID_IE(pucBuffer)->ucLength = prBssInfo->ucSSIDLen;
+			kalMemZero(SSID_IE(pucBuffer)->aucSSID, prBssInfo->ucSSIDLen);
+		} else if (prBssInfo->eHiddenSsidType == ENUM_HIDDEN_SSID_ZERO_LEN) {
+			/* empty SSID */
 			SSID_IE(pucBuffer)->ucLength = 0;
-		} else {	/* probe response */
+		} else {
 			SSID_IE(pucBuffer)->ucLength = prBssInfo->ucSSIDLen;
 			if (prBssInfo->ucSSIDLen)
 				kalMemCopy(SSID_IE(pucBuffer)->aucSSID, prBssInfo->aucSSID, prBssInfo->ucSSIDLen);
 		}
-	} else {
+	} else {	/* Probe response */
 		SSID_IE(pucBuffer)->ucLength = prBssInfo->ucSSIDLen;
 		if (prBssInfo->ucSSIDLen)
 			kalMemCopy(SSID_IE(pucBuffer)->aucSSID, prBssInfo->aucSSID, prBssInfo->ucSSIDLen);
 	}
-#endif
 
 	prMsduInfo->u2FrameLength += IE_SIZE(pucBuffer);
 	pucBuffer += IE_SIZE(pucBuffer);
@@ -1621,6 +1620,37 @@ P_STA_RECORD_T bssRemoveClientByMac(IN P_ADAPTER_T prAdapter, IN P_BSS_INFO_T pr
 
 	return NULL;
 }
+
+/*----------------------------------------------------------------------------*/
+/*!
+* @brief Get station record by Address for AP mode
+*
+* @param[in] prBssInfo              Pointer to BSS_INFO_T.
+* @param[in] pucMacAddr               Pointer to target mac address
+*
+* @return pointer of STA_RECORD_T if found, otherwise, return NULL
+*/
+/*----------------------------------------------------------------------------*/
+
+P_STA_RECORD_T bssGetClientByAddress(IN P_BSS_INFO_T prBssInfo, PUINT_8 pucMacAddr)
+{
+	P_LINK_T prStaRecOfClientList;
+
+	ASSERT(prBssInfo);
+	ASSERT(pucMacAddr);
+
+	prStaRecOfClientList = &prBssInfo->rStaRecOfClientList;
+	if (!LINK_IS_EMPTY(prStaRecOfClientList)) {
+		P_STA_RECORD_T prCurrStaRec;
+
+		LINK_FOR_EACH_ENTRY(prCurrStaRec, prStaRecOfClientList, rLinkEntry, STA_RECORD_T) {
+			if (EQUAL_MAC_ADDR(prCurrStaRec->aucMacAddr, pucMacAddr))
+				return prCurrStaRec;
+		}
+	}
+	return NULL;
+}
+
 
 P_STA_RECORD_T bssRemoveHeadClient(IN P_ADAPTER_T prAdapter, IN P_BSS_INFO_T prBssInfo)
 {

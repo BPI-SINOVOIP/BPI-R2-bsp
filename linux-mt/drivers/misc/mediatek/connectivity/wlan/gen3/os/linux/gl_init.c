@@ -998,6 +998,8 @@ int wlanHardStartXmit(struct sk_buff *prSkb, struct net_device *prDev)
 
 	kalResetPacket(prGlueInfo, (P_NATIVE_PACKET) prSkb);
 
+	STATS_TX_TIME_ARRIVE(prSkb);
+
 	if (kalHardStartXmit(prSkb, prDev, prGlueInfo, ucBssIndex) == WLAN_STATUS_SUCCESS) {
 		/* Successfully enqueue to Tx queue */
 		/* Successfully enqueue to Tx queue */
@@ -1418,7 +1420,11 @@ static void createWirelessDevice(void)
 	prWdev->iftype = NL80211_IFTYPE_STATION;
 	prWiphy->max_scan_ssids = SCN_SSID_MAX_NUM + 1; /* include one wildcard ssid */
 	prWiphy->max_scan_ie_len = 512;
+#if CFG_SUPPORT_SCHED_SCN_SSID_SETS
+	prWiphy->max_sched_scan_ssids     = CFG_SCAN_HIDDEN_SSID_MAX_NUM;
+#else
 	prWiphy->max_sched_scan_ssids     = CFG_SCAN_SSID_MAX_NUM;
+#endif
 	prWiphy->max_match_sets           = CFG_SCAN_SSID_MATCH_MAX_NUM;
 	prWiphy->max_sched_scan_ie_len    = CFG_CFG80211_IE_BUF_LEN;
 	prWiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_ADHOC);
@@ -1805,6 +1811,64 @@ static void wlan_late_resume(struct early_suspend *h)
 }
 #endif
 
+VOID nicConfigProcSetCamCfgWrite(BOOLEAN enabled)
+{
+	struct net_device *prDev = NULL;
+	P_GLUE_INFO_T prGlueInfo = NULL;
+	P_ADAPTER_T prAdapter = NULL;
+	PARAM_POWER_MODE ePowerMode;
+	UINT_8 ucBssIndex;
+	CMD_PS_PROFILE_T rPowerSaveMode;
+
+	/* 4 <1> Sanity Check */
+	if ((u4WlanDevNum == 0) && (u4WlanDevNum > CFG_MAX_WLAN_DEVICES)) {
+		DBGLOG(INIT, ERROR, "wlanLateResume u4WlanDevNum==0 invalid!!\n");
+		return;
+	}
+
+	prDev = arWlanDevInfo[u4WlanDevNum - 1].prDev;
+	if (!prDev)
+		return;
+
+	prGlueInfo = *((P_GLUE_INFO_T *) netdev_priv(prDev));
+	if (!prGlueInfo)
+		return;
+
+	prAdapter = prGlueInfo->prAdapter;
+	if ((!prAdapter) || (!prAdapter->prAisBssInfo))
+		return;
+
+	ucBssIndex = prAdapter->prAisBssInfo->ucBssIndex;
+	if (ucBssIndex >= BSS_INFO_NUM)
+		return;
+	rPowerSaveMode.ucBssIndex = ucBssIndex;
+
+	if (enabled) {
+		prAdapter->rWlanInfo.fgEnSpecPwrMgt = TRUE;
+		ePowerMode = Param_PowerModeCAM;
+		rPowerSaveMode.ucPsProfile = (UINT_8) ePowerMode;
+		DBGLOG(INIT, INFO, "Enable CAM BssIndex:%d, PowerMode:%d\n",
+		       ucBssIndex, rPowerSaveMode.ucPsProfile);
+	} else {
+		prAdapter->rWlanInfo.fgEnSpecPwrMgt = FALSE;
+		rPowerSaveMode.ucPsProfile =
+				prAdapter->rWlanInfo.arPowerSaveMode[ucBssIndex].ucPsProfile;
+		DBGLOG(INIT, INFO, "Disable CAM BssIndex:%d, PowerMode:%d\n",
+		       ucBssIndex, rPowerSaveMode.ucPsProfile);
+	}
+
+	wlanSendSetQueryCmd(prAdapter,
+			    CMD_ID_POWER_SAVE_MODE,
+			    TRUE,
+			    FALSE,
+			    FALSE,
+			    NULL,
+			    NULL,
+			    sizeof(CMD_PS_PROFILE_T),
+			    (PUINT_8) &rPowerSaveMode,
+			    NULL, 0);
+}
+
 int set_p2p_mode_handler(struct net_device *netdev, PARAM_CUSTOM_P2P_SET_STRUCT_T p2pmode)
 {
 	P_GLUE_INFO_T prGlueInfo = *((P_GLUE_INFO_T *) netdev_priv(netdev));
@@ -1921,6 +1985,8 @@ static INT_32 wlanProbe(PVOID pvData)
 		prAdapter->u4CSUMFlags = (CSUM_OFFLOAD_EN_TX_TCP | CSUM_OFFLOAD_EN_TX_UDP | CSUM_OFFLOAD_EN_TX_IP);
 #endif
 
+		prAdapter->fgIsReadRevID = FALSE;
+
 #if CFG_SUPPORT_CFG_FILE
 		wlanCfgInit(prAdapter, NULL, 0, 0);
 #ifdef ENABLED_IN_ENGUSERDEBUG
@@ -1952,18 +2018,31 @@ static INT_32 wlanProbe(PVOID pvData)
 #if CFG_ENABLE_FW_DOWNLOAD
 		/* before start adapter, we need to open and load firmware */
 		{
-			UINT_32 u4FwSize = 0;
 			PVOID prFwBuffer = NULL;
+			UINT_32 u4FwSize = 0;
+			UINT_32 u4FwLoadAddr = CFG_FW_LOAD_ADDRESS;
+			UINT_32 u4FwStartAddr = CFG_FW_START_ADDRESS;
 			P_REG_INFO_T prRegInfo = &prGlueInfo->rRegInfo;
 
-			/* P_REG_INFO_T prRegInfo = (P_REG_INFO_T) kmalloc(sizeof(REG_INFO_T), GFP_KERNEL); */
 			kalMemSet(prRegInfo, 0, sizeof(REG_INFO_T));
-			prRegInfo->u4StartAddress = CFG_FW_START_ADDRESS;
-			prRegInfo->u4LoadAddress = CFG_FW_LOAD_ADDRESS;
 
-			/* Trigger the action of switching Pwr state to drv_own */
-			prAdapter->fgIsFwOwn = TRUE;
-			nicPmTriggerDriverOwn(prAdapter);
+#if defined(MT6631)
+#ifdef CONFIG_OF
+			if (prGlueInfo->rHifInfo.Dev) {
+				if (of_property_read_u32_index(prGlueInfo->rHifInfo.Dev->of_node,
+							       "hardware-values", 1, &u4FwLoadAddr) ||
+				    of_property_read_u32_index(prGlueInfo->rHifInfo.Dev->of_node,
+							       "hardware-values", 2, &u4FwStartAddr))
+					DBGLOG(INIT, ERROR, "Failed to get hardware-values from DT!\n");
+			}
+#endif
+#endif
+
+			prRegInfo->u4LoadAddress = u4FwLoadAddr;
+			prRegInfo->u4StartAddress = u4FwStartAddr;
+
+			/* Trigger the action of switching power state to DRV_OWN */
+			nicpmCheckAndTriggerDriverOwn(prAdapter);
 
 			/* Load NVRAM content to REG_INFO_T */
 			glLoadNvram(prGlueInfo, prRegInfo);
@@ -2162,9 +2241,8 @@ bailout:
 #if CFG_SUPPORT_AGPS_ASSIST
 		kalIndicateAgpsNotify(prAdapter, AGPS_EVENT_WLAN_ON, NULL, 0);
 #endif
-		DBGLOG(INIT, LOUD, "wlanProbe: probe success\n");
+		DBGLOG(INIT, TRACE, "wlanProbe success\n");
 	} else {
-		DBGLOG(INIT, ERROR, "wlanProbe: probe failed\n");
 		switch (eFailReason) {
 		case FAIL_MET_INIT_PROCFS:
 			kalMetRemoveProcfs();
@@ -2194,6 +2272,13 @@ bailout:
 		default:
 			break;
 		}
+		/* Set the power off flag to FALSE in WMT to prevent chip power off after
+		 * wlanProbe return failure, because we need to do core dump afterward.
+		 */
+		if (g_IsNeedDoChipReset)
+			mtk_wcn_set_connsys_power_off_flag(FALSE);
+
+		DBGLOG(INIT, ERROR, "wlanProbe failed\n");
 	}
 	return i4Status;
 }				/* end of wlanProbe() */
@@ -2250,6 +2335,10 @@ static VOID wlanRemove(VOID)
 #endif /* WLAN_INCLUDE_PROC */
 
 	kalPerMonDestroy(prGlueInfo);
+
+	/* complete possible pending oid, which may block wlanRemove some time and then whole chip reset may failed */
+	if (kalIsResetting())
+		wlanReleasePendingOid(prGlueInfo->prAdapter, 1);
 
 #if CFG_ENABLE_BT_OVER_WIFI
 	if (prGlueInfo->rBowInfo.fgIsNetRegistered) {
@@ -2439,8 +2528,6 @@ static VOID exitWlan(void)
 
 #ifdef MTK_WCN_BUILT_IN_DRIVER
 
-#if (MTK_WCN_HIF_SDIO == 1)
-
 int mtk_wcn_wlan_gen3_init(void)
 {
 	return initWlan();
@@ -2452,22 +2539,6 @@ void mtk_wcn_wlan_gen3_exit(void)
 	return exitWlan();
 }
 EXPORT_SYMBOL(mtk_wcn_wlan_gen3_exit);
-
-#elif (MTK_WCN_HIF_SDIO == 0)
-
-int mtk_wcn_wlan_gen3_init(void)
-{
-	return initWlan();
-}
-EXPORT_SYMBOL(mtk_wcn_wlan_gen3_init);
-
-void mtk_wcn_wlan_gen3_exit(void)
-{
-	return exitWlan();
-}
-EXPORT_SYMBOL(mtk_wcn_wlan_gen3_exit);
-
-#endif
 
 #else
 

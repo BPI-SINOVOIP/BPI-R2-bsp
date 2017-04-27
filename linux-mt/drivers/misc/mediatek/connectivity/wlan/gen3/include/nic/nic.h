@@ -120,6 +120,8 @@ WLAN_STATUS nicInitializeAdapter(IN P_ADAPTER_T prAdapter);
 
 VOID nicMCRInit(IN P_ADAPTER_T prAdapter);
 
+UINT_16 nicGetChipID(IN P_ADAPTER_T prAdapter);
+
 BOOL nicVerifyChipID(IN P_ADAPTER_T prAdapter);
 
 #if CFG_SDIO_INTR_ENHANCE
@@ -128,7 +130,7 @@ VOID nicSDIOInit(IN P_ADAPTER_T prAdapter);
 VOID nicSDIOReadIntStatus(IN P_ADAPTER_T prAdapter, OUT PUINT_32 pu4IntStatus);
 #endif
 
-VOID nicPmTriggerDriverOwn(IN P_ADAPTER_T prAdapter);
+VOID nicpmCheckAndTriggerDriverOwn(IN P_ADAPTER_T prAdapter);
 
 BOOLEAN nicpmSetDriverOwn(IN P_ADAPTER_T prAdapter);
 
@@ -314,5 +316,13 @@ WLAN_STATUS nicApplyNetworkAddress(IN P_ADAPTER_T prAdapter);
 UINT_8 nicGetChipEcoVer(VOID);
 BOOLEAN nicIsEcoVerEqualTo(UINT_8 ucEcoVer);
 BOOLEAN nicIsEcoVerEqualOrLaterTo(UINT_8 ucEcoVer);
+
+/*----------------------------------------------------------------------------*/
+/* uApsd setting                                                           */
+/*----------------------------------------------------------------------------*/
+
+WLAN_STATUS nicSetUapsdParam(IN P_ADAPTER_T prAdapter,
+			     IN P_PARAM_CUSTOM_UAPSD_PARAM_STRUCT_T prUapsdParams,
+			     IN ENUM_NETWORK_TYPE_T eNetworkTypeIdx);
 
 #endif /* _NIC_H */

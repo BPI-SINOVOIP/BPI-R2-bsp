@@ -339,9 +339,11 @@ extern void spm_mainpll_on_unrequest(const char *drv_name);
 
 /* for TWAM in MET */
 extern void spm_twam_register_handler(twam_handler_t handler);
-extern void spm_twam_enable_monitor(const struct twam_sig *twamsig, bool speed_mode,
-				    unsigned int window_len);
+extern void spm_twam_enable_monitor(const struct twam_sig *twamsig, bool speed_mode);
 extern void spm_twam_disable_monitor(void);
+extern void spm_twam_set_idle_select(unsigned int sel);
+extern void spm_twam_set_window_length(unsigned int len);
+extern void spm_twam_set_mon_type(struct twam_sig *mon);
 
 extern uint32_t mt_xo_get_current_capid(void);
 

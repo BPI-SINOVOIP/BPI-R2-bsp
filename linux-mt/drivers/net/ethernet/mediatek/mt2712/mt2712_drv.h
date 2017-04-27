@@ -42,6 +42,7 @@ inline unsigned int mtk_eth_reg_read(unsigned long addr);
 #ifdef QUEUE_SELECT_ALGO
 u16	select_queue(struct net_device *dev, struct sk_buff *skb);
 #endif
+int send_frame(struct prv_data *pdata, int num);
 
 #endif
 

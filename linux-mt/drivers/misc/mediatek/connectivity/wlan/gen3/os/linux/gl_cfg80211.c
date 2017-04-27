@@ -572,6 +572,7 @@ int mtk_cfg80211_scan(struct wiphy *wiphy,
 	WLAN_STATUS rStatus;
 	UINT_32 i, u4BufLen;
 	PARAM_SCAN_REQUEST_ADV_T rScanRequest;
+	UINT_32 num_ssid = 0;
 
 	prGlueInfo = (P_GLUE_INFO_T) wiphy_priv(wiphy);
 	ASSERT(prGlueInfo);
@@ -581,20 +582,20 @@ int mtk_cfg80211_scan(struct wiphy *wiphy,
 		return -EBUSY;
 
 	kalMemZero(&rScanRequest, sizeof(PARAM_SCAN_REQUEST_ADV_T));
-	DBGLOG(REQ, TRACE, "mtk_cfg80211_scan(), original n_ssids=%d\n", request->n_ssids);
 
+	num_ssid = (UINT_32)request->n_ssids;
 	if (request->n_ssids == 0) {
 		rScanRequest.u4SsidNum = 0;
 	} else if (request->n_ssids <= (SCN_SSID_MAX_NUM + 1)) {
 		if ((request->ssids[request->n_ssids - 1].ssid[0] == 0)
 			|| (request->ssids[request->n_ssids - 1].ssid_len == 0))
-			request->n_ssids--; /* remove the rear NULL SSID if this is a wildcard scan*/
+			num_ssid--; /* remove the rear NULL SSID if this is a wildcard scan*/
 
-		if (request->n_ssids == (SCN_SSID_MAX_NUM + 1)) /* remove the rear SSID if this is a specific scan */
-			request->n_ssids--;
-		rScanRequest.u4SsidNum = request->n_ssids;
+		if (num_ssid == (SCN_SSID_MAX_NUM + 1)) /* remove the rear SSID if this is a specific scan */
+			num_ssid--;
 
-		for (i = 0; i < request->n_ssids; i++) {
+		rScanRequest.u4SsidNum = num_ssid; /* real SSID number to firmware */
+		for (i = 0; i < rScanRequest.u4SsidNum; i++) {
 			COPY_SSID(rScanRequest.rSsid[i].aucSsid, rScanRequest.rSsid[i].u4SsidLen,
 				  request->ssids[i].ssid, request->ssids[i].ssid_len);
 		}
@@ -602,7 +603,7 @@ int mtk_cfg80211_scan(struct wiphy *wiphy,
 		DBGLOG(REQ, ERROR, "request->n_ssids:%d\n", request->n_ssids);
 		return -EINVAL;
 	}
-	DBGLOG(REQ, INFO, "mtk_cfg80211_scan(), n_ssids=%d\n", request->n_ssids);
+	DBGLOG(REQ, INFO, "mtk_cfg80211_scan(), n_ssids=%d, num_ssid=%d\n", request->n_ssids, num_ssid);
 
 	if (request->ie_len > 0) {
 		rScanRequest.u4IELength = request->ie_len;
@@ -2084,34 +2085,79 @@ mtk_cfg80211_sched_scan_start(IN struct wiphy *wiphy,
 	UINT_32 i, u4BufLen;
 	P_PARAM_SCHED_SCAN_REQUEST prSchedScanRequest;
 	P_SCAN_INFO_T prScanInfo;
+#if CFG_SUPPORT_SCHED_SCN_SSID_SETS
+	UINT_32 num = 0;
+#endif
 
-	DBGLOG(REQ, INFO, "--> %s()\n", __func__);
+	DBGLOG(REQ, INFO, "--> %s() n_ssid:%d , match_set:%d\n", __func__, request->n_ssids, request->n_match_sets);
 
 	prGlueInfo = (P_GLUE_INFO_T) wiphy_priv(wiphy);
 	ASSERT(prGlueInfo);
 
 	/* check if there is any pending scan/sched_scan not yet finished */
 	if (prGlueInfo->prScanRequest != NULL || prGlueInfo->prSchedScanRequest != NULL) {
-		DBGLOG(SCN, INFO, "(prGlueInfo->prScanRequest != NULL || prGlueInfo->prSchedScanRequest != NULL)\n");
+		DBGLOG(SCN, ERROR, "(prGlueInfo->prScanRequest != NULL || prGlueInfo->prSchedScanRequest != NULL)\n");
 		return -EBUSY;
 	} else if (request == NULL || request->n_match_sets > CFG_SCAN_SSID_MATCH_MAX_NUM) {
-		DBGLOG(SCN, INFO, "(request == NULL || request->n_match_sets > CFG_SCAN_SSID_MATCH_MAX_NUM)\n");
+		DBGLOG(SCN, ERROR, "(request == NULL || request->n_match_sets > CFG_SCAN_SSID_MATCH_MAX_NUM)\n");
 		/* invalid scheduled scan request */
 		return -EINVAL;
 	} else if (!request->n_match_sets) {
 		/* invalid scheduled scan request */
 		return -EINVAL;
-	} else if (request->n_match_sets > CFG_SCAN_SSID_MATCH_MAX_NUM) {
-		DBGLOG(SCN, INFO, "request->n_match_sets %d > CFG_SCAN_SSID_MATCH_MAX_NUM\n", request->n_match_sets);
-		request->n_match_sets = CFG_SCAN_SSID_MATCH_MAX_NUM;
 	}
+#if CFG_SUPPORT_SCHED_SCN_SSID_SETS
+	else if (!request->n_ssids || request->n_ssids > CFG_SCAN_HIDDEN_SSID_MAX_NUM) {
+		/* invalid scheduled scan request */
+		DBGLOG(SCN, ERROR, "invalid n_ssids=%d\n", request->n_ssids);
+		return -EINVAL;
+	}
+#endif
 
 	prSchedScanRequest = (P_PARAM_SCHED_SCAN_REQUEST) kalMemAlloc(sizeof(PARAM_SCHED_SCAN_REQUEST), VIR_MEM_TYPE);
 	if (prSchedScanRequest == NULL) {
-		DBGLOG(SCN, INFO, "(prSchedScanRequest == NULL) kalMemAlloc fail\n");
+		DBGLOG(SCN, ERROR, "(prSchedScanRequest == NULL) kalMemAlloc fail\n");
 		return -ENOMEM;
 	}
+	kalMemZero(prSchedScanRequest, sizeof(PARAM_SCHED_SCAN_REQUEST));
 
+#if CFG_SUPPORT_SCHED_SCN_SSID_SETS
+	/* passed in the probe_reqs in active scans */
+	if (request->ssids) {
+		for (i = 0; i < request->n_ssids; i++) {
+			DBGLOG(SCN, TRACE, "ssids : (%d)[%s]\n", i, request->ssids[i].ssid);
+			/* driver ignored the null ssid */
+			if (request->ssids[i].ssid_len == 0 || request->ssids[i].ssid[0] == 0)
+				DBGLOG(SCN, WARN, "ignore the null ssid, index:%d\n", i);
+			else {
+				COPY_SSID(prSchedScanRequest->arSsid[num].aucSsid,
+					  prSchedScanRequest->arSsid[num].u4SsidLen,
+					  request->ssids[i].ssid, request->ssids[i].ssid_len);
+				num++;
+			}
+		}
+	}
+	prSchedScanRequest->u4SsidNum = num;
+	num = 0;
+	if (request->match_sets) {
+		for (i = 0; i < request->n_match_sets; i++) {
+			DBGLOG(SCN, TRACE, "match : (%d)[%s]\n", i, request->match_sets[i].ssid.ssid);
+			/* driver ignored the null ssid */
+			if (request->match_sets[i].ssid.ssid_len == 0
+				|| request->match_sets[i].ssid.ssid[0] == 0)
+				DBGLOG(SCN, WARN, "ignore the null ssid, index:%d\n", i);
+			else {
+				COPY_SSID(prSchedScanRequest->arMatchSsid[num].aucSsid,
+					  prSchedScanRequest->arMatchSsid[num].u4SsidLen,
+					  request->match_sets[i].ssid.ssid,
+					  request->match_sets[i].ssid.ssid_len);
+				prSchedScanRequest->acRssiThresold[i] = (INT_8)request->match_sets[i].rssi_thold;
+				num++;
+			}
+		}
+	}
+	prSchedScanRequest->u4MatchSsidNum = num;
+#else
 	prSchedScanRequest->u4SsidNum = request->n_match_sets;
 	for (i = 0; i < request->n_match_sets; i++) {
 		if (request->match_sets == NULL || &(request->match_sets[i]) == NULL) {
@@ -2123,18 +2169,27 @@ mtk_cfg80211_sched_scan_start(IN struct wiphy *wiphy,
 			prSchedScanRequest->acRssiThresold[i] = 0;/* (INT_8)request->match_sets[i].rssi_thold;*/
 		}
 	}
+#endif
 
 	prSchedScanRequest->u4IELength = request->ie_len;
-	if (request->ie_len > 0)
-		prSchedScanRequest->pucIE = (PUINT_8) (request->ie);
+	if (request->ie_len > 0) {
+		prSchedScanRequest->pucIE = kalMemAlloc(request->ie_len, VIR_MEM_TYPE);
+		if (prSchedScanRequest->pucIE == NULL) {
+			DBGLOG(SCN, ERROR, "prSchedScanRequest->pucIE kalMemAlloc fail\n");
+		} else {
+			kalMemZero(prSchedScanRequest->pucIE, request->ie_len);
+			kalMemCopy(prSchedScanRequest->pucIE, (PUINT_8)request->ie, request->ie_len);
+		}
+	}
 
 	prSchedScanRequest->u2ScanInterval = (UINT_16) (request->scan_plans[0].interval);
 
 	prSchedScanRequest->ucChnlNum = (UINT_8)request->n_channels;
 	prSchedScanRequest->pucChannels = kalMemAlloc(request->n_channels, VIR_MEM_TYPE);
-	if (!prSchedScanRequest->pucChannels)
+	if (!prSchedScanRequest->pucChannels) {
+		DBGLOG(SCN, ERROR, "prSchedScanRequest->pucChannels kalMemAlloc fail\n");
 		prSchedScanRequest->ucChnlNum = 0;
-	else
+	} else
 		for (i = 0; i < request->n_channels; i++)
 			prSchedScanRequest->pucChannels[i] =
 				nicFreq2ChannelNum(request->channels[i]->center_freq * 1000);
@@ -2144,6 +2199,7 @@ mtk_cfg80211_sched_scan_start(IN struct wiphy *wiphy,
 			   prSchedScanRequest, sizeof(PARAM_SCHED_SCAN_REQUEST), FALSE, FALSE, TRUE, &u4BufLen);
 
 	kalMemFree(prSchedScanRequest->pucChannels, VIR_MEM_TYPE, request->n_channels);
+	kalMemFree(prSchedScanRequest->pucIE, VIR_MEM_TYPE, request->ie_len);
 	kalMemFree(prSchedScanRequest, VIR_MEM_TYPE, sizeof(PARAM_SCHED_SCAN_REQUEST));
 
 	if (rStatus != WLAN_STATUS_SUCCESS) {

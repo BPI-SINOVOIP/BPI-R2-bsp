@@ -966,7 +966,6 @@ WMT_IC_OPS wmt_ic_ops_soc = {
 	.is_aee_dump_support = mtk_wcn_soc_aee_dump_flag_get,
 	.trigger_stp_assert = mtk_wcn_soc_trigger_assert,
 	.deep_sleep_ctrl = NULL,
-	.deep_sleep_flag_get = NULL,
 };
 
 /*******************************************************************************
@@ -1068,7 +1067,7 @@ static INT32 mtk_wcn_soc_sw_init(P_WMT_HIF_CONF pWmtHifConf)
 	WMT_DBG_FUNC("patch total num = [%d]\n", patch_num);
 
 #if CFG_WMT_PATCH_DL_OPTM
-	if (wmt_ic_ops_soc.icId == 0x0279) {
+	if (wmt_ic_ops_soc.icId == 0x0279 || wmt_ic_ops_soc.icId == 0x0507) {
 		iRet = wmt_core_init_script(set_mcuclk_table_3, osal_array_size(set_mcuclk_table_3));
 		if (iRet)
 			WMT_ERR_FUNC("set_mcuclk_table_3 fail(%d)\n", iRet);
@@ -1093,7 +1092,7 @@ static INT32 mtk_wcn_soc_sw_init(P_WMT_HIF_CONF pWmtHifConf)
 	}
 
 #if CFG_WMT_PATCH_DL_OPTM
-	if (wmt_ic_ops_soc.icId == 0x0279) {
+	if (wmt_ic_ops_soc.icId == 0x0279 || wmt_ic_ops_soc.icId == 0x0507) {
 		iRet = wmt_core_init_script(set_mcuclk_table_4, osal_array_size(set_mcuclk_table_4));
 		if (iRet)
 			WMT_ERR_FUNC("set_mcuclk_table_4 fail(%d)\n", iRet);
@@ -1147,6 +1146,7 @@ static INT32 mtk_wcn_soc_sw_init(P_WMT_HIF_CONF pWmtHifConf)
 	    (wmt_ic_ops_soc.icId == 0x6582) ||
 	    (wmt_ic_ops_soc.icId == 0x6592) ||
 	    (wmt_ic_ops_soc.icId == 0x0279) ||
+	    (wmt_ic_ops_soc.icId == 0x0507) ||
 	    (wmt_ic_ops_soc.icId == 0x0326) ||
 	    (wmt_ic_ops_soc.icId == 0x0551) ||
 	    (wmt_ic_ops_soc.icId == 0x0321) ||
@@ -1276,6 +1276,7 @@ static INT32 mtk_wcn_soc_sw_init(P_WMT_HIF_CONF pWmtHifConf)
 		iRet = wmt_core_rx(evtbuf, sizeof(WMT_GET_SOC_ADIE_CHIPID_EVT), &u4Res);
 		if (iRet || (u4Res != sizeof(WMT_GET_SOC_ADIE_CHIPID_EVT))) {
 			WMT_ERR_FUNC("wmt_core:read A die chipid EVT fail(%d),size(%d)\n", iRet, u4Res);
+			mtk_wcn_stp_dbg_dump_package();
 			return -17;
 		}
 
@@ -1290,9 +1291,10 @@ static INT32 mtk_wcn_soc_sw_init(P_WMT_HIF_CONF pWmtHifConf)
 				WMT_ERR_FUNC("wmt_core:read A die efuse CMD fail(%d),size(%d)\n", iRet, u4Res);
 			osal_memset(evtbuf, 0, sizeof(evtbuf));
 			iRet = wmt_core_rx(evtbuf, sizeof(WMT_GET_SOC_6625_L_EVT), &u4Res);
-			if (iRet || (u4Res != sizeof(WMT_GET_SOC_6625_L_EVT)))
+			if (iRet || (u4Res != sizeof(WMT_GET_SOC_6625_L_EVT))) {
 				WMT_ERR_FUNC("wmt_core:read A die efuse EVT fail(%d),size(%d)\n", iRet, u4Res);
-
+				mtk_wcn_stp_dbg_dump_package();
+			}
 			WMT_INFO_FUNC("read SOC Adie Efuse(0x120) value:0x%2x,0x%2x,0x%2x,0x%2x -> %s\n",
 				      evtbuf[u4Res - 4], evtbuf[u4Res - 3], evtbuf[u4Res - 2], evtbuf[u4Res - 1],
 				      evtbuf[u4Res - 2] == 0x31 ? "MT6625L" : "MT6625");
@@ -1316,7 +1318,7 @@ static INT32 mtk_wcn_soc_sw_init(P_WMT_HIF_CONF pWmtHifConf)
 
 		switch (aDieChipid) {
 		case 0x6625:
-			if (pmicChipid == 0x6322) {
+			if (pmicChipid == 0x6322 || pmicChipid == 0x6356) {
 				WMT_INFO_FUNC("wmt-core:enable wifi 5G support\n");
 				ctrlPa1 = WIFI_5G_PALDO;
 				ctrlPa2 = PALDO_ON;
@@ -1509,8 +1511,10 @@ static INT32 mtk_wcn_soc_gps_sync_ctrl(WMT_IC_PIN_STATE state, UINT32 flag)
 	INT32 iRet = -1;
 	UINT32 uVal = 0;
 
-	/* mt6797 can not access reg:0x80050078 and no need to do GPS SYNC */
-	if (wmt_ic_ops_soc.icId != 0x0279) {
+	/* gen3(6631) CONSYS can not access reg:0x80050078 and no need to do GPS SYNC
+	 * may cause bus hang
+	 */
+	if (wmt_ic_ops_soc.icId != 0x0279 && wmt_ic_ops_soc.icId != 0x0507) {
 		if (state == WMT_IC_PIN_MUX)
 			uVal = 0x1 << 28;
 		else
@@ -1746,7 +1750,7 @@ static INT32 wmt_stp_wifi_lte_coex(VOID)
 			iRet =
 			    wmt_core_init_script(set_wifi_lte_coex_table_1, osal_array_size(set_wifi_lte_coex_table_1));
 			WMT_DBG_FUNC("wmt_core:set_wifi_lte_coex_table_1 %s(%d)\n", iRet ? "fail" : "ok", iRet);
-		} else if (wmt_ic_ops_soc.icId == 0x0279) {
+		} else if (wmt_ic_ops_soc.icId == 0x0279 || wmt_ic_ops_soc.icId == 0x0507) {
 			/* add WMT_COXE_CONFIG_EXT_COMPONENT_OPCODE command for 2G4 eLNA demand*/
 			if (pWmtGenConf->coex_wmt_ext_component) {
 				WMT_INFO_FUNC("coex_wmt_ext_component:0x%x\n", pWmtGenConf->coex_wmt_ext_component);
@@ -2156,6 +2160,7 @@ static INT32 mtk_wcn_soc_patch_dwn(UINT32 index)
 	    wmt_ic_ops_soc.icId == 0x6571 ||
 	    wmt_ic_ops_soc.icId == 0x0326 ||
 	    wmt_ic_ops_soc.icId == 0x0551 ||
+		wmt_ic_ops_soc.icId == 0x0690 ||
 	    wmt_ic_ops_soc.icId == 0x0321 ||
 		wmt_ic_ops_soc.icId == 0x0335 ||
 	    wmt_ic_ops_soc.icId == 0x0337 ||
@@ -2175,6 +2180,13 @@ static INT32 mtk_wcn_soc_patch_dwn(UINT32 index)
 		WMT_PATCH_P_ADDRESS_CMD[9] = 0x0b;
 	}
 
+	if (wmt_ic_ops_soc.icId == 0x0507) {
+		/* MT6759 patch RAM base */
+		WMT_PATCH_ADDRESS_CMD[8] = 0x18;
+		WMT_PATCH_ADDRESS_CMD[9] = 0x05;
+		WMT_PATCH_P_ADDRESS_CMD[8] = 0x7c;
+		WMT_PATCH_P_ADDRESS_CMD[9] = 0x0b;
+	}
 	/*send wmt part patch address command */
 	iRet =
 	    wmt_core_tx((PUINT8) &WMT_PATCH_ADDRESS_CMD[0], sizeof(WMT_PATCH_ADDRESS_CMD), &u4Res, MTK_WCN_BOOL_FALSE);
@@ -2187,6 +2199,7 @@ static INT32 mtk_wcn_soc_patch_dwn(UINT32 index)
 	iRet = wmt_core_rx(addressevtBuf, sizeof(WMT_PATCH_ADDRESS_EVT), &u4Res);
 	if (iRet || (u4Res != sizeof(WMT_PATCH_ADDRESS_EVT))) {
 		WMT_ERR_FUNC("wmt_core:wmt patch address EVT fail(%d),size(%d)\n", iRet, u4Res);
+		mtk_wcn_stp_dbg_dump_package();
 		iRet -= 1;
 		goto done;
 	}
@@ -2215,6 +2228,7 @@ static INT32 mtk_wcn_soc_patch_dwn(UINT32 index)
 	iRet = wmt_core_rx(addressevtBuf, sizeof(WMT_PATCH_P_ADDRESS_EVT), &u4Res);
 	if (iRet || (u4Res != sizeof(WMT_PATCH_P_ADDRESS_EVT))) {
 		WMT_ERR_FUNC("wmt_core:wmt patch address EVT fail(%d),size(%d),index(%d)\n", iRet, u4Res, index);
+		mtk_wcn_stp_dbg_dump_package();
 		iRet -= 1;
 		goto done;
 	}
@@ -2267,6 +2281,7 @@ static INT32 mtk_wcn_soc_patch_dwn(UINT32 index)
 		if (iRet || (u4Res != sizeof(WMT_PATCH_EVT))) {
 			WMT_ERR_FUNC("wmt_core: read WMT_PATCH_EVT length(%d, %d) fail(%d)\n", sizeof(WMT_PATCH_EVT),
 				     u4Res, iRet);
+			mtk_wcn_stp_dbg_dump_package();
 			iRet -= 1;
 			break;
 		}
@@ -2458,6 +2473,7 @@ static INT32 mtk_wcn_soc_patch_dwn(VOID)
 		if (iRet || (u4Res != sizeof(WMT_PATCH_EVT))) {
 			WMT_ERR_FUNC("wmt_core: read WMT_PATCH_EVT length(%d, %d) fail(%d)\n", sizeof(WMT_PATCH_EVT),
 				     u4Res, iRet);
+			mtk_wcn_stp_dbg_dump_package();
 			iRet -= 1;
 			break;
 		}

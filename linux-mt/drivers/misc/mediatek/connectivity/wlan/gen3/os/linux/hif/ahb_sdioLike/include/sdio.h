@@ -110,8 +110,8 @@ int sdio_cccr_write(UINT32 addr, UINT_8 value);
 int sdio_cr_read(UINT32 addr, UINT32 *value);
 int sdio_cr_write(UINT32 addr, UINT32 value);
 
-UINT32 sdio_cr_readl(volatile unsigned int *HifBaseAddr, unsigned int addr);
-void sdio_cr_writel(UINT32 b, volatile unsigned int *HifBaseAddr, unsigned int addr);
+UINT_32 sdio_cr_readl(volatile UINT_8 *prHifBaseAddr, UINT_32 addr);
+VOID sdio_cr_writel(UINT_32 value, volatile UINT_8 *prHifBaseAddr, UINT_32 addr);
 
 int sdio_open(void);
 int sdio_close(void);
@@ -140,11 +140,11 @@ extern UINT_8 **g_pHifRegBaseAddr;
 
 #define __disable_irq()						\
 {											\
-	writel(0x01, (volatile UINT_32 *)(*g_pHifRegBaseAddr + 0x200));\
+	writel(0x01, (volatile UINT_32*)(*g_pHifRegBaseAddr + 0x200));\
 }
 #define __enable_irq()						\
 {											\
-	writel(0, (volatile UINT_32 *)(*g_pHifRegBaseAddr + 0x200));\
+	writel(0, (volatile UINT_32*)(*g_pHifRegBaseAddr + 0x200));\
 }
 
 /*  ===========================  PART 2: mmc/sdio.h ============================ */

@@ -35,7 +35,7 @@
 ********************************************************************************
 */
 #include "precomp.h"
-#if defined(MT6797)
+#if defined(MT6631)
 #include "sdio.h"
 #endif
 
@@ -126,14 +126,6 @@ static IST_EVENT_FUNCTION apfnEventFuncTable[] = {
 *                              F U N C T I O N S
 ********************************************************************************
 */
-
-#if defined(MT6797)
-BOOLEAN
-HifIsFwOwn(P_ADAPTER_T prAdapter)
-{
-	return prAdapter->fgIsFwOwn;
-}
-#endif
 /*----------------------------------------------------------------------------*/
 /*!
 * @brief This routine is responsible for the allocation of the data structures
@@ -327,7 +319,7 @@ VOID nicReleaseAdapterMemory(IN P_ADAPTER_T prAdapter)
 VOID nicDisableInterrupt(IN P_ADAPTER_T prAdapter)
 {
 	ASSERT(prAdapter);
-#if defined(MT6797)
+#if defined(MT6631)
 	HAL_MCR_WR(prAdapter, MCR_WHLPCR, WHLPCR_INT_EN_CLR);
 #else
 	HAL_BYTE_WR(prAdapter, MCR_WHLPCR, WHLPCR_INT_EN_CLR);
@@ -366,7 +358,7 @@ VOID nicEnableInterrupt(IN P_ADAPTER_T prAdapter)
 		/* If INT was not enabled, enable it and also set LPOwn now */
 		else {
 			HAL_MCR_WR(prAdapter, MCR_WHLPCR, WHLPCR_FW_OWN_REQ_SET | WHLPCR_INT_EN_SET);
-#if defined(MT6797)
+#if defined(MT6631)
 			__enable_irq();
 #endif
 			prAdapter->fgIsFwOwn = TRUE;
@@ -374,7 +366,7 @@ VOID nicEnableInterrupt(IN P_ADAPTER_T prAdapter)
 	}
 	/* If INT was not enabled, enable it now */
 	else if (!fgIsIntEnableCache) {
-#if defined(MT6797)
+#if defined(MT6631)
 		HAL_MCR_WR(prAdapter, MCR_WHLPCR, WHLPCR_INT_EN_SET);
 		__enable_irq();
 #else
@@ -425,13 +417,6 @@ VOID nicSDIOInit(IN P_ADAPTER_T prAdapter)
 
 }				/* end of nicSDIOInit() */
 
-#if defined(MT6797) /* chk if HIF clk src is on */
-#define TOP_AON_CFG_BASE 0x180c1000
-#define TOP_CKMON	(0x10c)
-#define TOP_PWRCTLCR	(0x110)
-#define TOP_CKGEN3	(0x114)
-#endif
-
 /*----------------------------------------------------------------------------*/
 /*!
 * @brief Read interrupt status from hardware
@@ -446,13 +431,6 @@ VOID nicSDIOInit(IN P_ADAPTER_T prAdapter)
 VOID nicSDIOReadIntStatus(IN P_ADAPTER_T prAdapter, OUT PUINT_32 pu4IntStatus)
 {
 	P_SDIO_CTRL_T prSDIOCtrl;
-#if defined(MT6797) /* chk if HIF clk src is on */
-	UINT_8 *connTopAonBaseAddr = ioremap(TOP_AON_CFG_BASE, 0x120);
-	UINT_8 *connTopCkMonAddr = (UINT_8 *)connTopAonBaseAddr + TOP_CKMON;
-	UINT_8 *connTopPwrCtrlAddr = (UINT_8 *)connTopAonBaseAddr + TOP_PWRCTLCR;
-	UINT_8 *connTopCkGen3Addr = (UINT_8 *)connTopAonBaseAddr + TOP_CKGEN3;
-	UINT_32 u4CkMon, u4PwrCtrl, u4CkGen3, i, u4CpuPcr = 0;
-#endif
 
 	DEBUGFUNC("nicSDIOReadIntStatus");
 
@@ -461,30 +439,6 @@ VOID nicSDIOReadIntStatus(IN P_ADAPTER_T prAdapter, OUT PUINT_32 pu4IntStatus)
 
 	prSDIOCtrl = prAdapter->prSDIOCtrl;
 	ASSERT(prSDIOCtrl);
-
-#if defined(MT6797) /* chk if HIF clk src is on */
-	u4PwrCtrl = readl((volatile UINT_32 *)connTopPwrCtrlAddr);
-	u4PwrCtrl &= BITS(28, 29);
-	u4PwrCtrl >>= 28;
-
-	if (u4PwrCtrl != 0x1) {
-		u4CkMon = readl((volatile UINT_32 *)connTopCkMonAddr);
-		u4PwrCtrl = readl((volatile UINT_32 *)connTopPwrCtrlAddr);
-		u4CkGen3 = readl((volatile UINT_32 *)connTopCkGen3Addr);
-		DBGLOG(INTR, ERROR, "%p %p %p %p, CkMon = 0x%x, PwrCtrl = 0x%x, CkGen3 = 0x%x\n",
-			connTopAonBaseAddr, connTopCkMonAddr, connTopPwrCtrlAddr, connTopCkGen3Addr,
-			u4CkMon, u4PwrCtrl, u4CkGen3);
-
-		for (i = 0; i < 100; i++) {
-			u4CpuPcr = wmt_plat_read_cpupcr();
-			DBGLOG(INTR, ERROR, "cpupcr = 0x%x\n", u4CpuPcr);
-		}
-		glResetTrigger(prAdapter);
-		iounmap(connTopAonBaseAddr);
-		return;
-	}
-	iounmap(connTopAonBaseAddr);
-#endif
 
 	HAL_PORT_RD(prAdapter,
 		    MCR_WHISR,
@@ -619,34 +573,75 @@ WLAN_STATUS nicProcessIST_impl(IN P_ADAPTER_T prAdapter, IN UINT_32 u4IntStatus)
 
 /*----------------------------------------------------------------------------*/
 /*!
-* @brief Verify the CHIP ID
+* @brief Query HW code from HIFSYS CR and convert to SW used Chip ID
+*
+* @param prAdapter      a pointer to adapter private data structure.
+*
+* @return Chip ID in hex format
+*/
+/*----------------------------------------------------------------------------*/
+UINT_16 nicGetChipID(IN P_ADAPTER_T prAdapter)
+{
+	ASSERT(prAdapter);
+
+	if (prAdapter->fgIsReadRevID == FALSE) {
+
+		HAL_GET_CHIP_ID_VER(prAdapter, &prAdapter->u2ChipID, &prAdapter->ucRevID);
+
+		/* Convert HW code to SW used Chip ID */
+		if (prAdapter->u2ChipID == 0x0279)	/* Everest */
+			prAdapter->u2ChipID = 0x6797;
+		if (prAdapter->u2ChipID == 0x0507)	/* Alaska */
+			prAdapter->u2ChipID = 0x6759;
+
+		prAdapter->fgIsReadRevID = TRUE;
+	}
+
+	return prAdapter->u2ChipID;
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
+* @brief Verify the Chip ID (HW code) from HIFSYS CR
 *
 * @param prAdapter      a pointer to adapter private data structure.
 *
 *
-* @retval TRUE          CHIP ID is the same as the setting compiled
-* @retval FALSE         CHIP ID is different from the setting compiled
+* @retval TRUE          HW code is the same as the setting compiled
+* @retval FALSE         HW code is different from the setting compiled
 */
 /*----------------------------------------------------------------------------*/
 BOOL nicVerifyChipID(IN P_ADAPTER_T prAdapter)
 {
 	UINT_32 u4CIR = 0;
+	UINT_32 u4HwCode = MTK_CHIP_REV;
 
 	ASSERT(prAdapter);
-
-	if (prAdapter->fgIsReadRevID)
-		return TRUE;
+	ASSERT(prAdapter->prGlueInfo);
 
 	HAL_MCR_RD(prAdapter, MCR_WCIR, &u4CIR);
 
-	DBGLOG(NIC, TRACE, "Chip ID: 0x%lx\n", u4CIR & WCIR_CHIP_ID);
-	DBGLOG(NIC, TRACE, "Revision ID: 0x%lx\n", ((u4CIR & WCIR_REVISION_ID) >> 16));
-
-	if ((u4CIR & WCIR_CHIP_ID) != MTK_CHIP_REV)
+#if defined(MT6631)
+#ifdef CONFIG_OF
+	if (prAdapter->prGlueInfo->rHifInfo.Dev) {
+		if (of_property_read_u32_index(prAdapter->prGlueInfo->rHifInfo.Dev->of_node,
+					       "hardware-values", 0, &u4HwCode))
+			DBGLOG(NIC, ERROR, "Failed to get hardware-values from DT! skip verify chip id\n");
+		else
+			if ((u4CIR & WCIR_CHIP_ID) != u4HwCode) {
+				DBGLOG(NIC, ERROR, "HW code mismatch from chip[%04x] and DT[%04x]\n",
+				       u4CIR & WCIR_CHIP_ID, u4HwCode);
+				return FALSE;
+			}
+	}
+#endif
+#else
+	if ((u4CIR & WCIR_CHIP_ID) != u4HwCode) {
+		DBGLOG(NIC, ERROR, "HW code mismatch from chip[%04x] and pre-defined[%04x]\n",
+			   u4CIR & WCIR_CHIP_ID, u4HwCode);
 		return FALSE;
-
-	prAdapter->ucRevID = (UINT_8) (((u4CIR & WCIR_REVISION_ID) >> 16) & 0xF);
-	prAdapter->fgIsReadRevID = TRUE;
+	}
+#endif
 
 	return TRUE;
 }
@@ -698,15 +693,13 @@ WLAN_STATUS nicInitializeAdapter(IN P_ADAPTER_T prAdapter)
 	ASSERT(prAdapter);
 
 	prAdapter->fgIsIntEnableWithLPOwnSet = FALSE;
-	prAdapter->fgIsReadRevID = FALSE;
 
 	do {
-		#if !defined(MT6797)
 		if (!nicVerifyChipID(prAdapter)) {
 			u4Status = WLAN_STATUS_FAILURE;
 			break;
 		}
-		#endif
+
 		/* 4 <1> MCR init */
 		nicMCRInit(prAdapter);
 
@@ -720,7 +713,7 @@ WLAN_STATUS nicInitializeAdapter(IN P_ADAPTER_T prAdapter)
 		nicHifInit(prAdapter);
 	} while (FALSE);
 
-	DBGLOG(NIC, INFO, "Chip ID[%04X] Version[E%u]\n", MTK_CHIP_REV, wlanGetEcoVersion(prAdapter));
+	DBGLOG(NIC, INFO, "Chip ID[%04X] Version[E%u]\n", nicGetChipID(prAdapter), wlanGetEcoVersion(prAdapter));
 
 	return u4Status;
 }
@@ -760,12 +753,12 @@ void nicRestoreSpiDefMode(IN P_ADAPTER_T prAdapter)
 VOID nicProcessAbnormalInterrupt(IN P_ADAPTER_T prAdapter)
 {
 	UINT_32 u4Value = 0;
-#if defined(MT6797)
+#if defined(MT6631)
 	UINT_32 u4Value1 = 0;
 #endif
 	prAdapter->prGlueInfo->IsrAbnormalCnt++;
 
-#if defined(MT6797)
+#if defined(MT6631)
 	HAL_MCR_RD(prAdapter, MCR_WASR, &u4Value);
 	HAL_MCR_RD(prAdapter, MCR_WASR2, &u4Value1);
 	DBGLOG(REQ, ERROR, "MCR_WASR: 0x%lx, MCR_WASR2: 0x%lx\n", u4Value, u4Value1);
@@ -1234,8 +1227,13 @@ UINT_32 nicChannelNum2Freq(UINT_32 u4ChannelNum)
 		u4ChannelInMHz = 3665;	/* 802.11y */
 	else if (u4ChannelNum == 137)
 		u4ChannelInMHz = 3685;	/* 802.11y */
+#if CFG_SUPPORT_QA_TOOL
+	else if (u4ChannelNum >= 34 && u4ChannelNum <= 181)
+		u4ChannelInMHz = 5000 + u4ChannelNum * 5;
+#else
 	else if (u4ChannelNum >= 34 && u4ChannelNum <= 165)
 		u4ChannelInMHz = 5000 + u4ChannelNum * 5;
+#endif
 	else if (u4ChannelNum >= 183 && u4ChannelNum <= 196)
 		u4ChannelInMHz = 4000 + u4ChannelNum * 5;
 	else
@@ -1373,6 +1371,18 @@ UINT_32 nicFreq2ChannelNum(UINT_32 u4FreqInKHz)
 		return 169;
 	case 5865000:
 		return 173;
+#if CFG_SUPPORT_QA_TOOL
+	case 5855000:
+		return 171;
+	case 5875000:
+		return 175;
+	case 5885000:
+		return 177;
+	case 5895000:
+		return 179;
+	case 5905000:
+		return 181;
+#endif
 	default:
 		DBGLOG(NIC, WARN, "Return Invalid Channelnum = %u\n", u4FreqInKHz);
 		return 0;
@@ -1813,6 +1823,9 @@ nicConfigPowerSaveProfile(IN P_ADAPTER_T prAdapter,
 /* prAdapter->rWlanInfo.ePowerSaveMode.ucPsProfile = (UINT_8)ePwrMode; */
 	prAdapter->rWlanInfo.arPowerSaveMode[ucBssIndex].ucBssIndex = ucBssIndex;
 	prAdapter->rWlanInfo.arPowerSaveMode[ucBssIndex].ucPsProfile = (UINT_8) ePwrMode;
+
+	if ((ucBssIndex == prAdapter->prAisBssInfo->ucBssIndex) && prAdapter->rWlanInfo.fgEnSpecPwrMgt)
+		return WLAN_STATUS_SUCCESS;
 
 	return wlanSendSetQueryCmd(prAdapter,
 				   CMD_ID_POWER_SAVE_MODE,
@@ -3879,3 +3892,87 @@ BOOLEAN nicIsEcoVerEqualOrLaterTo(UINT_8 ucEcoVer)
 
 	return TRUE;
 }
+
+WLAN_STATUS nicSetUapsdParam(IN P_ADAPTER_T prAdapter,
+	IN P_PARAM_CUSTOM_UAPSD_PARAM_STRUCT_T prUapsdParams, IN ENUM_NETWORK_TYPE_T eNetworkTypeIdx)
+{
+	CMD_CUSTOM_UAPSD_PARAM_STRUCT_T rCmdUapsdParam;
+	P_PM_PROFILE_SETUP_INFO_T prPmProfSetupInfo;
+	P_BSS_INFO_T prBssInfo;
+	WLAN_STATUS ret;
+
+	DEBUGFUNC("nicSetUApsdParam");
+
+	ASSERT(prAdapter);
+	ASSERT(prUapsdParams);
+
+	if (eNetworkTypeIdx >= NETWORK_TYPE_NUM) {
+		DBGLOG(NIC, ERROR, "nicSetUApsdParam Invalid eNetworkTypeIdx\n");
+		return WLAN_STATUS_FAILURE;
+	}
+
+	prBssInfo = prAdapter->aprBssInfo[eNetworkTypeIdx];
+	prPmProfSetupInfo = &prBssInfo->rPmProfSetupInfo;
+
+	kalMemZero(&rCmdUapsdParam, sizeof(CMD_CUSTOM_UAPSD_PARAM_STRUCT_T));
+
+	rCmdUapsdParam.fgEnAPSD = prUapsdParams->fgEnAPSD;
+	rCmdUapsdParam.fgEnAPSD_AcBe = prUapsdParams->fgEnAPSD_AcBe;
+	rCmdUapsdParam.fgEnAPSD_AcBk = prUapsdParams->fgEnAPSD_AcBk;
+	rCmdUapsdParam.fgEnAPSD_AcVo = prUapsdParams->fgEnAPSD_AcVo;
+	rCmdUapsdParam.fgEnAPSD_AcVi = prUapsdParams->fgEnAPSD_AcVi;
+	rCmdUapsdParam.ucMaxSpLen = prUapsdParams->ucMaxSpLen;
+
+	/* Fill BmpDeliveryAC and BmpTriggerAC by UapsdParams */
+	prPmProfSetupInfo->ucBmpDeliveryAC =
+	    ((prUapsdParams->fgEnAPSD_AcBe << 0) |
+	     (prUapsdParams->fgEnAPSD_AcBk << 1) |
+	     (prUapsdParams->fgEnAPSD_AcVi << 2) |
+	     (prUapsdParams->fgEnAPSD_AcVo << 3));
+
+	prPmProfSetupInfo->ucBmpTriggerAC =
+	    ((prUapsdParams->fgEnAPSD_AcBe << 0) |
+	     (prUapsdParams->fgEnAPSD_AcBk << 1) |
+	     (prUapsdParams->fgEnAPSD_AcVi << 2) |
+	     (prUapsdParams->fgEnAPSD_AcVo << 3));
+
+	prPmProfSetupInfo->ucUapsdSp = prUapsdParams->ucMaxSpLen;
+
+	DBGLOG(NIC, INFO, "nicSetUApsdParam EnAPSD[%d] Be[%d] Bk[%d] Vo[%d] Vi[%d] SPLen[%d]\n",
+		rCmdUapsdParam.fgEnAPSD, rCmdUapsdParam.fgEnAPSD_AcBe, rCmdUapsdParam.fgEnAPSD_AcBk,
+		rCmdUapsdParam.fgEnAPSD_AcVo, rCmdUapsdParam.fgEnAPSD_AcVi, rCmdUapsdParam.ucMaxSpLen);
+
+	switch (eNetworkTypeIdx) {
+	case NETWORK_TYPE_AIS:
+		ret = wlanSendSetQueryCmd(prAdapter,
+			CMD_ID_SET_UAPSD_PARAM,
+			TRUE,
+			FALSE,
+			FALSE,
+			NULL,
+			NULL,
+			sizeof(CMD_CUSTOM_UAPSD_PARAM_STRUCT_T),
+			(PUINT_8)&rCmdUapsdParam, NULL, 0);
+			break;
+
+	case NETWORK_TYPE_P2P:
+		ret = wlanoidSendSetQueryP2PCmd(prAdapter,
+			CMD_ID_SET_UAPSD_PARAM,
+			prBssInfo->ucBssIndex,
+			TRUE,
+			FALSE,
+			FALSE,
+			NULL,
+			NULL,
+			sizeof(CMD_CUSTOM_UAPSD_PARAM_STRUCT_T),
+			(PUINT_8)&rCmdUapsdParam, NULL, 0);
+			break;
+
+	default:
+		ret = WLAN_STATUS_FAILURE;
+		break;
+	}
+
+	return ret;
+}
+

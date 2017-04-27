@@ -326,26 +326,16 @@ static int mtk_ir_netlink_thread(void *pvArg)
 	char buff[IR_NETLINK_MSG_SIZE] = { 0 };
 
 	while (!kthread_should_stop()) {
-		MTK_IR_LOG("mtk_ir_netlink_thread begin\n");
-		set_current_state(TASK_INTERRUPTIBLE);
+		MTK_IR_TRD_LOG("mtk_ir_netlink_thread begin !!\n");
+		set_current_state(TASK_RUNNING);
 
 		spin_lock_irqsave(&(s_msg_q.msgq_lock), __flags);
 		ret = (s_msg_q.read == s_msg_q.write);
 		spin_unlock_irqrestore(&(s_msg_q.msgq_lock), __flags);
 
-		if (ret)	/* null data */
-			schedule();	/*  */
-
-		set_current_state(TASK_RUNNING);
-
-		if (kthread_should_stop())	/* other place want to stop this thread; */
-			continue;
-
+		if (ret == 0) {
 		spin_lock_irqsave(&(s_msg_q.msgq_lock), __flags);
-
 		memcpy(&head, (struct message_head *)(s_msg_q.read), IR_NETLINK_MESSAGE_HEADER);
-
-		MTK_IR_LOG("ir_netlink_msg\n");
 #if 0
 		MTK_IR_LOG("s_msg_q.read 0x%p\n", s_msg_q.read);
 		MTK_IR_LOG("s_msg_q.write 0x%p\n", s_msg_q.write);
@@ -353,7 +343,6 @@ static int mtk_ir_netlink_thread(void *pvArg)
 			   head.message_size);
 		MTK_IR_LOG("read message: %s\n", s_msg_q.read + IR_NETLINK_MESSAGE_HEADER);
 #endif
-
 		memcpy(buff, s_msg_q.read, IR_NETLINK_MESSAGE_HEADER + head.message_size);
 
 		s_msg_q.read += IR_NETLINK_MSG_SIZE;
@@ -362,9 +351,12 @@ static int mtk_ir_netlink_thread(void *pvArg)
 			s_msg_q.write = s_msg_q.start;
 		}
 		spin_unlock_irqrestore(&(s_msg_q.msgq_lock), __flags);
-		mtk_ir_genl_msg_send_to_user(buff, (head.message_size + IR_NETLINK_MESSAGE_HEADER),
-					     0);
-
+			mtk_ir_genl_msg_send_to_user(buff, (head.message_size + IR_NETLINK_MESSAGE_HEADER), 0);
+		}
+		set_current_state(TASK_INTERRUPTIBLE);
+		MTK_IR_TRD_LOG(" net schedule() >>>>\n");
+		schedule();
+		MTK_IR_TRD_LOG(" net schedule() <<<<\n");
 	}
 	return 0;
 

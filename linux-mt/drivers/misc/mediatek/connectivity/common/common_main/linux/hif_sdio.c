@@ -45,17 +45,9 @@
 
 /* #include "hif_sdio_chrdev.h" */
 
-#if MTK_HIF_SDIO_AUTOK_ENABLED
-#include <mt_boot.h>
-#endif
-
 #define mmc_power_up_ext(x)
 #define mmc_power_off_ext(x)
-#ifdef CONFIG_MTK_COMBO_CHIP_DEEP_SLEEP_SUPPORT
-MTK_WCN_BOOL g_hif_deep_sleep_flag = MTK_WCN_BOOL_TRUE;
-#else
 MTK_WCN_BOOL g_hif_deep_sleep_flag = MTK_WCN_BOOL_FALSE;
-#endif
 /*******************************************************************************
 *                              C O N S T A N T S
 ********************************************************************************
@@ -121,18 +113,13 @@ static _osal_inline_ INT32 hif_sdio_wifi_on(VOID);
 
 static _osal_inline_ INT32 hif_sdio_wifi_off(VOID);
 
-static _osal_inline_ INT32 hif_sdio_do_autok(struct sdio_func *func);
-
-#if 0
-static _osal_inline_ INT32 hif_sdio_is_autok_support(struct sdio_func *func);
-#endif
 
 static _osal_inline_ INT32 hif_sdio_deep_sleep_info_init(VOID);
 
 static _osal_inline_ INT32 hif_sdio_deep_sleep_info_set_act(UINT32 chipid, UINT16 func_num,
 		MTK_WCN_HIF_SDIO_CLTCTX ctx, UINT8 act_flag);
 
-static INT32 _hif_sdio_wake_up_ctrl(VOID);
+static INT32 _hif_sdio_wake_up_ctrl(MTK_WCN_HIF_SDIO_CLTCTX ctx);
 
 static _osal_inline_ INT32 wmt_tra_sdio_update(VOID);
 
@@ -436,7 +423,7 @@ static _osal_inline_ INT32 hif_sdio_deep_sleep_info_set_act(UINT32 chipid, UINT1
 	return 0;
 }
 
-static INT32 _hif_sdio_wake_up_ctrl(VOID)
+static INT32 _hif_sdio_wake_up_ctrl(MTK_WCN_HIF_SDIO_CLTCTX ctx)
 {
 	INT32 ret = 0;
 	INT32 gpio_state = -1;
@@ -445,9 +432,27 @@ static INT32 _hif_sdio_wake_up_ctrl(VOID)
 	INT32 sec = 0;
 	INT32 usec = 0;
 	INT32 polling_counter = 0;
+	UINT8 cccr_value = 0x0;
+	UINT32 cpupcr_value = 0x00;
+	INT32 i = 0;
+	UINT32 delay_us = 500;
+	WMT_GPIO_STATE_INFO gpio_state_list[2];
 
-	/*1.pull GPIO_CHIP_WAKE_UP_PIN  out 0*/
 	HIF_SDIO_DBG_FUNC("wakeup  chip from deep sleep!\n");
+	if (gpio_ctrl_info.gpio_ctrl_state[GPIO_CHIP_WAKE_UP_PIN].gpio_num != DEFAULT_PIN_ID) {
+		gpio_direction_output(gpio_ctrl_info.gpio_ctrl_state[GPIO_CHIP_WAKE_UP_PIN].gpio_num, 1);
+		HIF_SDIO_DBG_FUNC("wmt_gpio:set GPIO_CHIP_WAKE_UP_PIN out to 1: %d!\n",
+		gpio_get_value(gpio_ctrl_info.gpio_ctrl_state[GPIO_CHIP_WAKE_UP_PIN].gpio_num));
+	} else {
+		HIF_SDIO_ERR_FUNC("wmt_gpio:get GPIO_CHIP_WAKE_UP_PIN number error!\n");
+		return -2;
+	}
+	/*1.pull GPIO_CHIP_WAKE_UP_PIN  out 0*/
+	gpio_state_list[0].gpio_num =  gpio_ctrl_info.gpio_ctrl_state[GPIO_CHIP_WAKE_UP_PIN].gpio_num-280;
+	_wmt_gpio_pre_regs(gpio_state_list[0].gpio_num,  &gpio_state_list[0]);
+	gpio_state_list[1].gpio_num =  gpio_ctrl_info.gpio_ctrl_state[GPIO_CHIP_DEEP_SLEEP_PIN].gpio_num-280;
+	_wmt_gpio_pre_regs(gpio_state_list[1].gpio_num,  &gpio_state_list[1]);
+
 	if (gpio_ctrl_info.gpio_ctrl_state[GPIO_CHIP_WAKE_UP_PIN].gpio_num != DEFAULT_PIN_ID) {
 		gpio_direction_output(gpio_ctrl_info.gpio_ctrl_state[GPIO_CHIP_WAKE_UP_PIN].gpio_num, 0);
 		HIF_SDIO_DBG_FUNC("wmt_gpio:set GPIO_CHIP_WAKE_UP_PIN out to 0: %d!\n",
@@ -460,27 +465,56 @@ static INT32 _hif_sdio_wake_up_ctrl(VOID)
 	osal_gettimeofday(&sec_old, &usec_old);
 	HIF_SDIO_DBG_FUNC("wakeup flow, prepare polling DEEP_SLEEP_PIN high state, timing: %d us\n", usec_old);
 	while (1) {
+		osal_gettimeofday(&sec, &usec);
 		gpio_state =
 			gpio_get_value(gpio_ctrl_info.gpio_ctrl_state[GPIO_CHIP_DEEP_SLEEP_PIN].gpio_num);
-		osal_gettimeofday(&sec, &usec);
-		if (gpio_state == 1) {
-			HIF_SDIO_DBG_FUNC("wmt_gpio:Polling GPIO_CHIP_DEEP_SLEEP_PIN high success!\n");
-			if ((usec - usec_old) >= 6000)
+		if (gpio_state == 0) {
+			HIF_SDIO_DBG_FUNC("wmt_gpio:Polling GPIO_CHIP_DEEP_SLEEP_PIN low success!\n");
+			if (polling_counter >= 20)
 				HIF_SDIO_WARN_FUNC
-					("polling [GPIO_CHIP_DEEP_SLEEP_PIN] high success but over 6ms, time=(%d)us\n",
-					(usec - usec_old));
+					("polling ACK_B pin low success but over 20 count, time:%dus, count:%d\n",
+					(usec - usec_old), polling_counter);
 			polling_counter = 0;
 			break;
 		}
-		polling_counter++;
-		osal_gettimeofday(&sec, &usec);
-		if ((usec - usec_old) >= 15000) {
+		if (polling_counter >= 60) {
 			HIF_SDIO_ERR_FUNC
-				("polling [GPIO_CHIP_DEEP_SLEEP_PIN] high over 15ms, timing: %dus,counter:%d\n",
-				usec - usec_old, polling_counter);
+				("wake up fail!, polling ACK_B pin low over 50 count, time:%dus, count:%d\n",
+				(usec - usec_old), polling_counter);
+			HIF_SDIO_INFO_FUNC("Dump EINT_B, ACT_B history states!\n");
+			_wmt_dump_gpio_pre_regs(gpio_state_list[0]);
+			_wmt_dump_gpio_pre_regs(gpio_state_list[1]);
+			HIF_SDIO_INFO_FUNC("Dump EINT_B, ACT_B current states!\n");
+			_wmt_dump_gpio_regs(gpio_state_list[0].gpio_num);
+			_wmt_dump_gpio_regs(gpio_state_list[1].gpio_num);
+
+			HIF_SDIO_INFO_FUNC("read cccr info !\n");
+			for (i = 0; i < 8; i++) {
+				ret = mtk_wcn_hif_sdio_f0_readb(ctx, CCCR_F8 + i, &cccr_value);
+			if (ret)
+				HIF_SDIO_ERR_FUNC("read CCCR fail(%d), address(0x%x)\n", ret, CCCR_F8 + i);
+			else
+				HIF_SDIO_INFO_FUNC("read CCCR value(0x%x), address(0x%x)\n",
+						   cccr_value, CCCR_F8 + i);
+				cccr_value = 0x0;
+			}
+
+			HIF_SDIO_INFO_FUNC("read cpupcr info !\n");
+			for (i = 0; i < 5; i++) {
+				ret = mtk_wcn_hif_sdio_readl(ctx, SWPCDBGR, &cpupcr_value);
+				if (ret)
+					HIF_SDIO_ERR_FUNC("read cpupcr fail, ret(%d)\n", ret);
+				else
+				HIF_SDIO_ERR_FUNC("read cpupcr value (0x%x)\n", cpupcr_value);
+				msleep(20);
+			}
+			_wmt_dump_gpio_regs(gpio_state_list[0].gpio_num);
+			_wmt_dump_gpio_regs(gpio_state_list[1].gpio_num);
 			ret = -11;
 			break;
 		}
+		polling_counter++;
+		osal_usleep_range(delay_us, 2 * delay_us);
 	}
 	/*3.pull GPIO_CHIP_WAKE_UP_PIN high, clear interrupt*/
 	if (gpio_ctrl_info.gpio_ctrl_state[GPIO_CHIP_WAKE_UP_PIN].gpio_num != DEFAULT_PIN_ID) {
@@ -501,7 +535,7 @@ INT32 mtk_wcn_hif_sdio_deep_sleep_flag_set(MTK_WCN_BOOL flag)
 	return 0;
 }
 #endif
-INT32 mtk_wcn_hif_sdio_wake_up_ctrl(MTK_WCN_HIF_SDIO_CLTCTX ctx)
+INT32 hif_sdio_wake_up_ctrl(MTK_WCN_HIF_SDIO_CLTCTX ctx)
 {
 	UINT32 i = 0;
 	UINT32 j = 0;
@@ -541,13 +575,12 @@ INT32 mtk_wcn_hif_sdio_wake_up_ctrl(MTK_WCN_HIF_SDIO_CLTCTX ctx)
 		p_ds_clt_info->func_num, p_ds_info->chip_id);
 	if (g_hif_deep_sleep_flag) {
 		HIF_SDIO_DBG_FUNC("deep sleep feature is enable!\n");
-		ret = _hif_sdio_wake_up_ctrl();
+		ret = _hif_sdio_wake_up_ctrl(ctx);
 	} else
 		HIF_SDIO_DBG_FUNC("deep sleep feature is disable!\n");
 	mutex_unlock(&(g_hif_sdio_ds_info_list[i].lock));
 	return ret;
 }
-EXPORT_SYMBOL(mtk_wcn_hif_sdio_wake_up_ctrl);
 
 
 /*!
@@ -1877,10 +1910,6 @@ static INT32 hif_sdio_probe(struct sdio_func *func, const struct sdio_device_id 
 		HIF_SDIO_ERR_FUNC("sdio_enable_func failed!\n");
 		goto out;
 	}
-#if 0
-	if (hif_sdio_is_autok_support(func) == 0)
-		/* hif_sdio_do_autok(func); */
-#endif
 
 	/* 4 <3.2> set block size according to the table storing function characteristics */
 	if (hif_sdio_probed_funcp == 0) {
@@ -2411,7 +2440,6 @@ static _osal_inline_ INT32 hif_sdio_wifi_on(VOID)
 	INT32 probe_index = -1;
 	INT32 ret = 0;
 	INT32 ret2 = 0;
-	INT32 sdio_autok_flag = 0;
 	struct sdio_func *func;
 	UINT32 chip_id = 0;
 	UINT16 func_num = 0;
@@ -2434,7 +2462,6 @@ static _osal_inline_ INT32 hif_sdio_wifi_on(VOID)
 	/* MT6630 */
 	probe_index = hif_sdio_find_probed_list_index_by_id_func(0x037A, 0x6630, 1);
 	 if (probe_index >= 0) {
-		sdio_autok_flag = 1;
 		chip_id = 0x6630;
 		func_num = 1;
 		goto wifi_on_exist;
@@ -2442,7 +2469,6 @@ static _osal_inline_ INT32 hif_sdio_wifi_on(VOID)
 	/* MT6632 */
 	probe_index = hif_sdio_find_probed_list_index_by_id_func(0x037A, 0x6602, 1);
 	 if (probe_index >= 0) {
-		sdio_autok_flag = 1;
 		chip_id = 0x6632;
 		func_num = 1;
 		goto wifi_on_exist;
@@ -2469,10 +2495,6 @@ wifi_on_exist:
 	}
 	clt_index = g_hif_sdio_probed_func_list[probe_index].clt_idx;
 	if (clt_index >= 0) {	/* the function has been registered */
-		if (sdio_autok_flag)
-			hif_sdio_do_autok(g_hif_sdio_probed_func_list[probe_index].func);
-		else
-			HIF_SDIO_INFO_FUNC("sdio_autok_flag is not set\n", ret);
 		g_hif_sdio_probed_func_list[probe_index].sdio_irq_enabled = MTK_WCN_BOOL_FALSE;
 		/* 4 <4> claim irq for this function */
 		func = g_hif_sdio_probed_func_list[probe_index].func;
@@ -2743,56 +2765,6 @@ static _osal_inline_ INT32 hif_sdio_is_autok_support(struct sdio_func *func)
 	return iRet;
 }
 #endif
-
-
-static _osal_inline_ INT32 hif_sdio_do_autok(struct sdio_func *func)
-{
-	INT32 i_ret = 0;
-
-#if MTK_HIF_SDIO_AUTOK_ENABLED
-#if 0
-	BOOTMODE boot_mode;
-
-	boot_mode = get_boot_mode();
-	if (boot_mode == META_BOOT) {
-		HIF_SDIO_INFO_FUNC("omit autok in meta mode\n");
-		i_ret = 0;
-		return i_ret;
-	}
-#endif
-	HIF_SDIO_INFO_FUNC("wait_sdio_autok_ready++\n");
-	wait_sdio_autok_ready(func->card->host);
-	HIF_SDIO_INFO_FUNC("wait_sdio_autok_ready--\n");
-	i_ret = 0;
-
-#else
-	HIF_SDIO_ERR_FUNC("autok feature is not enabled.\n");
-#endif
-	return i_ret;
-}
-
-
-INT32 mtk_wcn_hif_sdio_do_autok(MTK_WCN_HIF_SDIO_CLTCTX ctx)
-{
-	INT32 i_ret = 0;
-
-	UINT8 probe_index = 0;
-	struct sdio_func *func = NULL;
-
-	probe_index = CLTCTX_IDX(ctx);
-	if (probe_index < CFG_CLIENT_COUNT)
-		func = g_hif_sdio_probed_func_list[probe_index].func;
-	else {
-		HIF_SDIO_WARN_FUNC("probe_index is %d, out of range!\n", probe_index);
-		return -1;
-	}
-
-	i_ret = hif_sdio_do_autok(func);
-
-	return i_ret;
-}
-EXPORT_SYMBOL(mtk_wcn_hif_sdio_do_autok);
-
 
 /*!
  * \brief

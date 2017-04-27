@@ -11,9 +11,9 @@
 * See http://www.gnu.org/licenses/gpl-2.0.html for more details.
 **/
 #include <linux/jiffies.h>
-#include "../inc/mtk_ir_common.h"
-#include "../inc/mtk_ir_core.h"
-#include "../inc/mtk_ir_regs.h" /* include ir registers */
+#include "mtk_ir_common.h"
+#include "mtk_ir_core.h"
+#include "mtk_ir_regs.h" /* include ir registers */
 #include "mtk_ir_cus_nec.h"	/* include customer's key map */
 
 #define MTK_NEC_1ST_PULSE_REPEAT	(3)
@@ -132,7 +132,8 @@ static int mtk_ir_nec_enable_hwirq(int enable)
 	IR_NEC_LOG("IRRX enable hwirq: %d\n", enable);
 	if (enable) {
 		info = IR_READ32(IRRX_COUNT_HIGH_REG);
-		IR_WRITE_MASK(IRRX_IRCLR, IRRX_IRCLR_MASK, IRRX_IRCLR_OFFSET, 0x1);	/* clear irrx state machine */
+		IR_WRITE_MASK(IRRX_IRCLR, IRRX_IRCLR_MASK,
+						IRRX_IRCLR_OFFSET, 0x1);	/* clear irrx state machine */
 		dsb(sy);
 
 		IR_WRITE_MASK(IRRX_IRINT_CLR, IRRX_INTCLR_MASK,
@@ -143,12 +144,15 @@ static int mtk_ir_nec_enable_hwirq(int enable)
 			info = IR_READ32(IRRX_COUNT_HIGH_REG);
 		} while (info != 0);
 
-		/* enable ir interrupt */
+		/* enable ir hw interrupt receiver function */
 		IR_WRITE_MASK(IRRX_IRINT_EN, IRRX_INTEN_MASK, IRRX_INTCLR_OFFSET, 0x1);
 		dsb(sy);
 	} else {
-		/* disable interrupt */
+		/* disable ir hw interrupt receiver function */
 		IR_WRITE_MASK(IRRX_IRINT_EN, IRRX_INTEN_MASK, IRRX_INTCLR_OFFSET, 0x0);
+		dsb(sy);
+		IR_WRITE_MASK(IRRX_IRINT_CLR, IRRX_INTCLR_MASK,
+						IRRX_INTCLR_OFFSET, 0x1);	/* clear irrx eint stat */
 		dsb(sy);
 	}
 	return 0;
@@ -261,7 +265,7 @@ static int mtk_ir_nec_init_hw(void)
 	/* disable interrupt */
 	mtk_ir_nec_enable_hwirq(0);
 	/*IR_WRITE32(IRRX_IRCKSEL, IRRX_IRCK_DIV8);*/
-	IR_WRITE32(IRRX_CONFIG_HIGH_REG, MTK_NEC_CONFIG);	/* 0xf0021 */
+	IR_WRITE32(IRRX_CONFIG_HIGH_REG, MTK_NEC_CONFIG);
 	IR_WRITE32(IRRX_CONFIG_LOW_REG, MTK_NEC_SAPERIOD);
 	IR_WRITE32(IRRX_THRESHOLD_REG, MTK_NEC_THRESHOLD);
 	IR_NEC_LOG(" config:0x%08x %08x, threshold:0x%08x\n", IR_READ32(IRRX_CONFIG_HIGH_REG),

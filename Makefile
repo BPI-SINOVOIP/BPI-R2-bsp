@@ -5,7 +5,7 @@
 include chosen_board.mk
 
 SUDO=sudo
-CROSS_COMPILE=arm-linux-gnueabi-
+CROSS_COMPILE?=arm-linux-gnueabi-
 U_CROSS_COMPILE=$(CROSS_COMPILE)
 K_CROSS_COMPILE=$(CROSS_COMPILE)
 

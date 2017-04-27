@@ -70,10 +70,6 @@
 #define TX_TRIGGER			1
 #define RX_TRIGGER			8192
 
-/* the real baud is within 3%. the data is right */
-#define BAUD_ALLOW_MAX(baud)	((baud) + (baud)*3/100)
-#define BAUD_ALLOW_MIX(baud)	((baud) - (baud)*3/100)
-
 #ifdef CONFIG_SERIAL_8250_DMA
 enum dma_rx_status {
 	DMA_RX_START = 0,
@@ -334,7 +330,7 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 			struct ktermios *old)
 {
 	unsigned long flags;
-	unsigned int baud, quot, realbaud, samplecount;
+	unsigned int baud, quot;
 	int mode;
 
 	struct uart_8250_port *up =
@@ -364,26 +360,19 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 				  port->uartclk / 16 / 0xffff,
 				  port->uartclk);
 
-	if ((baud == 500000) || (baud == 576000))
-		baud = 460800;
+	if (baud <= 115200) {
+		serial_port_out(port, UART_MTK_HIGHS, 0x0);
+		quot = uart_get_divisor(port, baud);
+	} else if (baud <= 576000) {
+		serial_port_out(port, UART_MTK_HIGHS, 0x2);
 
-	/*High Speed = 3*/
-	quot = DIV_ROUND_CLOSEST(port->uartclk, 256 * baud);
-	if (quot == 0)
-		quot = 1;
-	samplecount = DIV_ROUND_CLOSEST(port->uartclk, quot * baud);
-	if (samplecount != 0) {
-		realbaud = port->uartclk/samplecount/quot;
-		if ((realbaud > BAUD_ALLOW_MAX(baud)) &&
-		    (realbaud < BAUD_ALLOW_MIX(baud)) &&
-		    (!uart_console(port))) {
-			pr_err("ttyS%d baud[%d] can't handle\n",
-				  serial_index(port), baud);
-		}
+		/* Set to next lower baudrate supported */
+		if ((baud == 500000) || (baud == 576000))
+			baud = 460800;
+		quot = DIV_ROUND_UP(port->uartclk, 4 * baud);
 	} else {
-		if (!uart_console(port))
-			pr_err("ttyS%d samplecount is 0\n",
-				  serial_index(port));
+		serial_port_out(port, UART_MTK_HIGHS, 0x3);
+		quot = DIV_ROUND_UP(port->uartclk, 256 * baud);
 	}
 
 	/*
@@ -399,10 +388,17 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 	/* reset DLAB */
 	serial_port_out(port, UART_LCR, up->lcr);
 
-	serial_port_out(port, UART_MTK_HIGHS, 0x03);
-	serial_port_out(port, UART_MTK_SAMPLE_COUNT, samplecount - 1);
-	serial_port_out(port, UART_MTK_SAMPLE_POINT,
-				(samplecount - 2) >> 1);
+	if (baud > 460800) {
+		unsigned int tmp;
+
+		tmp = DIV_ROUND_CLOSEST(port->uartclk, quot * baud);
+		serial_port_out(port, UART_MTK_SAMPLE_COUNT, tmp - 1);
+		serial_port_out(port, UART_MTK_SAMPLE_POINT,
+					(tmp - 2) >> 1);
+	} else {
+		serial_port_out(port, UART_MTK_SAMPLE_COUNT, 0x00);
+		serial_port_out(port, UART_MTK_SAMPLE_POINT, 0xff);
+	}
 
 	if ((termios->c_cflag & CRTSCTS) && (!(termios->c_iflag & 0x80000000)))
 		mode = UART_FC_HW;
@@ -832,3 +828,4 @@ OF_EARLYCON_DECLARE(mtk8250, "mediatek,mt2712-uart", early_mtk8250_setup);
 MODULE_AUTHOR("Matthias Brugger");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Mediatek 8250 serial port driver");
+

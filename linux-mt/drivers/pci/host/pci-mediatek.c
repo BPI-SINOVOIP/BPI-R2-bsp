@@ -172,6 +172,8 @@ struct mtk_pcie_port {
 	u32 port;
 	u32 lane;
 	int devfn;
+	struct clk	*aux, *obff, *ahb, *axi, *mac, *pipe;
+	struct device *dev;
 	struct mtk_pcie *pcie;
 	struct irq_domain *irq_domain;
 	struct irq_domain *msi_irq_domain;
@@ -202,6 +204,8 @@ struct mtk_pcie {
 struct mtk_pcie_plat {
 	bool ltssm;
 	bool io_coherent;
+	/* for mt7622 may have two xtal, this indicate 7622 have 40M xtal*/
+	bool xtal;
 };
 
 static inline u32 pcie_read(struct mtk_pcie_port *port, u32 reg)
@@ -225,6 +229,115 @@ static void __iomem *mtk_pcie_map_registers(struct platform_device *pdev,
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, port);
 	return devm_ioremap_resource(&pdev->dev, regs);
+}
+
+static int mtk_pcie_clk_get(struct mtk_pcie_port *port)
+{
+	struct device *dev = port->dev;
+
+	port->aux = devm_clk_get(dev, "aux");
+	if (IS_ERR(port->aux))
+		return PTR_ERR(port->aux);
+
+	port->obff = devm_clk_get(dev, "obff");
+	if (IS_ERR(port->obff))
+		return PTR_ERR(port->obff);
+
+	port->ahb = devm_clk_get(dev, "ahb");
+	if (IS_ERR(port->ahb))
+		return PTR_ERR(port->ahb);
+
+	port->axi = devm_clk_get(dev, "axi");
+	if (IS_ERR(port->axi))
+		return PTR_ERR(port->axi);
+
+	port->mac = devm_clk_get(dev, "mac");
+	if (IS_ERR(port->mac))
+		return PTR_ERR(port->mac);
+
+	port->pipe = devm_clk_get(dev, "pipe");
+	if (IS_ERR(port->pipe))
+		return PTR_ERR(port->pipe);
+
+	return 0;
+}
+
+static int mtk_pcie_port_enable(struct mtk_pcie_port *port)
+{
+	int ret;
+	struct device *dev = port->dev;
+
+	/* mt2712 does not enable ccf for now.*/
+	if (!IS_ERR(port->aux)) {
+		ret = clk_prepare_enable(port->aux);
+		if (ret)
+			goto err_put_pm;
+	}
+
+	/* just handle power error for now.*/
+	if (!IS_ERR(port->obff)) {
+		ret = clk_prepare_enable(port->obff);
+		if (ret)
+			goto err_put_pm;
+	}
+
+	if (!IS_ERR(port->ahb)) {
+		ret = clk_prepare_enable(port->ahb);
+		if (ret)
+			goto err_put_pm;
+	}
+
+	if (!IS_ERR(port->axi)) {
+		ret = clk_prepare_enable(port->axi);
+		if (ret)
+			goto err_put_pm;
+	}
+
+	if (!IS_ERR(port->mac)) {
+		ret = clk_prepare_enable(port->mac);
+		if (ret)
+			goto err_put_pm;
+	}
+
+	if (!IS_ERR(port->pipe)) {
+		ret = clk_prepare_enable(port->pipe);
+		if (ret)
+			goto err_put_pm;
+	}
+
+	return 0;
+
+err_put_pm:
+	pm_runtime_put_sync(dev);
+	return ret;
+}
+
+/*
+ * PCIe clock and power could not be disabled, but we add this for debug use,
+ * we may need to add debug interface for userspace to disable pcie clock and
+ * power for measuring power consume. keep it for now.
+ */
+static void __maybe_unused mtk_pcie_port_disable(struct mtk_pcie_port *port)
+{
+	struct device *dev = port->dev;
+
+	/* mt2712 does not enable ccf for now.*/
+	if (!IS_ERR(port->pipe))
+		clk_disable_unprepare(port->pipe);
+	if (!IS_ERR(port->mac))
+		clk_disable_unprepare(port->mac);
+	if (!IS_ERR(port->axi))
+		clk_disable_unprepare(port->axi);
+	if (!IS_ERR(port->ahb))
+		clk_disable_unprepare(port->ahb);
+	if (!IS_ERR(port->obff))
+		clk_disable_unprepare(port->obff);
+	if (!IS_ERR(port->aux))
+		clk_disable_unprepare(port->aux);
+
+	/* mt2712 does not enable power domain for now.*/
+	if (!dev->pm_domain)
+		pm_runtime_put_sync(dev);
 }
 
 static struct mtk_pcie_port *mtk_pcie_find_port(struct mtk_pcie *pcie,
@@ -729,6 +842,7 @@ static int mtk_pcie_init_hw(struct mtk_pcie_port *port)
 	const struct of_device_id *node;
 	const struct mtk_pcie_plat *plat;
 
+	mtk_pcie_port_enable(port);
 	node = of_match_node(mtk_pcie_of_match, np);
 	plat = node->data;
 	if (plat->ltssm) {
@@ -943,6 +1057,129 @@ static int mtk_pcie_enable_ioc(struct platform_device *pdev)
 	return 0;
 }
 
+static int mtk_pcie_switch_xtal(struct platform_device *pdev)
+{
+	struct resource *regs;
+	void __iomem *addr;
+	u32 val;
+
+	/* change setting for rc0 phy. */
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 7);
+	addr = devm_ioremap_resource(&pdev->dev, regs);
+	if (IS_ERR(addr))
+		return -EINVAL;
+
+	val = readl(addr + 0x200);
+	val |= BIT(2);
+	writel(val, addr + 0x200);
+
+	val = readl(addr + 0xc3c);
+	val &= 0xffff;
+	val |= 0x380000;
+	writel(val, addr + 0xc3c);
+
+	val = readl(addr + 0xc38);
+	val &= 0xffff;
+	val |= 0x380000;
+	writel(val, addr + 0xc38);
+
+	val = readl(addr + 0xc48);
+	val &= 0xffff0000;
+	val |= 0x36;
+	writel(val, addr + 0xc48);
+
+	val = readl(addr + 0xc44);
+	val &= 0xffff0000;
+	val |= 0x36;
+	writel(val, addr + 0xc44);
+
+	val = readl(addr + 0xb14);
+	val &= 0xffff0000;
+	val |= 0x140;
+	writel(val, addr + 0xb14);
+
+	val = readl(addr + 0xb0c);
+	val &= BIT(0);
+	val |= 0x3e800000 << 1;
+	writel(val, addr + 0xb0c);
+
+	val = readl(addr + 0xb10);
+	val |= BIT(24);
+	writel(val, addr + 0xb10);
+
+	val = readl(addr + 0xb04);
+	val &= ~BIT(9);
+	val |= BIT(8);
+	writel(val, addr + 0xb04);
+
+	val = readl(addr + 0x310);
+	val |= BIT(17);
+	writel(val, addr + 0x310);
+
+	val = readl(addr + 0x200);
+	val &= (~BIT(2));
+	writel(val, addr + 0x200);
+
+	/* change phy setting for rc1 */
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 8);
+	addr = devm_ioremap_resource(&pdev->dev, regs);
+	if (IS_ERR(addr))
+		return -EINVAL;
+
+	val = readl(addr + 0x30c);
+	val |= BIT(31);
+	writel(val, addr + 0x30c);
+
+	val = readl(addr + 0xc3c);
+	val &= 0xffff;
+	val |= 0x380000;
+	writel(val, addr + 0xc3c);
+
+	val = readl(addr + 0xc38);
+	val &= 0xffff;
+	val |= 0x380000;
+	writel(val, addr + 0xc38);
+
+	val = readl(addr + 0xc48);
+	val &= 0xffff0000;
+	val |= 0x36;
+	writel(val, addr + 0xc48);
+
+	val = readl(addr + 0xc44);
+	val &= 0xffff0000;
+	val |= 0x36;
+	writel(val, addr + 0xc44);
+
+	val = readl(addr + 0xb14);
+	val &= 0xffff0000;
+	val |= 0x140;
+	writel(val, addr + 0xb14);
+
+	val = readl(addr + 0xb0c);
+	val &= BIT(0);
+	val |= 0x3e800000 << 1;
+	writel(val, addr + 0xb0c);
+
+	val = readl(addr + 0xb10);
+	val |= BIT(24);
+	writel(val, addr + 0xb10);
+
+	val = readl(addr + 0xb04);
+	val &= ~BIT(9);
+	val |= BIT(8);
+	writel(val, addr + 0xb04);
+
+	val = readl(addr + 0x310);
+	val |= BIT(17);
+	writel(val, addr + 0x310);
+
+	val = readl(addr + 0x30c);
+	val &= (~BIT(31));
+	writel(val, addr + 0x30c);
+	return 0;
+
+}
+
 /**
  * mtk_pcie_parse_and_add_res - Add resources by parsing ranges
  * @pcie: PCIe host information
@@ -982,6 +1219,23 @@ static int mtk_pcie_parse_and_add_res(struct mtk_pcie *pcie)
 			dev_err(dev, "enable ioc failed\n");
 			return err;
 		}
+	}
+
+	if (plat->xtal) {
+		bool found = false;
+		struct device_node *pnode = of_node_get(node);
+
+		while (pnode) {
+			if (of_property_read_bool(pnode, "change-xtal")) {
+				found = true;
+				break;
+			}
+			pnode = of_get_next_parent(pnode);
+		}
+		of_node_put(pnode);
+
+		if (found)
+			mtk_pcie_switch_xtal(pdev);
 	}
 
 	/* get the ranges */
@@ -1058,6 +1312,7 @@ static int mtk_pcie_parse_and_add_res(struct mtk_pcie *pcie)
 	i = 0;
 	for_each_child_of_node(node, child) {
 		struct mtk_pcie_port *port = &pcie->ports[i];
+		struct platform_device *plat_dev;
 
 		if (!of_device_is_available(child))
 			continue;
@@ -1116,6 +1371,17 @@ static int mtk_pcie_parse_and_add_res(struct mtk_pcie *pcie)
 				return -ENODEV;
 			}
 		}
+
+		plat_dev = of_find_device_by_node(child);
+		if (!plat_dev) {
+			plat_dev = of_platform_device_create(
+						child, NULL,
+						platform_bus_type.dev_root);
+			if (!plat_dev)
+				return -EPROBE_DEFER;
+		}
+		port->dev = &plat_dev->dev;
+		mtk_pcie_clk_get(port);
 		/* initialize pcie rc controller */
 		err = mtk_pcie_init_hw(port);
 		if (err) {
@@ -1144,11 +1410,13 @@ free_resources:
 static const struct mtk_pcie_plat mt2712_pcie = {
 	.ltssm = false,
 	.io_coherent = false,
+	.xtal = false,
 };
 
 static const struct mtk_pcie_plat mt7622_pcie = {
 	.ltssm = true,
 	.io_coherent = true,
+	.xtal = true,
 };
 
 static const struct of_device_id mtk_pcie_of_match[] = {
@@ -1178,6 +1446,13 @@ static int mtk_pcie_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	pcie->dev = &pdev->dev;
+
+	/* mt2712 does not enable power domain for now.*/
+	if (pcie->dev->pm_domain) {
+		/* enable pcie power domain for mt7622. */
+		pm_runtime_enable(pcie->dev);
+		pm_runtime_get_sync(pcie->dev);
+	}
 
 	/*
 	 * parse PCI ranges, configuration bus range and

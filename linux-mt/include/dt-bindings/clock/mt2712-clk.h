@@ -227,17 +227,15 @@
 
 /* INFRACFG */
 
-#define CLK_INFRA_DEVAPC		0
-#define CLK_INFRA_DBGCLK		1
-#define CLK_INFRA_GCE			2
-#define CLK_INFRA_M4U			3
-#define CLK_INFRA_KP			4
-#define CLK_INFRA_CEC			5
-#define CLK_INFRA_AO_SPI0		6
-#define CLK_INFRA_AO_SPI1		7
-#define CLK_INFRA_AO_UART5		8
-#define CLK_INFRA_TRNG			9
-#define CLK_INFRA_NR_CLK		10
+#define CLK_INFRA_DBGCLK		0
+#define CLK_INFRA_GCE			1
+#define CLK_INFRA_M4U			2
+#define CLK_INFRA_KP			3
+#define CLK_INFRA_CEC			4
+#define CLK_INFRA_AO_SPI0		5
+#define CLK_INFRA_AO_SPI1		6
+#define CLK_INFRA_AO_UART5		7
+#define CLK_INFRA_NR_CLK		8
 
 /* PERICFG */
 

@@ -4386,12 +4386,14 @@ static int btmtk_btif_suspend(struct platform_device *pdev, pm_message_t state)
 		return 0;
 	}
 
+#if 0
 	btmtk_usb_handle_entering_WoBLE_state();
 
 	btmtk_usb_stop_traffic();
 	usb_kill_anchored_urbs(&g_data->tx_anchor);
 #if SUPPORT_LEGACY_WOBLE
 	need_reset_stack = 1;
+#endif
 #endif
 	BTUSB_INFO("%s: end", __func__);
 	return 0;
@@ -4411,6 +4413,7 @@ static int btmtk_btif_resume(struct platform_device *pdev)
 	btmtk_usb_set_state(BTMTK_USB_STATE_RESUME);
 	mutex_unlock(&btmtk_usb_state_mutex);
 
+#if 0
 #if SUPPORT_LEGACY_WOBLE
 	if (register_late_resume_func == NULL && need_reset_stack) {
 		BTUSB_INFO("%s: Notify BT vendor-lib to restart stack", __func__);
@@ -4421,6 +4424,7 @@ static int btmtk_btif_resume(struct platform_device *pdev)
 
 	if (register_late_resume_func == NULL)
 		btmtk_usb_handle_resume();
+#endif
 	BTUSB_INFO("%s: end", __func__);
 	return 0;
 }

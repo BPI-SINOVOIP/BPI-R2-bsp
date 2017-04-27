@@ -163,6 +163,10 @@ struct PSEUDO_ADAPTER {
 /* RT3883 */
 #define SYSCFG1			(RALINK_SYSCTL_BASE + 0x14)
 
+#define	FE_PSE_FREE		(RALINK_FRAME_ENGINE_BASE + 0x240)
+#define FE_DROP_FQ		(RALINK_FRAME_ENGINE_BASE + 0x244)
+#define FE_DROP_FC		(RALINK_FRAME_ENGINE_BASE + 0x248)
+#define FE_DROP_PPE		(RALINK_FRAME_ENGINE_BASE + 0x24c)
 /* Old FE with New PDMA */
 #define PDMA_RELATED            0x0800
 /* 1. PDMA */
@@ -365,6 +369,7 @@ struct PSEUDO_ADAPTER {
 #define  QDMA_HRED2         (RALINK_FRAME_ENGINE_BASE + QDMA_RELATED + 0x244)
 #define  QDMA_SRED1         (RALINK_FRAME_ENGINE_BASE + QDMA_RELATED + 0x248)
 #define  QDMA_SRED2         (RALINK_FRAME_ENGINE_BASE + QDMA_RELATED + 0x24C)
+#define  QTX_MIB_IF         (RALINK_FRAME_ENGINE_BASE + 0x1abc)
 #define  QTX_CTX_PTR        (RALINK_FRAME_ENGINE_BASE + QDMA_RELATED + 0x300)
 #define  QTX_DTX_PTR        (RALINK_FRAME_ENGINE_BASE + QDMA_RELATED + 0x304)
 #define  QTX_FWD_CNT        (RALINK_FRAME_ENGINE_BASE + QDMA_RELATED + 0x308)
@@ -1128,6 +1133,7 @@ struct QDMA_txdesc {
 #define PROCREG_RXDONE_INTR	"rxdone_intr_count"
 #define PROCREG_ESW_INTR	"esw_intr_count"
 #define PROCREG_ESW_CNT		"esw_cnt"
+#define PROCREG_ETH_CNT		"eth_cnt"
 #define PROCREG_SNMP		"snmp"
 #define PROCREG_SET_LAN_IP	"set_lan_ip"
 #if defined(TASKLET_WORKQUEUE_SW)
@@ -1221,5 +1227,9 @@ struct parse_result {
 #define RAETH_TX_DLY_INT TX_DLY_INT
 #define RAETH_TX_DONE_INT0 TX_DONE_INT0
 #define RAETH_DLY_INT_CFG DLY_INT_CFG
+
+/* io-coherent for ethdmasys */
+#define	IOC_ETH_PDMA	BIT(0)
+#define	IOC_ETH_QDMA	BIT(1)
 
 #endif	/* RAETH_REG_H */

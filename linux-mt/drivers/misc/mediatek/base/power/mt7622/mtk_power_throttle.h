@@ -30,6 +30,14 @@ extern struct mt_cpu_freq_info opp_tbl_default[];
 extern int setup_power_table_tk(void);
 extern void dump_power_table(void);
 extern void mt_cpufreq_thermal_protect(unsigned int limited_power);
-extern void dump_power_table(void);
+
+enum mt_cpu_dvfs_id {
+	MT_CPU_DVFS_LITTLE,
+	NR_MT_CPU_DVFS,
+};
+
+extern void mt_cpufreq_enable_by_ptpod(enum mt_cpu_dvfs_id id);
+extern unsigned int mt_cpufreq_disable_by_ptpod(enum mt_cpu_dvfs_id id);
+
 #endif
 

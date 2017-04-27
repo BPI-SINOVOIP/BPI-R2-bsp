@@ -14,6 +14,7 @@
 
 /dts-v1/;
 #include "mt7622.dtsi"
+#include "mt6380.dtsi"
 
 / {
 	model = "MediaTek MT7622 RFB1 board";
@@ -49,6 +50,16 @@
 	status = "okay";
 };
 
+&cpu0 {
+	proc-supply = <&mt6380_vcpu_reg>;
+	sram-supply = <&mt6380_vm_reg>;
+};
+
+&cpu1 {
+	proc-supply = <&mt6380_vcpu_reg>;
+	sram-supply = <&mt6380_vm_reg>;
+};
+
 &efuse {
 	status = "okay";
 };
@@ -82,8 +93,11 @@
 	bus-width = <8>;
 	max-frequency = <50000000>;
 	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
 	vmmc-supply = <&mmc_fixed_3v3_power>;
 	vqmmc-supply = <&mmc_fixed_1v8_io>;
+	assigned-clocks = <&topckgen CLK_TOP_MSDC30_0_SEL>;
+	assigned-clock-parents = <&topckgen CLK_TOP_UNIV48M>;
 	non-removable;
 };
 
@@ -98,6 +112,8 @@
 	cd-gpios = <&pio 81 0>;
 	vmmc-supply = <&mmc_fixed_3v3_power>;
 	vqmmc-supply = <&mmc_fixed_3v3_power>;
+	assigned-clocks = <&topckgen CLK_TOP_MSDC30_1_SEL>;
+	assigned-clock-parents = <&topckgen CLK_TOP_UNIV48M>;
 };
 
 &nor_flash {
@@ -197,7 +213,7 @@
 
 		pins_clk {
 			pinmux = <MT7622_PIN_20_I2S3_OUT__FUNC_SD_CLK>;
-			drive-strength = <MTK_DRIVE_4mA>;
+			drive-strength = <MTK_DRIVE_8mA>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 
@@ -215,13 +231,11 @@
 			       <MT7622_PIN_16_I2S2_IN__FUNC_SD_D3>,
 			       <MT7622_PIN_21_I2S4_OUT__FUNC_SD_CMD>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_4mA>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 
 		pins_clk {
 			pinmux = <MT7622_PIN_20_I2S3_OUT__FUNC_SD_CLK>;
-			drive-strength = <MTK_DRIVE_4mA>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 	};
@@ -232,5 +246,13 @@
 };
 
 &uart0 {
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
+};
+
+&u3phy1 {
 	status = "okay";
 };

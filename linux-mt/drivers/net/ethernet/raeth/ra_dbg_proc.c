@@ -960,6 +960,7 @@ static const struct file_operations lro_stats_fops = {
 };
 
 static struct proc_dir_entry *proc_esw_cnt;
+static struct proc_dir_entry *proc_eth_cnt;
 
 void internal_gsw_cnt_read(struct seq_file *seq)
 {
@@ -1032,6 +1033,51 @@ void internal_gsw_cnt_read(struct seq_file *seq)
 	seq_puts(seq, "\n");
 }
 
+void pse_qdma_drop_cnt(void)
+{
+	u8 i;
+
+	pr_info("       <<PSE DROP CNT>>\n");
+	pr_info("| FQ_PCNT_MIN : %010u |\n",
+		(sys_reg_read(FE_PSE_FREE) & 0xff0000) >> 16);
+	pr_info("| FQ_PCNT     : %010u |\n",
+		sys_reg_read(FE_PSE_FREE) & 0x00ff);
+	pr_info("| FE_DROP_FQ  : %010u |\n",
+		sys_reg_read(FE_DROP_FQ));
+	pr_info("| FE_DROP_FC  : %010u |\n",
+		sys_reg_read(FE_DROP_FC));
+	pr_info("| FE_DROP_PPE : %010u |\n",
+		sys_reg_read(FE_DROP_PPE));
+	pr_info("\n       <<QDMA PKT/DROP CNT>>\n");
+
+	sys_reg_write(QTX_MIB_IF, 0x90000000);
+	for (i = 0; i < NUM_PQ; i++) {
+		if (i <= 15) {
+			sys_reg_write(QDMA_PAGE, 0);
+			pr_info("QDMA Q%d PKT CNT: %010u, DROP CNT: %010u\n", i,
+				sys_reg_read(QTX_CFG_0 + i * 16),
+				sys_reg_read(QTX_SCH_0 + i * 16));
+		} else if (i > 15 && i <= 31) {
+			sys_reg_write(QDMA_PAGE, 1);
+			pr_info("QDMA Q%d PKT CNT: %010u, DROP CNT: %010u\n", i,
+				sys_reg_read(QTX_CFG_0 + (i - 16) * 16),
+				sys_reg_read(QTX_SCH_0 + (i - 16) * 16));
+		} else if (i > 31 && i <= 47) {
+			sys_reg_write(QDMA_PAGE, 2);
+			pr_info("QDMA Q%d PKT CNT: %010u, DROP CNT: %010u\n", i,
+				sys_reg_read(QTX_CFG_0 + (i - 32) * 16),
+				sys_reg_read(QTX_SCH_0 + (i - 32) * 16));
+		} else if (i > 47 && i <= 63) {
+			sys_reg_write(QDMA_PAGE, 3);
+			pr_info("QDMA Q%d PKT CNT: %010u, DROP CNT: %010u\n", i,
+				sys_reg_read(QTX_CFG_0 + (i - 48) * 16),
+				sys_reg_read(QTX_SCH_0 + (i - 48) * 16));
+		}
+	}
+	sys_reg_write(QDMA_PAGE, 0);
+	sys_reg_write(QTX_MIB_IF, 0x0);
+}
+
 void external_gsw_cnt_read(void)
 {
 	rtk_hal_dump_mib();
@@ -1095,6 +1141,11 @@ void embedded_sw_cnt_read(struct seq_file *seq)
 		   sys_reg_read(ETHDMASYS_ETH_SW_BASE + 0x164) >> 16);
 }
 
+int eth_cnt_read(struct seq_file *seq, void *v)
+{
+	pse_qdma_drop_cnt();
+	return 0;
+}
 int esw_cnt_read(struct seq_file *seq, void *v)
 {
 	struct END_DEVICE *ei_local = netdev_priv(dev_raether);
@@ -1191,9 +1242,22 @@ static int switch_count_open(struct inode *inode, struct file *file)
 	return single_open(file, esw_cnt_read, NULL);
 }
 
+static int eth_count_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, eth_cnt_read, NULL);
+}
+
 static const struct file_operations switch_count_fops = {
 	.owner = THIS_MODULE,
 	.open = switch_count_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release
+};
+
+static const struct file_operations eth_count_fops = {
+	.owner = THIS_MODULE,
+	.open = eth_count_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release
@@ -1623,6 +1687,13 @@ int debug_proc_init(void)
 	if (!proc_esw_cnt)
 		pr_debug("!! FAIL to create %s PROC !!\n", PROCREG_ESW_CNT);
 
+	if (ei_local->chip_name == MT7622_FE) {
+		proc_eth_cnt =
+			proc_create(PROCREG_ETH_CNT, 0, proc_reg_dir, &eth_count_fops);
+		if (!proc_eth_cnt)
+			pr_debug("!! FAIL to create %s PROC !!\n", PROCREG_ETH_CNT);
+	}
+
 	if (ei_local->features & TASKLET_WORKQUEUE_SW) {
 		proc_sche =
 		    proc_create(PROCREG_SCHE, 0, proc_reg_dir,
@@ -1701,6 +1772,11 @@ void debug_proc_exit(void)
 
 	if (proc_esw_cnt)
 		remove_proc_entry(PROCREG_ESW_CNT, proc_reg_dir);
+
+	if (ei_local->chip_name == MT7622_FE) {
+		if (proc_eth_cnt)
+			remove_proc_entry(PROCREG_ETH_CNT, proc_reg_dir);
+	}
 
 	/* if (proc_reg_dir) */
 	/* remove_proc_entry(PROCREG_DIR, 0); */

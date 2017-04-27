@@ -24,7 +24,7 @@ static unsigned int limited_max_ncpu;
 static unsigned int limited_max_freq;
 
 #define NR_MAX_OPP_TBL  8
-#define NR_MAX_CPU      4
+#define NR_MAX_CPU      2
 
 struct mt_cpu_power_info {
 	unsigned int cpufreq_khz;
@@ -119,38 +119,20 @@ struct mt_cpu_freq_info opp_tbl_default[] = {
 	OP(0, 0),
 };
 
+static unsigned int cpu_power_tbl[] = {
+	995, 811, 736, 624, 492, 376, 295, 225,  /* 2 core */
+	517, 377, 333, 258, 204, 166, 140, 119}; /* 1 core */
+
 static void _power_calculation(struct mt_cpu_dvfs *p, int oppidx, int ncpu)
 {
-/* TBD, need MN confirm */
-#define CA35_4CORE_REF_POWER	709		/* mW  */
-#define CA35_REF_FREQ	1300000	/* KHz */
-#define CA35_REF_VOLT	1150000	/* mV * 1000 */
-
-	int ref_freq, ref_volt;
-	int	p_dynamic = 0, p_leakage = 0;
 	int possible_cpu = NR_MAX_CPU;
-	int	temp;
-
-	ref_freq  = CA35_REF_FREQ;
-	ref_volt  = CA35_REF_VOLT;
-
-	p_dynamic = CA35_4CORE_REF_POWER;
-
-	temp = 26;/*get_immediate_ts1_wrap() / 1000;*/
-	p_leakage = mt_spower_get_leakage(MT_SPOWER_CA7, p->opp_tbl[oppidx].cpufreq_volt / 1000, temp);
-
-	p_dynamic = p_dynamic *
-	(p->opp_tbl[oppidx].cpufreq_khz / 1000) / (ref_freq / 1000) *
-	p->opp_tbl[oppidx].cpufreq_volt / ref_volt *
-	p->opp_tbl[oppidx].cpufreq_volt / ref_volt +
-	p_leakage;
 
 	p->power_tbl[NR_MAX_OPP_TBL * (possible_cpu - 1 - ncpu) + oppidx].cpufreq_ncpu
 		= ncpu + 1;
 	p->power_tbl[NR_MAX_OPP_TBL * (possible_cpu - 1 - ncpu) + oppidx].cpufreq_khz
 		= p->opp_tbl[oppidx].cpufreq_khz;
 	p->power_tbl[NR_MAX_OPP_TBL * (possible_cpu - 1 - ncpu) + oppidx].cpufreq_power
-		= p_dynamic * (ncpu + 1) / possible_cpu;
+		= cpu_power_tbl[NR_MAX_OPP_TBL * (possible_cpu - ncpu) - 1 - oppidx];
 }
 
 void init_mt_cpu_dvfs(struct mt_cpu_dvfs *p)

@@ -2188,6 +2188,13 @@ void fe_sw_preinit(struct END_DEVICE *ei_local)
 	if (ret)
 		pr_err("Failed to enable mt7530 power: %d\n", ret);
 
+	if (gsw->mcm) {
+		regulator_set_voltage(gsw->b3v, 3300000, 3300000);
+		ret = regulator_enable(gsw->b3v);
+		if (ret)
+			dev_err(&pdev->dev, "Failed to enable b3v: %d\n", ret);
+	}
+
 	ret = devm_gpio_request(&pdev->dev, gsw->reset_pin,
 				"mediatek,reset-pin");
 	if (ret)
@@ -2289,8 +2296,8 @@ void set_rtl8367s_sgmii(void)
 	mac_cfg.duplex = PORT_FULL_DUPLEX;
 	mac_cfg.link = PORT_LINKUP;
 	mac_cfg.nway = DISABLED;
-	mac_cfg.txpause = DISABLED;
-	mac_cfg.rxpause = DISABLED;
+	mac_cfg.txpause = ENABLED;
+	mac_cfg.rxpause = ENABLED;
 	rtk_port_macForceLinkExt_set(EXT_PORT0, mode, &mac_cfg);
 	rtk_port_sgmiiNway_set(EXT_PORT0, DISABLED);
 	rtk_port_phyEnableAll_set(ENABLED);
@@ -2309,8 +2316,8 @@ void set_rtl8367s_rgmii(void)
 	mac_cfg.duplex = PORT_FULL_DUPLEX;
 	mac_cfg.link = PORT_LINKUP;
 	mac_cfg.nway = DISABLED;
-	mac_cfg.txpause = DISABLED;
-	mac_cfg.rxpause = DISABLED;
+	mac_cfg.txpause = ENABLED;
+	mac_cfg.rxpause = ENABLED;
 	rtk_port_macForceLinkExt_set(EXT_PORT1, mode, &mac_cfg);
 	rtk_port_rgmiiDelayExt_set(EXT_PORT1, 1, 3);
 	rtk_port_phyEnableAll_set(ENABLED);
@@ -2550,6 +2557,7 @@ void fe_sw_init(void)
 		sys_reg_write(ETHDMASYS_ETH_SW_BASE + 0xc8, 0x05503f38);
 		sys_reg_write(ETHDMASYS_ETH_SW_BASE + 0x8c, 0x02404040);
 		sys_reg_write(ETHDMASYS_ETH_SW_BASE + 0x98, 0x00007f7f);
+		sys_reg_write(ETHDMASYS_ETH_SW_BASE + 0x04, 0xfbffffff);
 	}
 
 	if (ei_local->architecture & GE1_SGMII_FORCE_2500) {
@@ -2568,12 +2576,38 @@ void fe_sw_init(void)
 
 	if (ei_local->architecture & MT7622_EPHY)
 		mt7622_ephy_cal();
+		if (ei_local->architecture & GE2_SGMII_AN) {
+			mii_mgr_write(5, 0, 0x3100);
+			mii_mgr_write(5, 4, 0x5e1);
+		}
 
 	if (ei_local->chip_name == MT7622_FE) {
 		gpio_base_virt = ioremap(GPIO_GO_BASE + 0x100, 0x100);
 		sys_reg_write(gpio_base_virt + 0x70, 0x40000000);
 		sys_reg_write(gpio_base_virt + 0x8c, 0xabaaaaaa);
 		iounmap(gpio_base_virt);
+	}
+}
+
+void fe_sw_deinit(struct END_DEVICE *ei_local)
+{
+	struct device_node *np = ei_local->switch_np;
+	struct platform_device *pdev = of_find_device_by_node(np);
+	struct mtk_gsw *gsw;
+	int ret;
+
+	gsw = platform_get_drvdata(pdev);
+	if (!gsw)
+		return;
+
+	ret = regulator_disable(gsw->supply);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to disable mt7530 power: %d\n", ret);
+
+	if (gsw->mcm) {
+		ret = regulator_disable(gsw->b3v);
+		if (ret)
+			dev_err(&pdev->dev, "Failed to disable b3v: %d\n", ret);
 	}
 }
 
@@ -2622,7 +2656,7 @@ static void esw_link_status_changed(int port_no, void *dev_id)
 			port_no);
 }
 
-irqreturn_t esw_interrupt(int irq, void *resv)
+irqreturn_t gsw_interrupt(int irq, void *resv)
 {
 	unsigned long flags;
 	unsigned int reg_int_val;
@@ -2648,6 +2682,37 @@ irqreturn_t esw_interrupt(int irq, void *resv)
 	mii_mgr_write(31, 0x700c, 0x1f);	/* ack switch link change */
 	spin_unlock_irqrestore(&ei_local->page_lock, flags);
 
+	return IRQ_HANDLED;
+}
+
+irqreturn_t esw_interrupt(int irq, void *resv)
+{
+	unsigned long flags;
+	u32 phy_val;
+	int i;
+	static unsigned int port_status[5] = {0, 0, 0, 0, 0};
+	struct net_device *dev = dev_raether;
+	struct END_DEVICE *ei_local = netdev_priv(dev);
+
+	spin_lock_irqsave(&ei_local->page_lock, flags);
+	/* disable irq mask and ack irq status */
+	sys_reg_write(ETHDMASYS_ETH_SW_BASE + 0x4, 0xffffffff);
+	sys_reg_write(ETHDMASYS_ETH_SW_BASE, 0x04000000);
+	spin_unlock_irqrestore(&ei_local->page_lock, flags);
+	for (i = 0; i < 5; i++) {
+		mii_mgr_read(i, 1, &phy_val);
+		if (port_status[i] != ((phy_val & 0x4) >> 2)) {
+			if (port_status[i] == 0) {
+				port_status[i] = 1;
+				pr_info("ESW: Link Status Changed - Port%d Link Up\n", i);
+			} else {
+				port_status[i] = 0;
+				pr_info("ESW: Link Status Changed - Port%d Link Down\n", i);
+			}
+		}
+	}
+	/* enable irq mask */
+	sys_reg_write(ETHDMASYS_ETH_SW_BASE + 0x4, 0xfbffffff);
 	return IRQ_HANDLED;
 }
 
@@ -2686,6 +2751,14 @@ void sw_ioctl(struct ra_switch_ioctl_data *ioctl_data)
 
 	case SW_IOCTL_SET_PORT_MIRROR:
 		rtk_hal_set_port_mirror(ioctl_data);
+		break;
+
+	case SW_IOCTL_READ_REG:
+		rtk_hal_read_reg(ioctl_data);
+		break;
+
+	case SW_IOCTL_WRITE_REG:
+		rtk_hal_write_reg(ioctl_data);
 		break;
 
 	default:
@@ -2770,6 +2843,12 @@ static int mtk_gsw_probe(struct platform_device *pdev)
 	if (IS_ERR(gsw->supply)) {
 		pr_err("fail at %s %d\n", __func__, __LINE__);
 		return PTR_ERR(gsw->supply);
+	}
+
+	if (gsw->mcm) {
+		gsw->b3v = devm_regulator_get(&pdev->dev, "b3v");
+		if (IS_ERR(gsw->b3v))
+			return PTR_ERR(gsw->b3v);
 	}
 
 	gsw->wllll = of_property_read_bool(np, "mediatek,wllll");

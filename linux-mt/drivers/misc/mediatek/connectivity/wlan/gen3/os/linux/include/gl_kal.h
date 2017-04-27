@@ -513,6 +513,7 @@ struct KAL_HALT_CTRL_T {
 
 #define kalMdelay(u4MSec)                           mdelay(u4MSec)
 #define kalMsleep(u4MSec)                           msleep(u4MSec)
+#define kalUsleep_range(u4MinUSec, u4MaxUSec)       usleep_range(u4MinUSec, u4MaxUSec)
 
 /* Copy memory from user space to kernel space */
 #define kalMemCopyFromUser(_pvTo, _pvFrom, _u4N)    copy_from_user(_pvTo, _pvFrom, _u4N)
@@ -629,7 +630,7 @@ struct KAL_HALT_CTRL_T {
 #define kalGetTimeTick()                            jiffies_to_msecs(jiffies)
 
 #define WLAN_TAG                                    "[wlan]"
-#define kalPrint(_Fmt...)                           pr_debug(WLAN_TAG _Fmt)
+#define kalPrint(_Fmt...)                           pr_info(WLAN_TAG _Fmt)
 
 #define kalBreakPoint() \
 do { \
@@ -941,7 +942,12 @@ UINT_32 kalWriteToFile(const PUINT_8 pucPath, BOOLEAN fgDoAppend, PUINT_8 pucDat
 
 UINT_32 kalCheckPath(const PUINT_8 pucPath);
 
+UINT_32 kalTrunkPath(const PUINT_8 pucPath);
+
 INT_32 kalReadToFile(const PUINT_8 pucPath, PUINT_8 pucData, UINT_32 u4Size, PUINT_32 pu4ReadSize);
+
+INT_32 kalRequestFirmware(const PUINT_8 pucPath, PUINT_8 pucData, UINT_32 u4Size,
+		PUINT_32 pu4ReadSize, struct device *dev);
 
 /*----------------------------------------------------------------------------*/
 /* NL80211                                                                    */
@@ -972,6 +978,14 @@ PVOID kalGetStats(IN struct net_device *prDev);
 
 VOID kalResetPacket(IN P_GLUE_INFO_T prGlueInfo, IN P_NATIVE_PACKET prPacket);
 
+#if CFG_SUPPORT_QA_TOOL
+struct file *kalFileOpen(const char *path, int flags, int rights);
+
+VOID kalFileClose(struct file *file);
+
+UINT_32 kalFileRead(struct file *file, unsigned long long offset, unsigned char *data, unsigned int size);
+#endif
+
 #if CFG_SUPPORT_SDIO_READ_WRITE_PATTERN
 /*----------------------------------------------------------------------------*/
 /* SDIO Read/Write Pattern Support                                            */
@@ -985,38 +999,6 @@ BOOLEAN kalSetSdioTestPattern(IN P_GLUE_INFO_T prGlueInfo, IN BOOLEAN fgEn, IN B
 VOID kalSchedScanResults(IN P_GLUE_INFO_T prGlueInfo);
 
 VOID kalSchedScanStopped(IN P_GLUE_INFO_T prGlueInfo, BOOLEAN fgDriverTriggerd);
-
-#if CFG_MULTI_ECOVER_SUPPORT
-
-#if 0
-typedef enum _ENUM_WMTHWVER_TYPE_T {
-	WMTHWVER_E1 = 0x0,
-	WMTHWVER_E2 = 0x1,
-	WMTHWVER_E3 = 0x2,
-	WMTHWVER_E4 = 0x3,
-	WMTHWVER_E5 = 0x4,
-	WMTHWVER_E6 = 0x5,
-	WMTHWVER_MAX,
-	WMTHWVER_INVALID = 0xff
-} ENUM_WMTHWVER_TYPE_T, *P_ENUM_WMTHWVER_TYPE_T;
-
-extern ENUM_WMTHWVER_TYPE_T mtk_wcn_wmt_hwver_get(VOID);
-
-#else
-
-typedef enum _ENUM_WMTCHIN_TYPE_T {
-	WMTCHIN_CHIPID = 0x0,
-	WMTCHIN_HWVER = WMTCHIN_CHIPID + 1,
-	WMTCHIN_MAPPINGHWVER = WMTCHIN_HWVER + 1,
-	WMTCHIN_FWVER = WMTCHIN_MAPPINGHWVER + 1,
-	WMTCHIN_MAX
-} ENUM_WMT_CHIPINFO_TYPE_T, *P_ENUM_WMT_CHIPINFO_TYPE_T;
-
-UINT_32 mtk_wcn_wmt_ic_info_get(ENUM_WMT_CHIPINFO_TYPE_T type);
-
-#endif
-
-#endif
 
 VOID kalSetFwOwnEvent2Hif(P_GLUE_INFO_T pr);
 
@@ -1056,4 +1038,7 @@ INT_32 kalFbNotifierReg(IN P_GLUE_INFO_T prGlueInfo);
 VOID kalFbNotifierUnReg(VOID);
 
 UINT_8 kalGetEapolKeyType(P_NATIVE_PACKET prPacket);
+
+VOID nicConfigProcSetCamCfgWrite(BOOLEAN enabled);
+
 #endif /* _GL_KAL_H */

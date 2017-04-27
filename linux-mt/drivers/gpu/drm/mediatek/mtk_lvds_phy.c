@@ -116,14 +116,17 @@ static int mtk_lvds_tx_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	else
 		lvds_tx->dual_lvds = false;
 
+	writel(DA_LVDSTX_PWR_ON, lvds_tx->tx1_regs + VOPLL_CTL3);
 	writel(DA_LVDSTX_PWR_ON, lvds_tx->tx2_regs + VOPLL_CTL3);
 	reg = RG_VPLL_TXMUXDIV2_EN | 1 << 6 | 0x1c << 12 | 1 << 20;
+	writel(reg, lvds_tx->tx1_regs + VOPLL_CTL1);
 	writel(reg, lvds_tx->tx2_regs + VOPLL_CTL1);
 
 	reg = RG_VPLL_EN | 1 << 8 | (lvds_tx->dual_lvds ? 0 : 1) << 10 |
 	      RG_VPLL_LVDS_EN | RG_VPLL_LVDS_DPIX_DIV2 |
 	      (lvds_tx->dual_lvds ? 1 : 0) << 16 | RG_VPLL_TXDIV5_EN |
 	      RG_VPLL_BIAS_EN | RG_VPLL_BIASLPF_EN;
+	writel(reg, lvds_tx->tx1_regs + VOPLL_CTL2);
 	writel(reg, lvds_tx->tx2_regs + VOPLL_CTL2);
 
 	return 0;
@@ -287,6 +290,7 @@ static int mtk_lvds_tx_probe(struct platform_device *pdev)
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 	if (IS_ERR(phy)) {
 		ret = PTR_ERR(phy_provider);
+		dev_err(dev, "Failed to phy_provider: %d\n", ret);
 		return ret;
 	}
 
@@ -303,7 +307,7 @@ static int mtk_lvds_tx_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id mtk_lvds_tx_match[] = {
-	{ .compatible = "mediatek-lvds-tx" },
+	{ .compatible = "mediatek,mt8173-lvds-tx" },
 	{},
 };
 
@@ -311,7 +315,7 @@ struct platform_driver mtk_lvds_tx_driver = {
 	.probe = mtk_lvds_tx_probe,
 	.remove = mtk_lvds_tx_remove,
 	.driver = {
-		.name = "mediatek-lvds-tx",
+		.name = "mediatek-mt8173-lvds-tx",
 		.of_match_table = mtk_lvds_tx_match,
 	},
 };

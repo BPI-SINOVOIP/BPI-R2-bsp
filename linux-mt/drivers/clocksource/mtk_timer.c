@@ -181,14 +181,13 @@ static void __init mtk_timer_init(struct device_node *node)
 {
 	struct mtk_clock_event_device *evt;
 	struct resource res;
-	unsigned long rate_13m, rate_32k;
-	struct clk *clk_13m, *clk_32k;
+	unsigned long rate_src, rate_evt;
+	struct clk *clk_src, *clk_evt, *clk_bus;
+	bool clk32k_exist = false;
 
 	evt = kzalloc(sizeof(*evt), GFP_KERNEL);
-	if (!evt) {
-		pr_warn("Can't allocate mtk clock event driver struct");
+	if (!evt)
 		return;
-	}
 
 	evt->dev.name = "mtk_tick";
 	evt->dev.rating = 300;
@@ -202,80 +201,87 @@ static void __init mtk_timer_init(struct device_node *node)
 
 	evt->gpt_base = of_io_request_and_map(node, 0, "mtk-timer");
 	if (IS_ERR(evt->gpt_base)) {
-		pr_warn("Can't get resource\n");
-		kfree(evt);
-		return;
+		pr_err("Can't get resource\n");
+		goto err_kzalloc;
 	}
 
 	evt->dev.irq = irq_of_parse_and_map(node, 0);
 	if (evt->dev.irq <= 0) {
-		pr_warn("Can't parse IRQ");
+		pr_err("Can't parse IRQ\n");
 		goto err_mem;
 	}
 
-	clk_13m = of_clk_get(node, 0);
-	if (IS_ERR(clk_13m)) {
-		pr_warn("Can't get timer clock_13m");
+	clk_bus = of_clk_get_by_name(node, "bus");
+	if (!IS_ERR(clk_bus))
+		clk_prepare_enable(clk_bus);
+
+	clk_src = of_clk_get(node, 0);
+	if (IS_ERR(clk_src)) {
+		pr_err("Can't get timer clock_src\n");
 		goto err_irq;
 	}
 
-	if (clk_prepare_enable(clk_13m)) {
-		pr_warn("Can't prepare clock_13m");
-		goto err_clk_put_13m;
+	if (clk_prepare_enable(clk_src)) {
+		pr_err("Can't prepare clock_src\n");
+		goto err_clk_put_src;
 	}
-	rate_13m = clk_get_rate(clk_13m);
+	rate_src = clk_get_rate(clk_src);
 
-	clk_32k = of_clk_get(node, 1);
-	if (IS_ERR(clk_32k)) {
-		pr_warn("Can't get timer clock_32k");
-		goto err_clk_disable_13m;
+	clk_evt = of_clk_get_by_name(node, "clk32k");
+	if (!IS_ERR(clk_evt)) {
+		clk32k_exist = true;
+		clk_prepare_enable(clk_evt);
+		rate_evt = clk_get_rate(clk_evt);
+	} else {
+		rate_evt = rate_src;
 	}
-
-	if (clk_prepare_enable(clk_32k)) {
-		pr_warn("Can't prepare clock_32k");
-		goto err_clk_put_32k;
-	}
-	rate_32k = clk_get_rate(clk_32k);
 
 	if (request_irq(evt->dev.irq, mtk_timer_interrupt,
 			IRQF_TIMER | IRQF_IRQPOLL, "mtk_timer", evt)) {
-		pr_warn("failed to setup irq %d\n", evt->dev.irq);
-		goto err_clk_disable_32k;
+		pr_err("failed to setup irq %d\n", evt->dev.irq);
+		if (clk32k_exist)
+			goto err_clk_disable_evt;
+		else
+			goto err_clk_disable_src;
 	}
 
-	evt->ticks_per_jiffy = DIV_ROUND_UP(rate_32k, HZ);
+	evt->ticks_per_jiffy = DIV_ROUND_UP(rate_evt, HZ);
 
 	/* Configure clock source */
 	mtk_timer_setup(evt, GPT_CLK_SRC, TIMER_CTRL_OP_FREERUN, TIMER_CLK_SRC_SYS13M, true);
 	clocksource_mmio_init(evt->gpt_base + TIMER_CNT_REG(GPT_CLK_SRC),
-			node->name, rate_13m, 300, 32, clocksource_mmio_readl_up);
+			node->name, rate_src, 300, 32, clocksource_mmio_readl_up);
 
 	/* Configure clock event */
-	mtk_timer_setup(evt, GPT_CLK_EVT, TIMER_CTRL_OP_REPEAT, TIMER_CLK_SRC_RTC32K, false);
-	clockevents_config_and_register(&evt->dev, rate_32k, 0x3,
+	if (clk32k_exist)
+		mtk_timer_setup(evt, GPT_CLK_EVT, TIMER_CTRL_OP_REPEAT, TIMER_CLK_SRC_RTC32K, false);
+	else
+		mtk_timer_setup(evt, GPT_CLK_EVT, TIMER_CTRL_OP_REPEAT, TIMER_CLK_SRC_SYS13M, false);
+	clockevents_config_and_register(&evt->dev, rate_evt, 0x3,
 					0xffffffff);
 
 	mtk_timer_enable_irq(evt, GPT_CLK_EVT);
 
 	return;
 
-err_clk_disable_32k:
-	clk_disable_unprepare(clk_32k);
-err_clk_put_32k:
-	clk_put(clk_32k);
-err_clk_disable_13m:
-	clk_disable_unprepare(clk_13m);
-err_clk_put_13m:
-	clk_put(clk_13m);
+err_clk_disable_evt:
+	clk_disable_unprepare(clk_evt);
+	clk_put(clk_evt);
+err_clk_disable_src:
+	clk_disable_unprepare(clk_src);
+
+err_clk_put_src:
+	clk_put(clk_src);
 err_irq:
 	irq_dispose_mapping(evt->dev.irq);
 err_mem:
 	iounmap(evt->gpt_base);
-	kfree(evt);
 	if (of_address_to_resource(node, 0, &res)) {
 		pr_warn("Failed to parse resource\n");
 		return;
 	}
 	release_mem_region(res.start, resource_size(&res));
+err_kzalloc:
+	kfree(evt);
 }
 CLOCKSOURCE_OF_DECLARE(mtk_mt6577, "mediatek,mt6577-timer", mtk_timer_init);

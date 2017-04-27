@@ -130,6 +130,9 @@ static const struct of_device_id mtk_spi_of_match[] = {
 	{ .compatible = "mediatek,mt2701-spi",
 		.data = (void *)&mtk_common_compat,
 	},
+	{ .compatible = "mediatek,mt2712-spi",
+		.data = (void *)&mtk_common_compat,
+	},
 	{ .compatible = "mediatek,mt6589-spi",
 		.data = (void *)&mtk_common_compat,
 	},
@@ -670,8 +673,6 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		goto err_put_master;
 	}
 
-	clk_disable_unprepare(mdata->spi_clk);
-
 	pm_runtime_enable(&pdev->dev);
 
 	ret = devm_spi_register_master(&pdev->dev, master);
@@ -709,6 +710,8 @@ static int mtk_spi_probe(struct platform_device *pdev)
 			}
 		}
 	}
+
+	clk_disable_unprepare(mdata->spi_clk);
 
 	return 0;
 

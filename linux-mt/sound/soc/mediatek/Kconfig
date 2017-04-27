@@ -1,5 +1,27 @@
 config SND_SOC_MEDIATEK
-	tristate
+	tristate "Asoc Mediatek"
+	help
+	  This adds ASoC driver for Mediatek.
+	  that should be used for Asoc.
+	  Select Y if you use Asoc.
+	  If unsure select "N".
+
+config SND_SOC_MT7622
+	tristate "ASoC support for Mediatek MT7622 chip"
+	help
+	  This adds ASoC driver for Mediatek MT7622 boards
+	  that can be used with other codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
+config SND_SOC_MT7622_DUMMY
+	tristate "ASoc Audio driver for MT7622 with dummy codec"
+	depends on SND_SOC_MT7622
+	help
+	  This adds ASoC driver for Mediatek MT7622 boards
+	  with the dummy codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
 
 config SND_SOC_MT2701
 	tristate "ASoC support for Mediatek MT2701 chip"
@@ -120,6 +142,7 @@ config SND_SOC_MT8521P_CS42448
 	  This adds ASoC driver for Mediatek MT8521P boards
 	  with the CS42448 audio codec.
 	  Select Y if you have such device.
+	  If unsure select "N".
 
 config SND_SOC_MT2701_DUMMY
   tristate "ASoc Audio driver for MT2712 with dummy codec"

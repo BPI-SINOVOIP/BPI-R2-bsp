@@ -507,13 +507,13 @@ static void trgmii_calibration_7530(struct mt7620_gsw *gsw)
 	unsigned int rxc_step_size;
 	unsigned int rxd_step_size;
 	unsigned int read_data;
-//	unsigned int tmp = 0;
+	unsigned int tmp = 0;
 	int i;
 	unsigned int err_cnt[5];
 	unsigned int rd_wd;
 	unsigned int init_toggle_data;
 	unsigned int err_flag[5];
-//	unsigned int err_total_flag;
+	unsigned int err_total_flag;
 	unsigned int training_word;
 	unsigned int rd_tap;
 
@@ -572,7 +572,6 @@ static void trgmii_calibration_7530(struct mt7620_gsw *gsw)
 		val = mtk_switch_r32(gsw, TRGMII_7623_base + 0x40) | 0x80000000;
 		mtk_switch_w32(gsw, val, TRGMII_7623_base + 0x40);
 	}
-#if 0
 	val = mtk_switch_r32(gsw, TRGMII_7623_base + 0x078) & 0xfffff0ff;
 	mtk_switch_w32(gsw, val, TRGMII_7623_base + 0x078);
 	val = mtk_switch_r32(gsw, TRGMII_7623_base + 0x50) & 0xfffff0ff;
@@ -587,7 +586,6 @@ static void trgmii_calibration_7530(struct mt7620_gsw *gsw)
 	mtk_switch_w32(gsw, val, TRGMII_7623_base + 0x70);
 	val = mtk_switch_r32(gsw, TRGMII_7623_base + 0x78) & 0x00000800;
 	mtk_switch_w32(gsw, val, TRGMII_7623_base + 0x78);
-
 	err_total_flag = 0;
 	/* pr_err("Adjust RXC delay in MT7530\n"); */
 	read_data = 0x0;
@@ -669,12 +667,11 @@ static void trgmii_calibration_7530(struct mt7620_gsw *gsw)
 		read_data = tmp;
 	}
 	pr_debug("Finish RXC Adjustment while loop\n");
-#endif
+
 	/* pr_err("Read RD_WD MT7530\n"); */
 	/* Read RD_WD MT7530 */
 	for (i = 0; i < 5; i++) {
 		rd_tap = 0;
-		err_flag[i] = 1;
 		while (err_flag[i] != 0 && rd_tap != 128) {
 			/* Enable EDGE CHK in MT7530 */
 			read_data =
@@ -714,7 +711,7 @@ static void trgmii_calibration_7530(struct mt7620_gsw *gsw)
 					read_data);
 			wait_loop(gsw);
 		}
-		pr_err("MT7530 %dth bit  Tap_a = %d\n", i, tap_a[i]);
+		pr_debug("MT7530 %dth bit  Tap_a = %d\n", i, tap_a[i]);
 	}
 
 	/* pr_err("Last While Loop\n"); */
@@ -752,7 +749,7 @@ static void trgmii_calibration_7530(struct mt7620_gsw *gsw)
 			wait_loop(gsw);
 		}
 		tap_b[i] = rd_tap;	/* - rxd_step_size; */
-		pr_err("MT7530 %dth bit  Tap_b = %d\n", i, tap_b[i]);
+		pr_debug("MT7530 %dth bit  Tap_b = %d\n", i, tap_b[i]);
 		/* Calculate RXD delay = (TAP_A + TAP_B)/2 */
 		final_tap[i] = (tap_a[i] + tap_b[i]) / 2;
 		/* pr_err("########****** MT7530 %dth bit Final Tap = %d\n", i, final_tap[i]); */
@@ -854,7 +851,7 @@ static void mt7530_trgmii_clock_setting(struct mt7620_gsw *gsw, u32 xtal_mode)
 
 	regv = mt7530_mdio_r32(gsw, 0x7830);
 	regv &= 0xFFFFFFFC;
-//	regv |= 0x00000001;
+	regv |= 0x00000001;
 	mt7530_mdio_w32(gsw, 0x7830, regv);
 
 	regv = mt7530_mdio_r32(gsw, 0x7a40);
@@ -890,7 +887,7 @@ static void mt7530_hw_deinit(struct mtk_eth *eth, struct mt7620_gsw *gsw, struct
 	ret = regulator_disable(gsw->supply);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to disable mt7530 power: %d\n", ret);
-	
+
 	if (gsw->mcm) {
 		ret = regulator_disable(gsw->b3v);
 		if (ret)
@@ -951,7 +948,7 @@ static void mt7530_hw_init(struct mtk_eth *eth, struct mt7620_gsw *gsw, struct d
 		usleep_range(1000, 1100);
 		regmap_update_bits(eth->ethsys, SYSC_REG_RSTCTRL,
 				   RESET_MCM,
-				   ~RESET_MCM);
+				   ~(u32)RESET_MCM);
 		mdelay(100);
 
 		regmap_update_bits(gsw->ethsys, ETHSYS_CLKCFG0,
@@ -960,7 +957,7 @@ static void mt7530_hw_init(struct mtk_eth *eth, struct mt7620_gsw *gsw, struct d
 	}
 
 	/* reset the TRGMII core */
-	mtk_switch_m32(gsw, ~0, 0 /*INTF_MODE_TRGMII*/, GSW_INTF_MODE);
+	mtk_switch_m32(gsw, ~0, INTF_MODE_TRGMII, GSW_INTF_MODE);
 	/* Assert MT7623 RXC reset */
 	mtk_switch_m32(gsw, ~0, TRGMII_RCK_CTRL_RX_RST, GSW_TRGMII_RCK_CTRL);
 
@@ -1035,8 +1032,6 @@ static void mt7530_hw_init(struct mtk_eth *eth, struct mt7620_gsw *gsw, struct d
 
 	val = mt7530_mdio_r32(gsw, 0x7800);
 	val = (val >> 9) & 0x3;
-
-val = 2;
 	if (val == 0x3) {
 		xtal_mode = 1;
 		/* 25Mhz Xtal - do nothing */
@@ -1164,72 +1159,6 @@ val = 2;
 
 	/* enable irq */
 	mt7530_mdio_m32(gsw, 0, TOP_SIG_CTRL_NORMAL, MT7530_TOP_SIG_CTRL);
-
-
-{
-	u32  offset, data;
-	int i;
-	struct mt7530_ranges {
-		u32 start;
-		u32 end;
-	} ranges[] = {
-		{0x0, 0xac},
-		{0x1000, 0x10e0},
-		{0x1100, 0x1140},
-		{0x1200, 0x1240},
-		{0x1300, 0x1340},
-		{0x1400, 0x1440},
-		{0x1500, 0x1540},
-		{0x1600, 0x1640},
-		{0x1800, 0x1848},
-		{0x1900, 0x1948},
-		{0x1a00, 0x1a48},
-		{0x1b00, 0x1b48},
-		{0x1c00, 0x1c48},
-		{0x1d00, 0x1d48},
-		{0x1e00, 0x1e48},
-		{0x1f60, 0x1ffc},
-		{0x2000, 0x212c},
-		{0x2200, 0x222c},
-		{0x2300, 0x232c},
-		{0x2400, 0x242c},
-		{0x2500, 0x252c},
-		{0x2600, 0x262c},
-		{0x3000, 0x3014},
-		{0x30c0, 0x30f8},
-		{0x3100, 0x3114},
-		{0x3200, 0x3214},
-		{0x3300, 0x3314},
-		{0x3400, 0x3414},
-		{0x3500, 0x3514},
-		{0x3600, 0x3614},
-		{0x4000, 0x40d4},
-		{0x4100, 0x41d4},
-		{0x4200, 0x42d4},
-		{0x4300, 0x43d4},
-		{0x4400, 0x44d4},
-		{0x4500, 0x45d4},
-		{0x4600, 0x46d4},
-		{0x4f00, 0x461c},
-		{0x7000, 0x7038},
-		{0x7120, 0x7124},
-		{0x7800, 0x7804},
-		{0x7810, 0x7810},
-		{0x7830, 0x7830},
-		{0x7a00, 0x7a7c},
-		{0x7b00, 0x7b04},
-		{0x7e00, 0x7e04},
-		{0x7ffc, 0x7ffc},
-	};
-
-	for (i = 0 ; i < ARRAY_SIZE(ranges) ; i++) {
-		for (offset = ranges[i].start ; offset <= ranges[i].end ; offset += 4) {
-			data =  mt7530_mdio_r32(gsw, offset);
-			dev_info(gsw->dev, "mt7530 switch reg=0x%08x, data=0x%08x\n",
-				   offset, data);
-		}
-	}
-}
 }
 
 static const struct of_device_id mediatek_gsw_match[] = {

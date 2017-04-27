@@ -71,6 +71,13 @@
 ********************************************************************************
 */
 
+struct CONSYS_BASE_ADDRESS {
+	SIZE_T mcu_base;
+	SIZE_T ap_rgu_base;
+	SIZE_T topckgen_base;
+	SIZE_T spm_base;
+};
+
 typedef enum _ENUM_EMI_CTRL_STATE_OFFSET_ {
 	EXP_APMEM_CTRL_STATE = 0x0,
 	EXP_APMEM_CTRL_HOST_SYNC_STATE = 0x4,
@@ -118,8 +125,8 @@ typedef UINT32(*CONSYS_IC_EMI_SET_REMAPPING_REG) (VOID);
 typedef INT32(*IC_BT_WIFI_SHARE_V33_SPIN_LOCK_INIT) (VOID);
 typedef INT32(*CONSYS_IC_CLK_GET_FROM_DTS) (struct platform_device *pdev);
 typedef INT32(*CONSYS_IC_PMIC_GET_FROM_DTS) (struct platform_device *pdev);
-typedef INT32(*CONSYS_IC_READ_IRQ_INFO_FROM_DTS) (PINT32 irq_num, PUINT32 irq_flag);
-typedef INT32(*CONSYS_IC_READ_REG_FROM_DTS) (VOID);
+typedef INT32(*CONSYS_IC_READ_IRQ_INFO_FROM_DTS) (struct platform_device *pdev, PINT32 irq_num, PUINT32 irq_flag);
+typedef INT32(*CONSYS_IC_READ_REG_FROM_DTS) (struct platform_device *pdev);
 typedef UINT32(*CONSYS_IC_READ_CPUPCR) (VOID);
 typedef VOID(*IC_FORCE_TRIGGER_ASSERT_DEBUG_PIN) (VOID);
 typedef INT32(*CONSYS_IC_CO_CLOCK_TYPE) (VOID);
@@ -128,6 +135,7 @@ typedef MTK_WCN_BOOL(*CONSYS_IC_NEED_STORE_PDEV) (VOID);
 typedef UINT32(*CONSYS_IC_STORE_PDEV) (struct platform_device *pdev);
 typedef UINT32(*CONSYS_IC_STORE_RESET_CONTROL) (struct platform_device *pdev);
 typedef MTK_WCN_BOOL(*CONSYS_IC_NEED_GPS) (VOID);
+typedef VOID(*CONSYS_IC_SET_IF_PINMUX) (MTK_WCN_BOOL enable);
 
 typedef struct _WMT_CONSYS_IC_OPS_ {
 	CONSYS_IC_CLOCK_BUFFER_CTRL consys_ic_clock_buffer_ctrl;
@@ -159,6 +167,7 @@ typedef struct _WMT_CONSYS_IC_OPS_ {
 	CONSYS_IC_STORE_PDEV consys_ic_store_pdev;
 	CONSYS_IC_STORE_RESET_CONTROL consys_ic_store_reset_control;
 	CONSYS_IC_NEED_GPS consys_ic_need_gps;
+	CONSYS_IC_SET_IF_PINMUX consys_ic_set_if_pinmux;
 } WMT_CONSYS_IC_OPS, *P_WMT_CONSYS_IC_OPS;
 /*******************************************************************************
 *                            P U B L I C   D A T A
@@ -198,11 +207,11 @@ INT32 mtk_wcn_consys_hw_bt_paldo_ctrl(UINT32 enable);
 INT32 mtk_wcn_consys_hw_wifi_paldo_ctrl(UINT32 enable);
 INT32 mtk_wcn_consys_hw_vcn28_ctrl(UINT32 enable);
 INT32 mtk_wcn_consys_hw_state_show(VOID);
-UINT8 *mtk_wcn_consys_emi_virt_addr_get(UINT32 ctrl_state_offset);
+PUINT8 mtk_wcn_consys_emi_virt_addr_get(UINT32 ctrl_state_offset);
 P_CONSYS_EMI_ADDR_INFO mtk_wcn_consys_soc_get_emi_phy_add(VOID);
 UINT32 mtk_wcn_consys_read_cpupcr(VOID);
 VOID mtk_wcn_force_trigger_assert_debug_pin(VOID);
-INT32 mtk_wcn_consys_read_irq_info_from_dts(INT32 *irq_num, UINT32 *irq_flag);
+INT32 mtk_wcn_consys_read_irq_info_from_dts(PINT32 irq_num, PUINT32 irq_flag);
 
 P_WMT_CONSYS_IC_OPS mtk_wcn_get_consys_ic_ops(VOID);
 INT32 mtk_wcn_consys_jtag_set_for_mcu(VOID);

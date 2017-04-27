@@ -32,7 +32,6 @@
 #include "mtk_drm_debugfs.h"
 #include "mtk_drm_drv.h"
 #include "mtk_drm_fb.h"
-#include "mtk_drm_fbdev.h"
 #include "mtk_drm_gem.h"
 
 #define DRIVER_NAME "mediatek"
@@ -147,7 +146,8 @@ static enum mtk_ddp_comp_id mt2712_mtk_ddp_main[] = {
 	DDP_COMPONENT_AAL,
 	DDP_COMPONENT_OD,
 	DDP_COMPONENT_RDMA0,
-	DDP_COMPONENT_DSI0,
+	DDP_COMPONENT_DPI0,
+	DDP_COMPONENT_PWM0,
 };
 
 static enum mtk_ddp_comp_id mt2712_mtk_ddp_ext[] = {
@@ -156,7 +156,7 @@ static enum mtk_ddp_comp_id mt2712_mtk_ddp_ext[] = {
 	DDP_COMPONENT_AAL1,
 	DDP_COMPONENT_OD1,
 	DDP_COMPONENT_RDMA1,
-	DDP_COMPONENT_DSI1,
+	DDP_COMPONENT_DPI1,
 };
 
 static enum mtk_ddp_comp_id mt8173_mtk_ddp_main[] = {
@@ -279,15 +279,8 @@ static int mtk_drm_kms_init(struct drm_device *drm)
 
 	mtk_drm_debugfs_init(drm, private);
 
-	ret = mtk_fbdev_init(drm);
-	if (ret)
-		goto err_kms_helper_poll_fini;
-
 	return 0;
 
-err_kms_helper_poll_fini:
-	drm_kms_helper_poll_fini(drm);
-	drm_vblank_cleanup(drm);
 err_component_unbind:
 	component_unbind_all(drm->dev, drm);
 err_config_cleanup:
@@ -298,7 +291,6 @@ err_config_cleanup:
 
 static void mtk_drm_kms_deinit(struct drm_device *drm)
 {
-	mtk_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
 
 	drm_vblank_cleanup(drm);
@@ -420,6 +412,7 @@ static const struct of_device_id mtk_ddp_comp_dt_ids[] = {
 	{ .compatible = "mediatek,mt2701-dsi",	      .data = (void *)MTK_DSI },
 	{ .compatible = "mediatek,mt8173-dsi",        .data = (void *)MTK_DSI },
 	{ .compatible = "mediatek,mt2701-dpi",	      .data = (void *)MTK_DPI },
+	{ .compatible = "mediatek,mt2712-dpi",        .data = (void *)MTK_DPI },
 	{ .compatible = "mediatek,mt8173-dpi",        .data = (void *)MTK_DPI },
 	{ .compatible = "mediatek,mt2701-disp-mutex", .data = (void *)MTK_DISP_MUTEX },
 	{ .compatible = "mediatek,mt8173-disp-mutex", .data = (void *)MTK_DISP_MUTEX },
@@ -626,7 +619,7 @@ static SIMPLE_DEV_PM_OPS(mtk_drm_pm_ops, mtk_drm_sys_suspend,
 static const struct of_device_id mtk_drm_of_ids[] = {
 	{ .compatible = "mediatek,mt2701-display",
 	  .data = &mt2701_mmsys_driver_data},
-	{ .compatible = "mediatek,mt2712-mmsys",
+	{ .compatible = "mediatek,mt2712-display",
 	  .data = &mt2712_mmsys_driver_data},
 	{ .compatible = "mediatek,mt8173-mmsys",
 	  .data = &mt8173_mmsys_driver_data},

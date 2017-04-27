@@ -264,6 +264,7 @@ PVOID osal_malloc(UINT32 size);
 VOID osal_free(const PVOID dst);
 PVOID osal_memset(PVOID buf, INT32 i, UINT32 len);
 PVOID osal_memcpy(PVOID dst, const PVOID src, UINT32 len);
+VOID osal_memcpy_fromio(PVOID dst, const PVOID src, UINT32 len);
 INT32 osal_memcmp(const PVOID buf1, const PVOID buf2, UINT32 len);
 
 UINT16 osal_crc16(const PUINT8 buffer, const UINT32 length);
@@ -271,6 +272,7 @@ VOID osal_thread_show_stack(P_OSAL_THREAD pThread);
 
 INT32 osal_sleep_ms(UINT32 ms);
 INT32 osal_udelay(UINT32 us);
+INT32 osal_usleep_range(ULONG min, ULONG max);
 INT32 osal_timer_create(P_OSAL_TIMER);
 INT32 osal_timer_start(P_OSAL_TIMER, UINT32);
 INT32 osal_timer_stop(P_OSAL_TIMER);
@@ -346,6 +348,7 @@ INT32 osal_test_and_set_bit(UINT32 bitOffset, P_OSAL_BIT_OP_VAR pData);
 
 INT32 osal_gettimeofday(PINT32 sec, PINT32 usec);
 INT32 osal_printtimeofday(const PUINT8 prefix);
+VOID osal_get_local_time(PUINT64 sec, PULONG nsec);
 
 VOID osal_buffer_dump(const PUINT8 buf, const PUINT8 title, UINT32 len, UINT32 limit);
 

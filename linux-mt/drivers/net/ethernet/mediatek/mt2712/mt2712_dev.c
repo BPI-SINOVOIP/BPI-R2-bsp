@@ -736,7 +736,6 @@ static int write_phy_regs(int phy_id, int phy_reg, int phy_reg_data)
 	unsigned long MAC_GMIIAR;
 
 	/* wait for any previous MII read/write operation to complete */
-	pr_err("phy_reg:%#x, phy_data:%#x\n", phy_reg, phy_reg_data);
 	/*Poll Until Poll Condition */
 	vy_count = 0;
 	while (1) {
@@ -761,7 +760,7 @@ static int write_phy_regs(int phy_id, int phy_reg, int phy_reg_data)
 	MAC_GMIIAR_REG_RD(MAC_GMIIAR);
 	MAC_GMIIAR = MAC_GMIIAR & (unsigned long)(0x12);
 	MAC_GMIIAR =
-	    MAC_GMIIAR | ((phy_id) << 21) | ((phy_reg) << 16) | ((0x2) << 8)
+	    MAC_GMIIAR | ((phy_id) << 21) | ((phy_reg) << 16) | ((0x0) << 8)
 	    | ((0x1) << 2) | ((0x1) << 0);
 	MAC_GMIIAR_REG_WR(MAC_GMIIAR);
 
@@ -827,7 +826,7 @@ static int read_phy_regs(int phy_id, int phy_reg, int *phy_reg_data)
 	MAC_GMIIAR_REG_RD(MAC_GMIIAR);
 	MAC_GMIIAR = MAC_GMIIAR & (unsigned long)(0x12);
 	MAC_GMIIAR =
-	    MAC_GMIIAR | ((phy_id) << 21) | ((phy_reg) << 16) | ((0x2) << 8)
+	    MAC_GMIIAR | ((phy_id) << 21) | ((phy_reg) << 16) | ((0x0) << 8)
 	    | ((0x3) << 2) | ((0x1) << 0);
 	MAC_GMIIAR_REG_WR(MAC_GMIIAR);
 

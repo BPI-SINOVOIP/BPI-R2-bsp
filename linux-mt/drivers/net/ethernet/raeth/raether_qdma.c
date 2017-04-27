@@ -213,6 +213,7 @@ bool qdma_tx_desc_alloc(void)
 				      (NUM_PQ_RESV | (NUM_PQ_RESV << 8)));
 	}
 
+	sys_reg_write(QTX_SCH_1, 0x80000000);
 	if (ei_local->chip_name == MT7622_FE) {
 		for (i = 0; i < NUM_PQ; i++) {
 			if (i <= 15) {
@@ -240,6 +241,7 @@ bool qdma_tx_desc_alloc(void)
 					       (NUM_PQ_RESV << 8)));
 			}
 		}
+		sys_reg_write(QDMA_PAGE, 0);
 	}
 
 	return 1;
@@ -645,6 +647,7 @@ int rt2880_qdma_eth_send(struct END_DEVICE *ei_local, struct net_device *dev,
 		}
 	}
 
+	cpu_ptr->txd_info3.QID = ring_no;
 	/* QoS Web UI used */
 
 	if ((ei_local->features & FE_GE2_SUPPORT) && (lan_wan_separate == 1)) {
@@ -702,7 +705,6 @@ int rt2880_qdma_eth_send(struct END_DEVICE *ei_local, struct net_device *dev,
 	cpu_ptr->txd_info3.SWC_bit = 1;
 
 	/* 5. move CPU_PTR to new TXD */
-	cpu_ptr->txd_info3.QID = ring_no;
 	cpu_ptr->txd_info4.TSO = 0;
 	cpu_ptr->txd_info3.LS_bit = 1;
 	cpu_ptr->txd_info3.OWN_bit = 0;
@@ -725,7 +727,7 @@ int rt2880_qdma_eth_send(struct END_DEVICE *ei_local, struct net_device *dev,
 	wmb();
 	/* update CPU pointer */
 	sys_reg_write(QTX_CTX_PTR,
-		      ei_local->phy_txd_pool + ei_local->tx_cpu_idx);
+		      get_phy_addr(ei_local, ei_local->tx_cpu_idx));
 	spin_unlock_irqrestore(&ei_local->page_lock, flags);
 
 	if (ei_local->features & FE_GE2_SUPPORT) {
@@ -809,6 +811,7 @@ int rt2880_qdma_eth_send_tso(struct END_DEVICE *ei_local,
 		cpu_ptr->txd_info4.FPORT = 2;
 
 	cpu_ptr->txd_info4.TSO = 0;
+	cpu_ptr->txd_info3.QID = ring_no;
 	if (skb->mark < 64) {
 		cpu_ptr->txd_info3.QID = M2Q_table[skb->mark];
 	} else {
@@ -877,7 +880,6 @@ int rt2880_qdma_eth_send_tso(struct END_DEVICE *ei_local,
 		}
 	}
 	/*debug multi tx queue */
-	cpu_ptr->txd_info3.QID = ring_no;
 	init_qid = cpu_ptr->txd_info3.QID;
 
 #if defined(CONFIG_RA_HW_NAT) || defined(CONFIG_RA_HW_NAT_MODULE)
@@ -1067,7 +1069,7 @@ int rt2880_qdma_eth_send_tso(struct END_DEVICE *ei_local,
 	 */
 	wmb();
 	sys_reg_write(QTX_CTX_PTR,
-		      ei_local->phy_txd_pool + ei_local->tx_cpu_idx);
+		      get_phy_addr(ei_local, ei_local->tx_cpu_idx));
 	spin_unlock_irqrestore(&ei_local->page_lock, flags);
 
 	if (ei_local->features & FE_GE2_SUPPORT) {
@@ -1257,7 +1259,7 @@ void set_fe_qdma_glo_cfg(void)
 
 	pr_err("Enable QDMA TX NDP coherence check and re-read mechanism\n");
 	reg_val = sys_reg_read(QDMA_GLO_CFG);
-	reg_val = reg_val | 0x400;
+	reg_val = reg_val | 0x400 | 0x100000;
 	sys_reg_write(QDMA_GLO_CFG, reg_val);
 	pr_err("***********QDMA_GLO_CFG=%x\n", sys_reg_read(QDMA_GLO_CFG));
 }
@@ -1370,7 +1372,7 @@ int ei_qdma_xmit_housekeeping(struct net_device *netdev, int budget)
 		} else {
 			dev_kfree_skb_any(ei_local->skb_free[ctx_offset]);
 		}
-		/* ei_local->skb_free[ctx_offset] = 0; */
+		ei_local->skb_free[ctx_offset] = 0;
 		/* 4. update cpu_ptr */
 		cpu_ptr = (ei_local->txd_pool + ctx_offset);
 	}

@@ -11,7 +11,14 @@
 # GNU General Public License for more details.
 #
 
+ifneq ($(strip $(CONFIG_MTK_IRRX_PLAT)),)
+subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/irrx/inc/$(CONFIG_MTK_IRRX_PLAT)/
+else
+subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/irrx/inc/default/
+endif
+subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/irrx/inc/
 obj-$(CONFIG_MTK_IRRX_NEC)   +=  nec/
+obj-$(CONFIG_MTK_IRRX_RC5)   +=  rc5/
 obj-$(CONFIG_MTK_IRRX_RC6)   +=  rc6/
 obj-$(CONFIG_MTK_IRRX_SIRC)   +=  sirc/
 obj-$(CONFIG_MTK_IRRX_RCMM)   +=  rcmm/

@@ -23,6 +23,6 @@
 #define MTK_GPT_END_BLK			(11)
 #define MTK_GPT_MAX_PART		(20)
 
-int mtk_partition_register(struct mtd_info *mtd);
+int mtk_partition_register(struct mtd_info *mtd, int start_blk);
 
 #endif

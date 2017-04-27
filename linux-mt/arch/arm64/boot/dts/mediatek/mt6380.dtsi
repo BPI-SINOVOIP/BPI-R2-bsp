@@ -32,8 +32,8 @@
 
 		mt6380_vcore_reg: buck_vcore {
 			regulator-name = "vcore";
-			regulator-min-microvolt = <700000>;
-			regulator-max-microvolt = <1493750>;
+			regulator-min-microvolt = <600000>;
+			regulator-max-microvolt = <1393750>;
 			regulator-ramp-delay = <6250>;
 		};
 

@@ -15,6 +15,7 @@
 #include "stp_dbg_soc.h"
 #include "btm_core.h"
 #include "stp_core.h"
+#include "mtk_wcn_consys_hw.h"
 
 #define STP_DBG_PAGED_DUMP_BUFFER_SIZE (32*1024*sizeof(char))
 #define STP_DBG_PAGED_TRACE_SIZE (2048*sizeof(char))
@@ -211,7 +212,7 @@ static _osal_inline_ INT32 stp_dbg_soc_paged_dump(INT32 dump_sink)
 				dump_phy_addr, dump_vir_addr, dump_len);
 
 		/*move dump info according to dump_addr & dump_len */
-		osal_memcpy(&g_paged_dump_buffer[0], dump_vir_addr, dump_len);
+		osal_memcpy_fromio(&g_paged_dump_buffer[0], dump_vir_addr, dump_len);
 		/*stp_dbg_soc_emi_dump_buffer(&g_paged_dump_buffer[0], dump_len);*/
 
 		if (page_counter == 0) {
@@ -368,7 +369,7 @@ static _osal_inline_ INT32 stp_dbg_soc_paged_trace(VOID)
 			ret = -2;
 			break;
 		}
-		osal_memcpy(&g_paged_trace_buffer[0], dump_vir_addr,
+		osal_memcpy_fromio(&g_paged_trace_buffer[0], dump_vir_addr,
 				buffer_idx < STP_DBG_PAGED_TRACE_SIZE ? buffer_idx : STP_DBG_PAGED_TRACE_SIZE);
 		/*moving paged trace according to buffer_start & buffer_len */
 		do {
@@ -382,14 +383,14 @@ static _osal_inline_ INT32 stp_dbg_soc_paged_trace(VOID)
 				if (0 == (i % 64)) {
 					*p_str++ = '\n';
 					*p_str = '\0';
-					pr_debug("%s", str);
+					pr_warn("%s", str);
 					p_str = &str[0];
 				}
 			}
 			if (dump_len % 64) {
 				*p_str++ = '\n';
 				*p_str = '\0';
-				pr_debug("%s", str);
+				pr_warn("%s", str);
 			}
 		} while (0);
 		/*move parser fw assert infor to paged dump in the one paged dump */
@@ -406,8 +407,10 @@ INT32 stp_dbg_soc_core_dump(INT32 dump_sink)
 	INT32 ret = 0;
 
 	ret = stp_dbg_soc_paged_dump(dump_sink);
-	if (ret)
+	if (ret) {
+		stp_dbg_core_dump_flush(0, MTK_WCN_BOOL_TRUE);
 		STP_DBG_ERR_FUNC("stp_dbg_soc_paged_dump fail: %d!\n", ret);
+	}
 
 	ret = stp_dbg_soc_paged_trace();
 	if (ret)
@@ -445,19 +448,21 @@ PUINT8 stp_dbg_soc_id_to_task(UINT32 id)
 UINT32 stp_dbg_soc_read_debug_crs(ENUM_CONNSYS_DEBUG_CR cr)
 {
 #define CONSYS_REG_READ(addr) (*((volatile UINT32 *)(addr)))
-	UINT8 *consys_dbg_cr_base = NULL;
-
-	consys_dbg_cr_base = ioremap_nocache(CONSYS_DBG_CR_BASE, 0x500);
-	switch (cr) {
-	case CONNSYS_CPU_CLK:
-		return CONSYS_REG_READ(consys_dbg_cr_base + CONSYS_CPU_CLK_STATUS_OFFSET);
-	case CONNSYS_BUS_CLK:
-		return CONSYS_REG_READ(consys_dbg_cr_base + CONSYS_BUS_CLK_STATUS_OFFSET);
-	case CONNSYS_DEBUG_CR1:
-		return CONSYS_REG_READ(consys_dbg_cr_base + CONSYS_DBG_CR1_OFFSET);
-	case CONNSYS_DEBUG_CR2:
-		return CONSYS_REG_READ(consys_dbg_cr_base + CONSYS_DBG_CR2_OFFSET);
-	default:
-		return 0;
+#ifdef CONFIG_OF		/*use DT */
+	if (conn_reg.mcu_base) {
+		switch (cr) {
+		case CONNSYS_CPU_CLK:
+			return CONSYS_REG_READ(conn_reg.mcu_base + CONSYS_CPU_CLK_STATUS_OFFSET);
+		case CONNSYS_BUS_CLK:
+			return CONSYS_REG_READ(conn_reg.mcu_base + CONSYS_BUS_CLK_STATUS_OFFSET);
+		case CONNSYS_DEBUG_CR1:
+			return CONSYS_REG_READ(conn_reg.mcu_base + CONSYS_DBG_CR1_OFFSET);
+		case CONNSYS_DEBUG_CR2:
+			return CONSYS_REG_READ(conn_reg.mcu_base + CONSYS_DBG_CR2_OFFSET);
+		default:
+			return 0;
+		}
 	}
+#endif
+	return -1;
 }

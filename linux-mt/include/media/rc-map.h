@@ -32,6 +32,7 @@ enum rc_type {
 	RC_TYPE_SHARP		= 17,	/* Sharp protocol */
 	RC_TYPE_XMP		= 18,	/* XMP protocol */
 	RC_TYPE_CEC		= 19,	/* CEC protocol */
+	RC_TYPE_RCMM		= 20,	/* RCMM protocol */
 };
 
 #define RC_BIT_NONE		0ULL
@@ -55,6 +56,7 @@ enum rc_type {
 #define RC_BIT_SHARP		(1ULL << RC_TYPE_SHARP)
 #define RC_BIT_XMP		(1ULL << RC_TYPE_XMP)
 #define RC_BIT_CEC		(1ULL << RC_TYPE_CEC)
+#define RC_BIT_RCMM		(1ULL << RC_TYPE_RCMM)
 
 #define RC_BIT_ALL	(RC_BIT_UNKNOWN | RC_BIT_OTHER | \
 			 RC_BIT_RC5 | RC_BIT_RC5X | RC_BIT_RC5_SZ | \
@@ -63,7 +65,7 @@ enum rc_type {
 			 RC_BIT_NEC | RC_BIT_SANYO | RC_BIT_MCE_KBD | \
 			 RC_BIT_RC6_0 | RC_BIT_RC6_6A_20 | RC_BIT_RC6_6A_24 | \
 			 RC_BIT_RC6_6A_32 | RC_BIT_RC6_MCE | RC_BIT_SHARP | \
-			 RC_BIT_XMP | RC_BIT_CEC)
+			 RC_BIT_XMP | RC_BIT_CEC | RC_BIT_RCMM)
 
 
 #define RC_SCANCODE_UNKNOWN(x)			(x)

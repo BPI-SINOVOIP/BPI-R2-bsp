@@ -1106,6 +1106,7 @@ static int vidioc_vdec_s_fmt(struct file *file, void *priv,
 	struct mtk_q_data *q_data;
 	int ret = 0;
 	struct mtk_video_fmt *fmt;
+	uint32_t size[2];
 
 	mtk_v4l2_debug(3, "[%d]", ctx->id);
 
@@ -1145,6 +1146,8 @@ static int vidioc_vdec_s_fmt(struct file *file, void *priv,
 		q_data->sizeimage[0] = pix_mp->plane_fmt[0].sizeimage;
 		q_data->coded_width = pix_mp->width;
 		q_data->coded_height = pix_mp->height;
+		size[0] = pix_mp->width;
+		size[1] = pix_mp->height;
 
 		ctx->colorspace = f->fmt.pix_mp.colorspace;
 		ctx->ycbcr_enc = f->fmt.pix_mp.ycbcr_enc;
@@ -1158,6 +1161,7 @@ static int vidioc_vdec_s_fmt(struct file *file, void *priv,
 					ctx->id, ret);
 				return -EINVAL;
 			}
+			vdec_if_set_param(ctx, SET_PARAM_FRAME_SIZE, (void *) size);
 			ctx->state = MTK_STATE_INIT;
 		}
 	}

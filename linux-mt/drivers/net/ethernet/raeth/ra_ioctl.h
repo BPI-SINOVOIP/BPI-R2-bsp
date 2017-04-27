@@ -50,6 +50,8 @@
 #define SW_IOCTL_GET_PORT_TRUNKING      0x000D
 #define SW_IOCTL_SET_PORT_MIRROR        0x000E
 #define SW_IOCTL_GET_PHY_STATUS         0x000F
+#define SW_IOCTL_READ_REG               0x0010
+#define SW_IOCTL_WRITE_REG              0x0011
 
 #define REG_ESW_WT_MAC_MFC              0x10
 #define REG_ESW_ISC                     0x18
@@ -66,9 +68,11 @@
 #define REG_ESW_VLAN_VAWD1		0x94
 #define REG_ESW_VLAN_VAWD2		0x98
 
+#if defined(CONFIG_MACH_MT7623)
 #define REG_ESW_VLAN_ID_BASE		0x100
-
-/* #define REG_ESW_VLAN_ID_BASE          0x50 */
+#else
+#define REG_ESW_VLAN_ID_BASE          0x50
+#endif
 #define REG_ESW_VLAN_MEMB_BASE		0x70
 #define REG_ESW_TABLE_SEARCH		0x24
 #define REG_ESW_TABLE_STATUS0		0x28
@@ -84,7 +88,11 @@
 #define RAETH_TXG_OFFSET_CALIBRATION	0x42
 #define RAETH_TXG_AMP_CALIBRATION	0x43
 
-#define REG_ESW_MAX			0xFC
+#if defined(CONFIG_MACH_MT7623)
+#define REG_ESW_MAX         0xFC
+#else
+#define REG_ESW_MAX			0x16C
+#endif
 #define REG_HQOS_MAX			0x3FFF
 
 struct esw_reg {
@@ -113,6 +121,8 @@ struct ra_switch_ioctl_data {
 	unsigned int rx_port_map;
 	unsigned int tx_port_map;
 	unsigned int igmp_query_interval;
+	unsigned int reg_addr;
+	unsigned int reg_val;
 };
 
 struct esw_rate {

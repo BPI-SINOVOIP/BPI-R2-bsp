@@ -243,6 +243,7 @@ extern INT32 wmt_lib_tx_raw(PUINT8 data, UINT32 size, PUINT32 writtenSize);
 extern INT32 wmt_lib_rx(PUINT8 buff, UINT32 buffLen, PUINT32 readSize);
 extern VOID wmt_lib_flush_rx(VOID);
 extern UINT32 wmt_lib_co_clock_flag_get(VOID);
+extern INT32 wmt_lib_sdio_reg_rw(INT32 func_num, INT32 direction, UINT32 offset, UINT32 value);
 
 #if WMT_PLAT_ALPS
 extern PINT8 wmt_uart_port_desc;	/* defined in mtk_wcn_cmb_stub_alps.cpp */
@@ -260,8 +261,9 @@ extern VOID wmt_lib_ps_irq_cb(VOID);
 #endif
 extern VOID wmt_lib_ps_set_sdio_psop(PF_WMT_SDIO_PSOP own_cb);
 #ifdef CONFIG_MTK_COMBO_CHIP_DEEP_SLEEP_SUPPORT
-extern VOID wmt_lib_sdio_deep_sleep_flag_set(PF_WMT_SDIO_DEEP_SLEEP flag_cb);
+extern VOID wmt_lib_sdio_deep_sleep_flag_set_cb_reg(PF_WMT_SDIO_DEEP_SLEEP flag_cb);
 #endif
+extern VOID wmt_lib_sdio_reg_rw_cb(PF_WMT_SDIO_DEBUG reg_rw_cb);
 extern INT32 wmt_lib_register_thermal_ctrl_cb(thermal_query_ctrl_cb thermal_ctrl);
 
 /* LXOP functions: */
@@ -339,7 +341,6 @@ extern UINT32 wmt_lib_get_drv_status(UINT32 type);
 #endif
 extern INT32 wmt_lib_tm_temp_query(VOID);
 extern INT32 wmt_lib_trigger_reset(VOID);
-extern VOID wmt_lib_read_fw_cpupcr(UINT32 times, UINT32 sleep, UINT32 cmd);
 extern INT32 wmt_lib_wifi_fem_cfg_report(PVOID pvInfoBuf);
 #if CFG_WMT_PS_SUPPORT
 extern UINT32 wmt_lib_quick_sleep_ctrl(UINT32 en);

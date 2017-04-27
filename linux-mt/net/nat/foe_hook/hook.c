@@ -62,21 +62,25 @@ void hwnat_check_magic_tag(struct sk_buff *skb)
 
 void hwnat_set_headroom_zero(struct sk_buff *skb)
 {
-	if (IS_MAGIC_TAG_PROTECT_VALID_HEAD(skb) ||
-	    (FOE_MAGIC_TAG(skb) == FOE_MAGIC_PPE)) {
-		if (IS_SPACE_AVAILABLE_HEAD(skb))
-			memset(FOE_INFO_START_ADDR_HEAD(skb), 0,
-			       FOE_INFO_LEN);
+	if (skb->cloned != 1) {
+		if (IS_MAGIC_TAG_PROTECT_VALID_HEAD(skb) ||
+		    (FOE_MAGIC_TAG(skb) == FOE_MAGIC_PPE)) {
+			if (IS_SPACE_AVAILABLE_HEAD(skb))
+				memset(FOE_INFO_START_ADDR_HEAD(skb), 0,
+				       FOE_INFO_LEN);
+		}
 	}
 }
 
 void hwnat_set_tailroom_zero(struct sk_buff *skb)
 {
-	if (IS_MAGIC_TAG_PROTECT_VALID_TAIL(skb) ||
-	    (FOE_MAGIC_TAG(skb) == FOE_MAGIC_PPE)) {
-		if (IS_SPACE_AVAILABLE_TAIL(skb))
-			memset(FOE_INFO_START_ADDR_TAIL(skb), 0,
-			       FOE_INFO_LEN);
+	if (skb->cloned != 1) {
+		if (IS_MAGIC_TAG_PROTECT_VALID_TAIL(skb) ||
+		    (FOE_MAGIC_TAG(skb) == FOE_MAGIC_PPE)) {
+			if (IS_SPACE_AVAILABLE_TAIL(skb))
+				memset(FOE_INFO_START_ADDR_TAIL(skb), 0,
+				       FOE_INFO_LEN);
+		}
 	}
 }
 
@@ -90,3 +94,10 @@ void hwnat_copy_tailroom(u8 *data, int size, struct sk_buff *skb)
 	memcpy((data + size - FOE_INFO_LEN), (skb_end_pointer(skb) - FOE_INFO_LEN),
 	       FOE_INFO_LEN);
 }
+
+void hwnat_setup_dma_ops(struct device *dev, bool coherent)
+{
+	arch_setup_dma_ops(dev, 0, 0, NULL, coherent);
+}
+EXPORT_SYMBOL(hwnat_setup_dma_ops);
+

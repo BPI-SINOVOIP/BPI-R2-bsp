@@ -72,7 +72,7 @@
 #define CTMDPCR0	(0x00B8)
 #define CTMDPCR1	(0x00BC)
 #define CSR		(0x00D8)	/* MT6630 & MT6632 only for the moment */
-#define SWPCDBGR	(0x0154)
+
 
 /* Common HIF register bit field address */
 /* CCCR_F0*/
@@ -107,6 +107,10 @@
 #define STP_SDIO_TX_PKT_MAX_CNT (7)	/* Max outstanding tx pkt count, as defined in TX_COMPLETE_COUNT */
 #define STP_SDIO_HDR_SIZE (4)	/* hw,fw,sw follow the same format: 2 bytes length + 2 bytes reserved */
 
+#define STP_SDIO_DBG_SUPPORT 1
+#define STP_SDIO_RXDBG 1	/* depends on STP_SDIO_DBG_SUPPORT */
+#define STP_SDIO_TXDBG 1	/* depends on STP_SDIO_DBG_SUPPORT */
+#define STP_TXDBG 1
 /* sdio bus settings */
 #define STP_SDIO_BLK_SIZE (512UL)
 
@@ -120,6 +124,10 @@
 
 #define STP_SDIO_RETRY_LIMIT (10)
 #define STP_SDIO_MAX_RETRY_NUM (100)
+
+#define STP_SDIO_RETRY_NONE		(0)
+#define STP_SDIO_RETRY_CRC_ERROR	(1)
+#define STP_SDIO_RETRY_INT		(2)
 
 /* tx buffer size for a single entry */
 /* George: SHALL BE a multiple of the used BLK_SIZE!! */
@@ -174,18 +182,20 @@ typedef struct _MTK_WCN_STP_SDIO_PKT_BUF {
 	UINT32 tx_buf_sz[STP_SDIO_TX_BUF_CNT];
 	/* Tx debug timestamp: 1st time when the entry is filled with data */
 	UINT32 tx_buf_ts[STP_SDIO_TX_BUF_CNT];
+	UINT64 tx_buf_local_ts[STP_SDIO_TX_BUF_CNT];
+	ULONG tx_buf_local_nsec[STP_SDIO_TX_BUF_CNT];
 #if KMALLOC_UPDATE
 	PUINT8 rx_buf;
 #else
 	UINT8 rx_buf[STP_SDIO_RX_BUF_SIZE];	/* Rx buffer (not ring) */
 #endif
 #if STP_SDIO_NEW_TXRING
-	UINT32 wr_cnt;		/* Tx entry ring buffer write count */
-	UINT32 rd_cnt;		/* Tx entry ring buffer read count */
+	atomic_t wr_cnt;		/* Tx entry ring buffer write count */
+	atomic_t rd_cnt;		/* Tx entry ring buffer read count */
 	spinlock_t rd_cnt_lock;	/* Tx entry ring buffer read count spin lock */
 #else
-	UINT8 wr_idx;		/* Tx ring buffer write index *//*George: obsolete */
-	UINT8 rd_idx;		/* Tx ring buffer read index *//*George: obsolete */
+	atomic_t wr_idx;		/* Tx ring buffer write index *//*George: obsolete */
+	atomic_t rd_idx;		/* Tx ring buffer read index *//*George: obsolete */
 	spinlock_t rd_idx_lock;	/* spin lock for Tx ring buffer read index */
 #endif
 	MTK_WCN_BOOL full_flag;	/* Tx entry ring buffer full flag (TRUE: full, FALSE: not full) */
@@ -231,6 +241,7 @@ typedef struct _MTK_WCN_STP_SDIO_HIF_INFO {
 	INT32 sleep_flag;
 	INT32 wakeup_flag;
 	INT32 awake_flag;
+	INT32 txwkr_flag;
 	OSAL_EVENT tx_rx_event;
 	OSAL_SIGNAL isr_check_complete;
 	INT32 dump_flag;
@@ -278,6 +289,11 @@ extern MTK_WCN_STP_SDIO_HIF_INFO g_stp_sdio_host_info;
  * \retval < 0  error code
  */
 extern INT32 mtk_wcn_hif_sdio_client_reg(const MTK_WCN_HIF_SDIO_CLTINFO *pinfo);
+extern INT32 stp_sdio_reg_rw(INT32 func_num, INT32 direction,  UINT32 offset, UINT32 value);
+
+#if STP_SDIO_DBG_SUPPORT && (STP_SDIO_TXDBG || STP_SDIO_TXPERFDBG)
+VOID stp_sdio_txdbg_dump(VOID);
+#endif
 
 extern INT32 mtk_wcn_stp_sdio_do_own_clr(VOID);
 #ifdef CONFIG_MTK_COMBO_CHIP_DEEP_SLEEP_SUPPORT
@@ -294,5 +310,7 @@ INT32 stp_sdio_rw_retry(ENUM_STP_SDIO_HIF_TYPE_T type, UINT32 retry_limit,
 		MTK_WCN_HIF_SDIO_CLTCTX clt_ctx, UINT32 offset, PUINT32 pData, UINT32 len);
 VOID stp_sdio_retry_flag_ctrl(INT32 flag);
 INT32 stp_sdio_retry_flag_get(VOID);
+INT32 stp_sdio_wake_up_ctrl(MTK_WCN_HIF_SDIO_CLTCTX ctx);
+INT32 stp_sdio_issue_fake_coredump(UINT8 *str);
 
 #endif				/* _STP_SDIO_H */

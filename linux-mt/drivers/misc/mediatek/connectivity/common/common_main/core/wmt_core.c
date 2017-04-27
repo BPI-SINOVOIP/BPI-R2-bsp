@@ -133,6 +133,7 @@ static INT32 opfunc_set_mcu_clk(P_WMT_OP pWmtOp);
 static INT32 opfunc_adie_lpbk_test(P_WMT_OP pWmtOp);
 static VOID wmt_core_dump_func_state(PINT8 pSource);
 static INT32 wmt_core_stp_init(VOID);
+static INT32 wmt_core_trigger_assert(VOID);
 static INT32 wmt_core_stp_deinit(VOID);
 static INT32 wmt_core_hw_check(VOID);
 #ifdef CONFIG_MTK_COMBO_ANT
@@ -362,7 +363,6 @@ INT32 wmt_core_rx(PUINT8 pBuf, UINT32 bufLen, PUINT32 readSize)
 	if (iRet) {
 		/* ERROR */
 		WMT_ERR_FUNC("WMT-CORE: wmt_core_ctrl failed: WMT_CTRL_RX, iRet:%d\n", iRet);
-		mtk_wcn_stp_dbg_dump_package();
 		osal_assert(0);
 	}
 	return iRet;
@@ -436,7 +436,6 @@ INT32 wmt_core_func_ctrl_cmd(ENUM_WMTDRV_TYPE_T type, MTK_WCN_BOOL fgEn)
 				ctrlPa1 = type;
 				ctrlPa2 = 32;
 				wmt_core_set_coredump_state(DRV_STS_FUNC_ON);
-				wmt_lib_stp_dbg_poll_cpupcr(5, 1, 1);
 				wmt_core_ctrl(WMT_CTRL_EVT_ERR_TRG_ASSERT, &ctrlPa1, &ctrlPa2);
 			}
 			break;
@@ -599,6 +598,8 @@ INT32 wmt_core_reg_rw_raw(UINT32 isWrite, UINT32 offset, PUINT32 pVal, UINT32 ma
 	iRet = wmt_core_rx(evtBuf, evtLen, &u4Res);
 	if ((iRet) || (u4Res != evtLen)) {
 		WMT_ERR_FUNC("Rx REG_EVT fail!(%d) len(%d, %d)\n", iRet, u4Res, evtLen);
+		mtk_wcn_stp_dbg_dump_package();
+		wmt_core_trigger_assert();
 		return -3;
 	}
 
@@ -669,6 +670,31 @@ INT32 wmt_core_init_script(struct init_script *script, INT32 count)
 	}
 
 	return (i == count) ? 0 : -1;
+}
+static INT32 wmt_core_trigger_assert(VOID)
+{
+	INT32 ret = 0;
+	UINT32 u4Res;
+	UINT32 tstCmdSz = 0;
+	UINT32 tstEvtSz = 0;
+	UINT8 tstCmd[64];
+	UINT8 tstEvt[64];
+	UINT8 WMT_ASSERT_CMD[] = { 0x01, 0x02, 0x01, 0x00, 0x08 };
+	UINT8 WMT_ASSERT_EVT[] = { 0x02, 0x02, 0x00, 0x00, 0x00 };
+
+	WMT_INFO_FUNC("Send Assert command !\n");
+	tstCmdSz = osal_sizeof(WMT_ASSERT_CMD);
+	tstEvtSz = osal_sizeof(WMT_ASSERT_EVT);
+	osal_memcpy(tstCmd, WMT_ASSERT_CMD, tstCmdSz);
+	osal_memcpy(tstEvt, WMT_ASSERT_EVT, tstEvtSz);
+
+	ret = wmt_core_tx((PUINT8) tstCmd, tstCmdSz, &u4Res, MTK_WCN_BOOL_FALSE);
+	if (ret || (u4Res != tstCmdSz)) {
+		WMT_ERR_FUNC("WMT-CORE: wmt_cmd_test iRet(%d) cmd len err(%d, %d)\n", ret, u4Res,
+			     tstCmdSz);
+		ret = -1;
+	}
+	return ret;
 }
 
 static INT32 wmt_core_stp_init(VOID)
@@ -773,6 +799,10 @@ static INT32 wmt_core_stp_init(VOID)
 	}
 	/* TODO: [ChangeFeature][GeorgeKuo] can we apply raise UART baud rate firstly for ALL supported chips??? */
 
+#ifdef CONFIG_MTK_COMBO_CHIP_DEEP_SLEEP_SUPPORT
+	WMT_DBG_FUNC("disable deep sleep featrue before the first command to firmware\n");
+	wmt_lib_deep_sleep_flag_set(MTK_WCN_BOOL_FALSE);
+#endif
 	iRet = wmt_core_hw_check();
 	if (iRet) {
 		WMT_ERR_FUNC("hw_check fail:%d\n", iRet);
@@ -801,13 +831,6 @@ static INT32 wmt_core_stp_init(VOID)
 	ctrlPa1 = WMT_STP_CONF_RDY;
 	ctrlPa2 = 1;
 	iRet = wmt_core_ctrl(WMT_CTRL_STP_CONF, &ctrlPa1, &ctrlPa2);
-#ifdef CONFIG_MTK_COMBO_CHIP_DEEP_SLEEP_SUPPORT
-	/*set deep sleep flag*/
-	if (wmt_core_deep_sleep_flag_get())
-		wmt_lib_deep_sleep_flag_set(MTK_WCN_BOOL_TRUE);
-	else
-		wmt_lib_deep_sleep_flag_set(MTK_WCN_BOOL_FALSE);
-#endif
 	return iRet;
 }
 
@@ -947,6 +970,7 @@ static INT32 wmt_core_hw_check(VOID)
 		break;
 #endif
 #if CFG_CORE_SOC_SUPPORT
+	case 0x0690:
 	case 0x6572:
 	case 0x6582:
 	case 0x6592:
@@ -962,6 +986,7 @@ static INT32 wmt_core_hw_check(VOID)
 	case 0x6580:
 	case 0x0551:
 	case 0x8167:
+	case 0x0507:
 		p_ops = &wmt_ic_ops_soc;
 		break;
 #endif
@@ -2438,6 +2463,7 @@ static INT32 opfunc_set_mcu_clk(P_WMT_OP pWmtOp)
 		iRet = wmt_core_rx(evt_buffer, osal_sizeof(WMT_SET_MCU_CLK_EVT), &u4ReadSize);
 		if (iRet || (u4ReadSize != osal_sizeof(WMT_SET_MCU_CLK_EVT))) {
 			WMT_ERR_FUNC("WMT_SET_MCU_CLK_EVT fail(%d),size(%d)\n", iRet, u4ReadSize);
+			mtk_wcn_stp_dbg_dump_package();
 			break;
 		}
 
@@ -2541,23 +2567,6 @@ MTK_WCN_BOOL wmt_core_deep_sleep_ctrl(INT32 value)
 		bRet = MTK_WCN_BOOL_FALSE;
 	}
 	return bRet;
-}
-
-MTK_WCN_BOOL wmt_core_deep_sleep_flag_get(VOID)
-{
-	MTK_WCN_BOOL bRet = MTK_WCN_BOOL_FALSE;
-	P_WMT_CTX pctx = &gMtkWmtCtx;
-
-	if ((pctx->p_ic_ops != NULL) && (pctx->p_ic_ops->deep_sleep_flag_get != NULL)) {
-		bRet = (*(pctx->p_ic_ops->deep_sleep_flag_get)) ();
-	} else {
-		if (pctx->p_ic_ops != NULL)
-			WMT_INFO_FUNC("deep sleep get function is not supported by 0x%x\n",
-				pctx->p_ic_ops->icId);
-		bRet = MTK_WCN_BOOL_FALSE;
-	}
-	return bRet;
-
 }
 #endif
 INT32 opfunc_pin_state(P_WMT_OP pWmtOp)

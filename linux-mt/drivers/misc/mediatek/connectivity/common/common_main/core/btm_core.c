@@ -33,17 +33,17 @@ INT32 host_trigger_assert_flag;
 #define STP_BTM_LOUD_FUNC(fmt, arg...) \
 do { \
 	if (gBtmDbgLevel >= STP_BTM_LOG_LOUD) \
-		pr_debug(PFX_BTM "%s: "  fmt, __func__, ##arg); \
+		pr_warn(PFX_BTM "%s: "  fmt, __func__, ##arg); \
 } while (0)
 #define STP_BTM_DBG_FUNC(fmt, arg...) \
 do { \
 	if (gBtmDbgLevel >= STP_BTM_LOG_DBG) \
-		pr_debug(PFX_BTM "%s: "  fmt, __func__, ##arg); \
+		pr_warn(PFX_BTM "%s: "  fmt, __func__, ##arg); \
 } while (0)
 #define STP_BTM_INFO_FUNC(fmt, arg...) \
 do { \
 	if (gBtmDbgLevel >= STP_BTM_LOG_INFO) \
-		pr_debug(PFX_BTM "[I]%s: "  fmt, __func__, ##arg); \
+		pr_warn(PFX_BTM "[I]%s: "  fmt, __func__, ##arg); \
 } while (0)
 #define STP_BTM_WARN_FUNC(fmt, arg...) \
 do { \
@@ -58,7 +58,7 @@ do { \
 #define STP_BTM_TRC_FUNC(f) \
 do { \
 	if (gBtmDbgLevel >= STP_BTM_LOG_DBG) \
-		pr_debug(PFX_BTM "<%s> <%d>\n", __func__, __LINE__); \
+		pr_warn(PFX_BTM "<%s> <%d>\n", __func__, __LINE__); \
 } while (0)
 
 #define ASSERT(expr)
@@ -137,7 +137,7 @@ static INT32 _stp_btm_handler(MTKSTP_BTM_T *stp_btm, P_STP_BTM_OP pStpOp)
 			STP_BTM_WARN_FUNC("generate fake coredump message\n");
 			stp_dbg_dump_send_retry_handler((PINT8)&tmp, (INT32)osal_sizeof(FAKECOREDUMPEND)+5);
 		}
-
+		stp_dbg_poll_cpupcr(5, 1, 1);
 		/* Flush dump data, and reset compressor */
 		STP_BTM_INFO_FUNC("Flush dump data\n");
 		stp_dbg_core_dump_flush(0, MTK_WCN_BOOL_TRUE);
@@ -662,12 +662,14 @@ static inline INT32 _stp_btm_do_fw_assert(MTKSTP_BTM_T *stp_btm)
 			status = 0;
 			break;
 		}
+		if ((j >= 10) && (j%10 == 0))
 		stp_dbg_poll_cpupcr(5, 1, 1);
 		j++;
 		STP_BTM_INFO_FUNC("Wait for assert message (%d)\n", j);
 		osal_sleep_ms(20);
 
 		if (j > 49) {
+			mtk_wcn_stp_dbg_dump_package();
 			stp_dbg_set_fw_info("host trigger fw assert timeout",
 					osal_strlen("host trigger fw assert timeout"),
 					STP_HOST_TRIGGER_ASSERT_TIMEOUT);

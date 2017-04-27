@@ -285,6 +285,11 @@ PVOID osal_memset(PVOID buf, INT32 i, UINT32 len)
 PVOID osal_memcpy(PVOID dst, const PVOID src, UINT32 len)
 {
 	return memcpy(dst, src, len);
+}
+
+VOID osal_memcpy_fromio(PVOID dst, const PVOID src, UINT32 len)
+{
+	return memcpy_fromio(dst, src, len);
 
 }
 
@@ -1163,6 +1168,11 @@ INT32 osal_udelay(UINT32 us)
 	return 0;
 }
 
+INT32 osal_usleep_range(ULONG min, ULONG max)
+{
+	usleep_range(min, max);
+	return 0;
+}
 INT32 osal_gettimeofday(PINT32 sec, PINT32 usec)
 {
 	INT32 ret = 0;
@@ -1193,6 +1203,15 @@ INT32 osal_printtimeofday(const PUINT8 prefix)
 	ret += osal_dbg_print("%s>sec=%d, usec=%d\n", prefix, sec, usec);
 
 	return ret;
+}
+
+VOID osal_get_local_time(PUINT64 sec, PULONG nsec)
+{
+	if (sec != NULL && nsec != NULL) {
+		*sec = local_clock();
+		*nsec = do_div(*sec, 1000000000)/1000;
+	} else
+		pr_err("The input parameters error when get local time\n");
 }
 
 VOID osal_buffer_dump(const PUINT8 buf, const PUINT8 title, const UINT32 len, const UINT32 limit)

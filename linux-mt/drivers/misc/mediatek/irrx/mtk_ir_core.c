@@ -10,9 +10,9 @@
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 * See http://www.gnu.org/licenses/gpl-2.0.html for more details.
 **/
-#include "inc/mtk_ir_core.h"
-#include "inc/mtk_ir_regs.h" /* include ir registers */
-#include "inc/mtk_ir_dev.h"
+#include "mtk_ir_core.h"
+#include "mtk_ir_regs.h" /* include ir registers */
+#include "mtk_ir_dev.h"
 static int mtk_ir_get_hw_info(struct platform_device *pdev);
 static int mtk_ir_core_register_swirq(int trigger_type);
 static void mtk_ir_core_free_swirq(void);
@@ -25,7 +25,6 @@ static int mtk_ir_core_resume(struct device *dev);
 #endif
 
 #define LIRCBUF_SIZE 6
-
 int ir_log_debug_on;	/* IR debug log on or off */
 static bool timer_log_en;	/* timer debug log on or off*/
 static char last_hang_place[64] = { 0 };
@@ -47,6 +46,8 @@ static const struct of_device_id mtk_ir_of_match[] = {
 	{.compatible = "mediatek,mt8689-irrx",},
 	{.compatible = "mediatek,mt8693-irrx",},
 	{.compatible = "mediatek,mt8697-irrx",},
+	{.compatible = "mediatek,mt2712-irrx",},
+	{.compatible = "mediatek,mt7622-irrx",},
 	{},
 };
 #endif
@@ -152,19 +153,18 @@ MTK_IR_MODE mtk_ir_core_getmode(void)
 
 static int mtk_ir_core_enable_clock(int enable)
 {
-	/*#ifdef FINAL_SOLUTION_  //zhimin...*/
 	int res = 0;
 
 	MTK_IR_LOG(" enable clock: %d\n", enable);
+	if (IS_ERR(mtk_ir_context_obj->hw->irrx_clk)) {
+		MTK_IR_ERR(" Cannot get irrx clock!\n");
+		return 0;
+	}
 	if (enable)
 		res = clk_prepare_enable(mtk_ir_context_obj->hw->irrx_clk);
 	else
 		clk_disable_unprepare(mtk_ir_context_obj->hw->irrx_clk);
 	return res;
-	/**#else
-	*return 0;
-	*#endif
-	**/
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -246,7 +246,7 @@ static ssize_t mtk_ir_core_show_info(struct device *dev, struct device_attribute
 	if (strcmp(pattr->name, "register") == 0) {	/* here used to dump register */
 		SPRINTF_DEV_ATTR("-------------dump ir register-----------\n");
 		/* for (; vregstart <=IRRX_BASE_VIRTUAL_END;) */
-		for (vregstart = 0; vregstart <= IRRX_WDTLMT;) {
+		for (vregstart = 0; vregstart <= IRRX_CHKDATA16;) {
 			/*SPRINTF_DEV_ATTR("0x%08x = 0x%08x\n", vregstart, REGISTER_READ32(vregstart));*/
 			SPRINTF_DEV_ATTR("IR reg 0x%08x = 0x%08x\n", vregstart, IR_READ32(vregstart));
 			vregstart += 4;
@@ -667,17 +667,13 @@ void mtk_ir_core_send_mapcode_auto_up(u32 mapcode, u32 ms)
 	input_sync(rcdev->input_dev);
 }
 
-
 /* ir irq function */
-static irqreturn_t mtk_ir_core_irq(int irq, void *dev_id)
+static void mtk_ir_irq_function(struct work_struct *work)
 {
 	u32 scancode = BTN_NONE;
 	struct mtk_ir_core_platform_data *pdata = get_mtk_ir_ctl_data();
 
 	MTK_IR_FUN();
-	pdata->enable_hwirq(0);
-
-	sprintf(last_hang_place, "irq begin\n");
 	ASSERT(pdata != NULL);
 	ASSERT(pdata->ir_hw_decode != NULL);
 
@@ -689,6 +685,19 @@ static irqreturn_t mtk_ir_core_irq(int irq, void *dev_id)
 		mtk_ir_core_send_scancode(scancode);
 
 	pdata->enable_hwirq(1);
+	MTK_IR_LOG("mtk_ir_irq_function----\n");
+}
+
+static irqreturn_t mtk_ir_core_irq(int irq, void *dev_id)
+{
+	struct mtk_ir_core_platform_data *pdata = get_mtk_ir_ctl_data();
+
+	MTK_IR_FUN();
+
+	pdata->enable_hwirq(0);
+
+	sprintf(last_hang_place, "irq begin\n");
+	queue_work(mtk_ir_context_obj->mtk_ir_workqueue, &mtk_ir_context_obj->report_irq);
 
 	sprintf(last_hang_place, "ok here\n");
 	MTK_IR_LOG("mtk_ir_core_irq----\n");
@@ -783,7 +792,7 @@ int mtk_ir_core_create_thread(int (*threadfn) (void *data),
 	int ret = 0;
 	struct task_struct *ptask;
 
-	ptask = kthread_create(threadfn, data, ps_name);
+	ptask = kthread_run(threadfn, data, ps_name);
 
 	if (IS_ERR(ptask)) {
 		MTK_IR_ERR("unable to create kernel thread %s\n", ps_name);
@@ -851,9 +860,6 @@ static int mtk_ir_input_thread(void *pvArg)
 		spin_unlock_irqrestore(&scancode_lock, __flags);
 
 		if (u4CurKey != BTN_NONE) {
-			if (kthread_should_stop())	/* other place want to stop this thread; */
-				continue;
-
 			MTK_IR_TRD_LOG(" get scancode: 0x%08x\n", u4CurKey);
 			cxt = mtk_ir_context_obj;
 			rcdev = cxt->rcdev;
@@ -902,7 +908,9 @@ static int mtk_ir_input_thread(void *pvArg)
 			}
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
+		MTK_IR_TRD_LOG(" input schedule() >>>>\n");
 		schedule();
+		MTK_IR_TRD_LOG(" input schedule() <<<<\n");
 	}
 
 	MTK_IR_TRD_LOG("mtk_ir_input_thread exit success\n");
@@ -990,24 +998,10 @@ static int mtk_ir_lirc_register(struct device *dev_parent)
 		MTK_IR_ERR(" lirc_register_driver fail ret(%d) !!!\n", ret);
 		goto lirc_register_failed;
 	}
-	spin_lock_init(&scancode_lock);
-	ret = mtk_ir_core_create_thread(mtk_ir_input_thread,
-									NULL,
-									"mtk_ir_inp_thread",
-									&(mtk_ir_context_obj->k_thread),
-									94);	/*RTPM_PRIO_SCRN_UPDATE */
-	if (ret) {
-		MTK_IR_ERR(" create mtk_ir_input_thread fail\n");
-		goto ir_inp_thread_fail;
-	} else
-		MTK_IR_LOG(" create mtk_ir_input_thread[mtk_ir_context_obj->k_thread].\n");
-
 	mtk_ir_context_obj->drv = drv;	/* store lirc_driver pointor to mtk_rc_core.drv */
 	MTK_IR_LOG(" mtk_ir_lirc_register[%s]----\n", drv->name);
 	return 0;
 
-ir_inp_thread_fail:
-	lirc_unregister_driver(drv->minor);
 lirc_register_failed:
 	lirc_buffer_free(rbuf);
 rbuf_init_failed:
@@ -1040,9 +1034,7 @@ static int mtk_ir_lirc_unregister(struct mtk_ir_context *pdev)
 
 static int mtk_ir_get_hw_info(struct platform_device *pdev)
 {
-	/*#ifdef FINAL_SOLUTION_ //zhimin...*/
 	const char *clkname = "irrx_clock";
-	/*#endif */
 	const char *compatible_name;
 	struct device_node *node;
 	struct mtk_ir_context *cxt = NULL;
@@ -1053,13 +1045,12 @@ static int mtk_ir_get_hw_info(struct platform_device *pdev)
 
 	cxt = mtk_ir_context_obj;
 	cxt->hw->irrx_base_addr = of_iomap(pdev->dev.of_node, 0);
-	/*#ifdef FINAL_SOLUTION_ //zhimin...*/
 	cxt->hw->irrx_clk = devm_clk_get(&pdev->dev, clkname);	/* get clk */
 	if (IS_ERR(cxt->hw->irrx_clk)) {
 		MTK_IR_ERR(" Cannot get irrx clock!\n");
-		return -1;
+		/*return -1;*/
 	}
-	/*#endif */
+
 	ret = mtk_ir_core_enable_clock(1);
 	if (ret) {
 		MTK_IR_ERR(" Enable clk failed!\n");
@@ -1083,26 +1074,32 @@ static int mtk_ir_get_hw_info(struct platform_device *pdev)
 		MTK_IR_ERR(" Device Tree: can not find IR node!\n");
 		return -1;
 	}
-	/*
-	*irrx_pinctrl1 = devm_pinctrl_get(&pdev->dev);
-	*if (IS_ERR(irrx_pinctrl1)) {
-	*	ret = PTR_ERR(irrx_pinctrl1);
-	*	MTK_IR_ERR(" Cannot find pinctrl %d!\n", ret);
-	*	return ret;
-	*}
-	*irrx_pins_default = pinctrl_lookup_state(irrx_pinctrl1, "default");
-	*if (IS_ERR(irrx_pins_default)) {
-	*	ret = PTR_ERR(irrx_pins_default);
-	*	MTK_IR_LOG(" Cannot find pinctrl default %d!\n", ret);
-	*}
+
+	irrx_pinctrl1 = devm_pinctrl_get(&pdev->dev);
+	if (IS_ERR(irrx_pinctrl1)) {
+		ret = PTR_ERR(irrx_pinctrl1);
+		/* dev_err(&pdev->dev, "fwq Cannot find mtk_ir pinctrl1!\n"); */
+		MTK_IR_ERR(" Cannot find pinctrl %d!\n", ret);
+		return ret;
+	}
+	irrx_pins_default = pinctrl_lookup_state(irrx_pinctrl1, "default");
+	if (IS_ERR(irrx_pins_default)) {
+		ret = PTR_ERR(irrx_pins_default);
+		/* dev_err(&pdev->dev, "fwq Cannot find mtk_ir pinctrl default %d!\n", ret); */
+		MTK_IR_LOG(" Cannot find pinctrl default %d!\n", ret);
+		return ret;
+	}
+	/* Use default pin
 	*irrx_pins_as_ir_input = pinctrl_lookup_state(irrx_pinctrl1, "state_pin_as_ir");
 	*if (IS_ERR(irrx_pins_as_ir_input)) {
 	*	ret = PTR_ERR(irrx_pins_as_ir_input);
+	*	//dev_err(&pdev->dev, "fwq Cannot find mtk_ir pinctrl state_pin_as_ir!\n"); //
 	*	MTK_IR_ERR(" Cannot find pinctrl state_pin_as_ir %d!\n", ret);
 	*	return ret;
 	*}
-	*pinctrl_select_state(irrx_pinctrl1, irrx_pins_as_ir_input);
 	*/
+	pinctrl_select_state(irrx_pinctrl1, irrx_pins_default);
+
 	MTK_IR_LOG("mtk_ir_get_hw_info----\n");
 	return 0;
 }
@@ -1165,6 +1162,7 @@ static int mtk_ir_core_probe(struct platform_device *pdev)
 	ASSERT(pdata->uninit_hw != NULL);
 	ASSERT(pdata->p_map_list != NULL);
 	ASSERT(pdata->ir_hw_decode != NULL);
+	spin_lock_init(&scancode_lock);
 
 	ret = pdata->init_hw();	/* init this  ir's  hw */
 	if (ret) {
@@ -1214,6 +1212,17 @@ static int mtk_ir_core_probe(struct platform_device *pdev)
 		MTK_IR_ERR(" register irq failed!\n");
 		goto err_request_irq;
 	}
+
+	ret = mtk_ir_core_create_thread(mtk_ir_input_thread,
+									NULL,
+									"mtk_ir_inp_thread",
+									&(mtk_ir_context_obj->k_thread),
+									94);	/*RTPM_PRIO_SCRN_UPDATE */
+	if (ret) {
+		MTK_IR_ERR(" create mtk_ir_input_thread fail\n");
+		goto err_request_irq;
+	} else
+		MTK_IR_LOG(" create mtk_ir_input_thread[mtk_ir_context_obj->k_thread].\n");
 
 	startTimer(&cxt->hrTimer, atomic_read(&cxt->delay), true);
 	MTK_IR_LOG("mtk_ir_core_probe----\n");
@@ -1507,6 +1516,7 @@ static struct mtk_ir_context *mtk_ir_context_alloc_object(void)
 	obj->irq_register = false;
 
 	INIT_WORK(&obj->report, mtk_ir_timer_function);
+	INIT_WORK(&obj->report_irq, mtk_ir_irq_function);
 	obj->mtk_ir_workqueue = NULL;
 	obj->mtk_ir_workqueue = create_workqueue("mtk_ir_workqueue");
 	if (!obj->mtk_ir_workqueue) {

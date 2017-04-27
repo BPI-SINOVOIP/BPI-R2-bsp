@@ -126,6 +126,7 @@ struct mtk_ir_context {
 	struct hrtimer hrTimer;
 	ktime_t target_ktime;
 	struct work_struct report;
+	struct work_struct report_irq; /*For ir irq*/
 	struct workqueue_struct *mtk_ir_workqueue;
 	/* struct miscdevice   mdev; */
 	struct mtk_ir_hw *hw;

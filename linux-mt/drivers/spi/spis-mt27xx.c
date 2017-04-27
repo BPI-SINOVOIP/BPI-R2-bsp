@@ -12,6 +12,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/compat.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
@@ -103,6 +104,7 @@
 struct mtk_spis {
 	void __iomem *base;
 	struct spi_device *spi;
+	struct clk *sel_clk, *spi_clk;
 	struct completion xfer_completion;
 	struct spi_transfer *cur_transfer;
 	spinlock_t spi_lock;
@@ -145,28 +147,55 @@ void mtk_spis_disable_xfer(struct mtk_spis *mdata)
 	writel(reg_val, mdata->base + SPIS_CFG_REG);
 }
 
+void mtk_spis_prepare_hw(struct spi_device *spi)
+{
+	u16 cpha, cpol;
+	int reg_val;
+	struct mtk_spis *mdata = spi_get_drvdata(spi);
+
+	cpha = spi->mode & SPI_CPHA ? 1 : 0;
+	cpol = spi->mode & SPI_CPOL ? 1 : 0;
+
+	reg_val = readl(mdata->base + SPIS_CFG_REG);
+	if (cpha)
+		reg_val |= SPIS_CPHA;
+	else
+		reg_val &= ~SPIS_CPHA;
+	if (cpol)
+		reg_val |= SPIS_CPOL;
+	else
+		reg_val &= ~SPIS_CPOL;
+
+	if (spi->mode & SPI_LSB_FIRST)
+		reg_val &= ~(SPIS_TXMSBF | SPIS_RXMSBF);
+	else
+		reg_val |= SPIS_TXMSBF | SPIS_RXMSBF;
+
+	writel(reg_val, mdata->base + SPIS_CFG_REG);
+}
 int mtk_spis_dma_transfer(struct spi_device *spi,
 			  struct spi_transfer *xfer)
 {
 	int reg_val;
+	struct spi_master *master = spi->master;
 	struct mtk_spis *mdata = spi_get_drvdata(spi);
 
-	/* soft rest for dma */
+	/* soft reset for dma */
 	writel(SPIS_SOFT_RST, mdata->base + SPIS_SOFT_RST_REG);
 
 	if (xfer->tx_buf) {
-		xfer->tx_dma = dma_map_single(&spi->dev, (void *)xfer->tx_buf,
+		xfer->tx_dma = dma_map_single(master->dev.parent, (void *)xfer->tx_buf,
 					      xfer->len, DMA_TO_DEVICE);
-		if (dma_mapping_error(&spi->dev, xfer->tx_dma)) {
+		if (dma_mapping_error(master->dev.parent, xfer->tx_dma)) {
 			dev_err(&spi->dev, "dma mapping txbuf err\n");
 			return -1;
 		}
 	}
 
 	if (xfer->rx_buf) {
-		xfer->rx_dma = dma_map_single(&spi->dev, (void *)xfer->rx_buf,
+		xfer->rx_dma = dma_map_single(master->dev.parent, (void *)xfer->rx_buf,
 					      xfer->len, DMA_FROM_DEVICE);
-		if (dma_mapping_error(&spi->dev, xfer->rx_dma)) {
+		if (dma_mapping_error(master->dev.parent, xfer->rx_dma)) {
 			dev_err(&spi->dev, "dma mapping rxbuf err\n");
 			return -1;
 		}
@@ -239,6 +268,8 @@ int mtk_spis_transfer_one(struct spi_device *spi,
 	reinit_completion(&mdata->xfer_completion);
 	mdata->cur_transfer = xfer;
 
+	mtk_spis_prepare_hw(spi);
+
 	if (xfer->len > MTK_SPIS_MAX_FIFO_SIZE)
 		return mtk_spis_dma_transfer(spi, xfer);
 	else
@@ -254,10 +285,15 @@ void mtk_spis_finalize_current_transfer(struct spi_device *spi)
 
 void mtk_spis_wait_for_transfer_done(struct spi_device *spi)
 {
+	unsigned long ms = 1;
 	struct mtk_spis *mdata = spi_get_drvdata(spi);
 
-	wait_for_completion_timeout(&mdata->xfer_completion,
-				    msecs_to_jiffies(10*1000));
+	ms += ms + 100; /* some tolerance */
+
+	ms = wait_for_completion_timeout(&mdata->xfer_completion,
+					 msecs_to_jiffies(ms));
+	if (!ms)
+		pr_err("mtk-spis transfer timed out\n");
 }
 
 void mtk_spis_setup(struct spi_device *spi)
@@ -282,31 +318,35 @@ irqreturn_t mtk_spis_interrupt(int irq, void *dev_id)
 {
 	int int_status, reg_val, cnt, remainder;
 	struct spi_device *spi = dev_id;
+	struct spi_master *master = spi->master;
 	struct mtk_spis *mdata = spi_get_drvdata(spi);
 	struct spi_transfer *trans = mdata->cur_transfer;
 
 	int_status = readl(mdata->base + SPIS_IRQ_ST_REG);
 	writel(int_status, mdata->base + SPIS_IRQ_CLR_REG);
 
+	if (!trans) {
+		pr_err("[%s]trans is NULL, int_status(0x%x)\n", __func__, int_status);
+		return IRQ_HANDLED;
+	}
 	do {
-		if ((int_status & DMA_DONE_ST) && (int_status & DATA_DONE_ST)) {
+		if ((int_status & DMA_DONE_ST) &&
+			((int_status & DATA_DONE_ST) || (int_status & RSTA_DONE_ST))) {
 			writel(SPIS_SOFT_RST, mdata->base + SPIS_SOFT_RST_REG);
 
 			mtk_spis_disable_dma(mdata);
 			mtk_spis_disable_xfer(mdata);
 
 			if (trans->tx_buf)
-				dma_unmap_single(&spi->dev, trans->tx_dma,
+				dma_unmap_single(master->dev.parent, trans->tx_dma,
 						 trans->len, DMA_TO_DEVICE);
 			if (trans->rx_buf)
-				dma_unmap_single(&spi->dev, trans->rx_dma,
+				dma_unmap_single(master->dev.parent, trans->rx_dma,
 						 trans->len, DMA_FROM_DEVICE);
-
-			mtk_spis_finalize_current_transfer(spi);
 		}
 
 		if ((!(int_status & DMA_DONE_ST)) &&
-		    (int_status & DATA_DONE_ST)) {
+		    ((int_status & DATA_DONE_ST) || (int_status & RSTA_DONE_ST))) {
 			cnt = trans->len / 4;
 			if (trans->rx_buf)
 				ioread32_rep(mdata->base + SPIS_RX_DATA_REG,
@@ -319,7 +359,6 @@ irqreturn_t mtk_spis_interrupt(int irq, void *dev_id)
 			}
 
 			mtk_spis_disable_xfer(mdata);
-			mtk_spis_finalize_current_transfer(spi);
 		}
 
 		if (int_status & CMD_INVALID_ST)
@@ -328,6 +367,9 @@ irqreturn_t mtk_spis_interrupt(int irq, void *dev_id)
 		int_status = readl(mdata->base + SPIS_IRQ_ST_REG);
 		writel(int_status, mdata->base + SPIS_IRQ_CLR_REG);
 	} while (int_status & (DMA_DONE_ST | DATA_DONE_ST | CMD_INVALID_ST));
+
+	mdata->cur_transfer = NULL;
+	mtk_spis_finalize_current_transfer(spi);
 
 	return IRQ_HANDLED;
 }
@@ -358,6 +400,32 @@ static int mtk_spis_probe(struct spi_device *spi)
 	mdata->spi = spi;
 	init_completion(&mdata->xfer_completion);
 	spi_set_drvdata(spi, mdata);
+
+	mdata->sel_clk = devm_clk_get(&spi->dev, "selclk");
+	if (IS_ERR(mdata->sel_clk)) {
+		ret = PTR_ERR(mdata->sel_clk);
+		dev_err(&spi->dev, "failed to get sel-clk: %d\n", ret);
+		return -ENOMEM;
+	}
+
+	ret = clk_prepare_enable(mdata->sel_clk);
+	if (ret < 0) {
+		dev_err(&spi->dev, "failed to enable sel_clk (%d)\n", ret);
+		return -ENOMEM;
+	}
+
+	mdata->spi_clk = devm_clk_get(&spi->dev, "spiclk");
+	if (IS_ERR(mdata->spi_clk)) {
+		ret = PTR_ERR(mdata->spi_clk);
+		dev_err(&spi->dev, "failed to get spi-clk: %d\n", ret);
+		return -ENOMEM;
+	}
+
+	ret = clk_prepare_enable(mdata->spi_clk);
+	if (ret < 0) {
+		dev_err(&spi->dev, "failed to enable spi_clk (%d)\n", ret);
+		return -ENOMEM;
+	}
 
 	mtk_spis_setup(spi);
 

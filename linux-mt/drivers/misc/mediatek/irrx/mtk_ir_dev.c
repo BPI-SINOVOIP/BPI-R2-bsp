@@ -359,8 +359,10 @@ static int mtk_ir_dev_thread(void *pvArg)
 		spin_lock_irqsave(&fifo_scancode_lock, _flags);
 		_ret = kfifo_is_empty(&fifo_scancode);	/* check whether fifi is empty */
 		spin_unlock_irqrestore(&fifo_scancode_lock, _flags);
+		MTK_IR_TRD_LOG(" dev schedule() >>>>\n");
 		if (_ret)	/* does not have key */
 			schedule();
+		MTK_IR_TRD_LOG(" dev schedule() <<<<\n");
 
 		set_current_state(TASK_RUNNING);
 		if (kthread_should_stop())	/* other place want to stop this thread; */

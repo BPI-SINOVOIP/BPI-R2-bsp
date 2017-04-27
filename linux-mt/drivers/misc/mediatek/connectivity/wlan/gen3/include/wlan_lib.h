@@ -94,7 +94,12 @@
 #define WLAN_CFG_SET_DEBUG_LEVEL_LEN_MAX 10
 #define WLAN_CFG_SET_SW_CTRL_LEN_MAX 10
 
+#if CFG_SUPPORT_QA_TOOL
+#define WLAN_OID_TIMEOUT_THRESHOLD                  10000	/* OID timeout (in ms) */
+#else
 #define WLAN_OID_TIMEOUT_THRESHOLD                  2000	/* OID timeout (in ms) */
+#endif
+
 #define WLAN_OID_TIMEOUT_THRESHOLD_IN_RESETTING      300	/* OID timeout during chip-resetting  (in ms) */
 
 #define WLAN_OID_NO_ACK_THRESHOLD                   3
@@ -348,8 +353,8 @@ typedef struct _REG_INFO_T {
 
 } REG_INFO_T, *P_REG_INFO_T;
 
-#if defined(MT6797)
-/* for divided firmware loading */
+#if defined(MT6631)
+/* for divided firmware download */
 typedef struct _FWDL_SECTION_INFO_T {
 	UINT_32 u4Offset;
 	UINT_8 ucKIdx;
@@ -372,7 +377,7 @@ typedef struct _FIRMWARE_DIVIDED_DOWNLOAD_T {
 
 #else
 
-/* for divided firmware loading */
+/* for divided firmware download */
 typedef struct _FWDL_SECTION_INFO_T {
 	UINT_32 u4Offset;
 	UINT_32 u4Reserved;
@@ -621,7 +626,7 @@ typedef enum _ENUM_TX_PROFILING_TAG_T {
 	((UINT_32)(UINT_8)(ch0) | ((UINT_32)(UINT_8)(ch1) << 8) |   \
 	((UINT_32)(UINT_8)(ch2) << 16) | ((UINT_32)(UINT_8)(ch3) << 24))
 
-#if defined(MT6797)
+#if defined(MT6631)
 #define MTK_WIFI_SIGNATURE BUILD_SIGN('M', 'T', 'K', 'E')
 #else
 #define MTK_WIFI_SIGNATURE BUILD_SIGN('M', 'T', 'K', 'W')
@@ -715,15 +720,9 @@ VOID wlanSetPromiscuousMode(IN P_ADAPTER_T prAdapter, IN BOOLEAN fgEnablePromisc
 
 #if CFG_ENABLE_FW_DOWNLOAD
 
-#if defined(MT6797)
 WLAN_STATUS
-wlanImageSectionConfig(IN P_ADAPTER_T prAdapter, IN UINT_32 u4DestAddr,
-			IN UINT_32 u4ImgSecSize, IN BOOLEAN fgReset,
-			IN UINT_8 ucEnc, IN UINT_8 ucKIdx);
-#else
-WLAN_STATUS
-wlanImageSectionConfig(IN P_ADAPTER_T prAdapter, IN UINT_32 u4DestAddr, IN UINT_32 u4ImgSecSize, IN BOOLEAN fgReset);
-#endif
+wlanImageSectionConfig(IN P_ADAPTER_T prAdapter, IN UINT_32 u4DestAddr, IN UINT_32 u4ImgSecSize, IN BOOLEAN fgReset,
+		       IN UINT_8 ucEnc, IN UINT_8 ucKIdx);
 
 WLAN_STATUS wlanImageSectionDownload(IN P_ADAPTER_T prAdapter, IN UINT_32 u4ImgSecSize, IN PUINT_8 pucImgSecBuf);
 

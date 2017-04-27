@@ -14,6 +14,7 @@
 
 /dts-v1/;
 #include "mt7622.dtsi"
+#include "mt6380.dtsi"
 
 / {
 	model = "MediaTek MT7622 RFB2 board";
@@ -21,7 +22,11 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n1 root=/dev/ram \
-			initrd=0x44000000,0x615E36 loglevel=8 androidboot.hardware=mt7622";
+			initrd=0x44000000,0x615E36 loglevel=8 androidboot.hardware=mt7622 swiotlb=8192";
+	};
+
+	dummy_codec:dummy_codec {
+		compatible = "mediatek,dummy-codec";
 	};
 
 	mmc_fixed_1v8_io: fixedregulator@0 {
@@ -43,6 +48,15 @@
 	memory {
 		reg = <0 0x40000000 0 0x3F000000>;
 	};
+
+	sound: sound {
+		compatible = "mediatek,mt7622-soc-machine";
+		mediatek,platform = <&afe>;
+		mediatek,audio-codec = <&dummy_codec>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&aud_pins_default>;
+		status = "okay";
+	};
 };
 
 &auxadc {
@@ -52,6 +66,16 @@
 &btif {
 	pinctrl-names = "default";
 	pinctrl-0 = <&btif_default>;
+};
+
+&cpu0 {
+	proc-supply = <&mt6380_vcpu_reg>;
+	sram-supply = <&mt6380_vm_reg>;
+};
+
+&cpu1 {
+	proc-supply = <&mt6380_vcpu_reg>;
+	sram-supply = <&mt6380_vm_reg>;
 };
 
 &efuse {
@@ -136,6 +160,24 @@
 	state_default:pinconf_default {
 	};
 
+	aud_pins_default: audiodefault {
+		pins_cmd_dat {
+			pinmux = <MT7622_PIN_3_I2S_BCLK__FUNC_I2S_BCLK_OUT>,
+				<MT7622_PIN_4_I2S_WS__FUNC_I2S_WS_OUT>,
+				<MT7622_PIN_5_I2S_MCLK__FUNC_I2S_MCLK>,
+				<MT7622_PIN_2_I2S1_OUT__FUNC_I2S1_OUT>,
+				<MT7622_PIN_1_I2S1_IN__FUNC_I2S1_IN>,
+				<MT7622_PIN_8_SPI_WP__FUNC_TDM_OUT_MCLK>,
+				<MT7622_PIN_9_SPI_HOLD__FUNC_TDM_OUT_BCLK>,
+				<MT7622_PIN_10_SPI_CLK__FUNC_TDM_OUT_WS>,
+				<MT7622_PIN_11_SPI_MOSI__FUNC_TDM_IN_MCLK>,
+				<MT7622_PIN_12_SPI_MISO__FUNC_TDM_IN_BCLK>,
+				<MT7622_PIN_13_SPI_CS__FUNC_TDM_IN_WS>;
+			drive-strength = <MTK_DRIVE_12mA>;
+			bias-pull-down;
+		};
+	};
+
 	btif_default:btif_default {
 		pins_cmd_dat {
 			pinmux = <MT7622_PIN_16_I2S2_IN__FUNC_BT_EPA_EN>,
@@ -152,6 +194,18 @@
 	status = "okay";
 };
 
+&sata {
+	status = "okay";
+};
+
 &uart0 {
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
+};
+
+&u3phy1 {
 	status = "okay";
 };

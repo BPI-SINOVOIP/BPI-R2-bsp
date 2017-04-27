@@ -12,7 +12,12 @@
 * If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <rtc_misc.h>
+/* ALPS header files */
+#ifndef CONFIG_RTC_DRV_MT6397
+#include <mtk_rtc.h>
+#else
+#include <linux/mfd/mt6397/rtc_misc.h>
+#endif
 
 #ifdef DFT_TAG
 #undef DFT_TAG
@@ -52,8 +57,8 @@ int _wmt_detect_output_low(unsigned int id)
 {
 	if (gpio_ctrl_info.gpio_ctrl_state[id].gpio_num != INVALID_PIN_ID) {
 		gpio_direction_output(gpio_ctrl_info.gpio_ctrl_state[id].gpio_num, 0);
-		WMT_DETECT_DBG_FUNC("WMT-DETECT: set GPIO%d to output %d\n",
-				gpio_ctrl_info.gpio_ctrl_state[id].gpio_num,
+		WMT_DETECT_INFO_FUNC("WMT-DETECT: set GPIO%d to output %d\n",
+				gpio_ctrl_info.gpio_ctrl_state[id].gpio_num-280,
 				gpio_get_value(gpio_ctrl_info.gpio_ctrl_state[id].gpio_num));
 	}
 
@@ -64,8 +69,8 @@ int _wmt_detect_output_high(unsigned int id)
 {
 	if (gpio_ctrl_info.gpio_ctrl_state[id].gpio_num != INVALID_PIN_ID) {
 		gpio_direction_output(gpio_ctrl_info.gpio_ctrl_state[id].gpio_num, 1);
-		WMT_DETECT_DBG_FUNC("WMT-DETECT: set GPIO%d to output %d\n",
-				gpio_ctrl_info.gpio_ctrl_state[id].gpio_num,
+		WMT_DETECT_INFO_FUNC("WMT-DETECT: set GPIO%d to output %d\n",
+				gpio_ctrl_info.gpio_ctrl_state[id].gpio_num-280,
 				gpio_get_value(gpio_ctrl_info.gpio_ctrl_state[id].gpio_num));
 	}
 

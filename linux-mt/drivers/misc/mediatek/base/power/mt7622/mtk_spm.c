@@ -300,17 +300,43 @@ EXPORT_SYMBOL(spm_mainpll_on_unrequest);
 /*
  * TWAM Control API
  */
+void spm_twam_set_idle_select(unsigned int sel)
+{
+}
+EXPORT_SYMBOL(spm_twam_set_idle_select);
+
 void spm_twam_register_handler(twam_handler_t handler)
 {
 	spm_twam_handler = handler;
 }
 EXPORT_SYMBOL(spm_twam_register_handler);
 
-void spm_twam_enable_monitor(const struct twam_sig *twamsig, bool speed_mode,
-			     unsigned int window_len)
+static unsigned int window_len;
+void spm_twam_set_window_length(unsigned int len)
+{
+	window_len = len;
+}
+EXPORT_SYMBOL(spm_twam_set_window_length);
+
+static struct twam_sig mon_type;
+void spm_twam_set_mon_type(struct twam_sig *mon)
+{
+	if (mon) {
+		mon_type.sig0 = mon->sig0 & 0x3;
+		mon_type.sig1 = mon->sig1 & 0x3;
+		mon_type.sig2 = mon->sig2 & 0x3;
+		mon_type.sig3 = mon->sig3 & 0x3;
+	}
+}
+EXPORT_SYMBOL(spm_twam_set_mon_type);
+
+void spm_twam_enable_monitor(const struct twam_sig *twamsig, bool speed_mode)
 {
 	u32 sig0 = 0, sig1 = 0, sig2 = 0, sig3 = 0;
+	u32 mon0 = 0, mon1 = 0, mon2 = 0, mon3 = 0;
+	unsigned int length;
 	unsigned long flags;
+	unsigned int spm_twam_con_val;
 
 	if (twamsig) {
 		sig0 = twamsig->sig0 & 0x1f;
@@ -319,18 +345,36 @@ void spm_twam_enable_monitor(const struct twam_sig *twamsig, bool speed_mode,
 		sig3 = twamsig->sig3 & 0x1f;
 	}
 
+	/* Window length */
+	length = window_len;
+	/* Monitor type */
+	mon0 = mon_type.sig0 & 0x3;
+	mon1 = mon_type.sig1 & 0x3;
+	mon2 = mon_type.sig2 & 0x3;
+	mon3 = mon_type.sig3 & 0x3;
+
 	spin_lock_irqsave(&__spm_lock, flags);
 	spm_write(SPM_SLEEP_ISR_MASK, spm_read(SPM_SLEEP_ISR_MASK) & ~ISRM_TWAM);
-	spm_write(SPM_SLEEP_TWAM_CON, ((sig3 << 27) |
-				       (sig2 << 22) |
-				       (sig1 << 17) |
-				       (sig0 << 12) |
-				       (TWAM_MON_TYPE_HIGH << 4) |
-				       (TWAM_MON_TYPE_HIGH << 6) |
-				       (TWAM_MON_TYPE_HIGH << 8) |
-				       (TWAM_MON_TYPE_HIGH << 10) |
-				       (speed_mode ? TWAM_CON_SPEED_EN : 0) | TWAM_CON_EN));
-	spm_write(SPM_SLEEP_TWAM_WINDOW_LEN, window_len);
+	/* Monitor Control */
+	spm_twam_con_val = ((sig3 << 27) |
+			(sig2 << 22) |
+			(sig1 << 17) |
+			(sig0 << 12) |
+			(mon3 << 10) |
+			(mon2 << 8) |
+			(mon1 << 6) |
+			(mon0 << 4) | TWAM_CON_EN);
+	if (speed_mode)
+		spm_twam_con_val |= (0x1 << 1);
+	else
+		spm_twam_con_val &= ~(0x1 << 1);
+
+	spm_write(SPM_SLEEP_TWAM_CON, spm_twam_con_val);
+
+	/* Window Length */
+	/* 0x13DDF0 for 50ms, 0x65B8 for 1ms, 0x1458 for 200us, 0xA2C for 100us */
+	/* in speed mode (26 MHz) */
+	spm_write(SPM_SLEEP_TWAM_WINDOW_LEN, length);
 	spin_unlock_irqrestore(&__spm_lock, flags);
 
 	spm_crit("enable TWAM for signal %u, %u, %u, %u (%u)\n",

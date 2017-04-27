@@ -98,6 +98,10 @@ static INT32 wmt_dbg_deep_sleep_ctrl(INT32 par1, INT32 par2, INT32 par3);
 #endif
 static INT32 wmt_dbg_sdio_retry_ctrl(INT32 par1, INT32 par2, INT32 par3);
 
+static INT32 wmt_dbg_func0_reg_read(INT32 par1, INT32 address, INT32 value);
+static INT32 wmt_dbg_func0_reg_write(INT32 par1, INT32 address, INT32 value);
+static INT32 wmt_dbg_stp_sdio_reg_read(INT32 par1, INT32 address, INT32 value);
+static INT32 wmt_dbg_stp_sdio_reg_write(INT32 par1, INT32 address, INT32 value);
 static const WMT_DEV_DBG_FUNC wmt_dev_dbg_func[] = {
 	[0x0] = wmt_dbg_psm_ctrl,
 	[0x1] = wmt_dbg_quick_sleep_ctrl,
@@ -139,6 +143,10 @@ static const WMT_DEV_DBG_FUNC wmt_dev_dbg_func[] = {
 	[0x1f] = wmt_dbg_deep_sleep_ctrl,
 #endif
 	[0x20] = wmt_dbg_sdio_retry_ctrl,
+	[0x22] = wmt_dbg_func0_reg_read,
+	[0x23] = wmt_dbg_func0_reg_write,
+	[0x24] = wmt_dbg_stp_sdio_reg_read,
+	[0x25] = wmt_dbg_stp_sdio_reg_write,
 };
 
 static VOID wmt_dbg_fwinfor_print_buff(UINT32 len)
@@ -149,14 +157,14 @@ static VOID wmt_dbg_fwinfor_print_buff(UINT32 len)
 	for (i = 0; i < len; i++) {
 		buf_emi[idx] = gEmiBuf[i];
 		if (gEmiBuf[i] == '\n') {
-			pr_debug("%s", buf_emi);
+			WMT_INFO_FUNC("%s", buf_emi);
 			osal_memset(buf_emi, 0, BUF_LEN_MAX);
 			idx = 0;
 		} else {
 			idx++;
 			if (idx == BUF_LEN_MAX-1) {
 				buf_emi[idx] = '\0';
-				pr_debug("%s", buf_emi);
+				WMT_INFO_FUNC("%s", buf_emi);
 				osal_memset(buf_emi, 0, BUF_LEN_MAX);
 				idx = 0;
 			}
@@ -164,7 +172,7 @@ static VOID wmt_dbg_fwinfor_print_buff(UINT32 len)
 	}
 	if ((idx != 0) && (idx < BUF_LEN_MAX)) {
 		buf_emi[idx] = '\0';
-		pr_debug("%s", buf_emi);
+		WMT_INFO_FUNC("%s", buf_emi);
 		osal_memset(buf_emi, 0, BUF_LEN_MAX);
 		idx = 0;
 	}
@@ -267,7 +275,7 @@ INT32 wmt_dbg_cmd_test_api(ENUM_WMTDRV_CMD_T cmd)
 	pSignal->timeoutValue = MAX_EACH_WMT_CMD;
 	/*this test command should be run with usb cable connected, so no host awake is needed */
 	/* wmt_lib_host_awake_get(); */
-	wmt_lib_set_host_assert_info(WMTDRV_TYPE_WMT, 0, 1);
+
 	switch (cmd) {
 	case WMTDRV_CMD_ASSERT:
 		pOp->op.au4OpData[0] = 0;
@@ -324,6 +332,9 @@ INT32 wmt_dbg_cmd_test_api(ENUM_WMTDRV_CMD_T cmd)
 		      pOp->op.au4OpData[0],
 		      pOp->op.au4OpData[1],
 		      bRet, MTK_WCN_BOOL_FALSE == bRet ? "failed" : "succeed");
+
+	if (bRet == MTK_WCN_BOOL_TRUE)
+		wmt_lib_set_host_assert_info(WMTDRV_TYPE_WMT, 0, 1);
 
 	return 0;
 }
@@ -542,19 +553,19 @@ INT32 wmt_dbg_fwinfor_from_emi(INT32 par1, INT32 par2, INT32 par3)
 
 			if (cur_idx_pagedtrace < prev_idx_pagedtrace) {
 				if (prev_idx_pagedtrace >= 0x8000) {
-					pr_debug("++ prev_idx_pagedtrace invalid ...++\n\\n");
+					WMT_INFO_FUNC("++ prev_idx_pagedtrace invalid ...++\n\\n");
 					prev_idx_pagedtrace = 0x8000 - 1;
 					continue;
 				}
 
 				len = 0x8000 - prev_idx_pagedtrace - 1;
 				wmt_lib_get_fwinfor_from_emi(1, prev_idx_pagedtrace, &gEmiBuf[0], len);
-				pr_debug("\n\n -- CONNSYS paged trace ascii output (cont...) --\n\n");
+				WMT_INFO_FUNC("\n\n -- CONNSYS paged trace ascii output (cont...) --\n\n");
 				wmt_dbg_fwinfor_print_buff(len);
 
 				len = cur_idx_pagedtrace;
 				wmt_lib_get_fwinfor_from_emi(1, 0x0, &gEmiBuf[0], len);
-				pr_debug("\n\n -- CONNSYS paged trace ascii output (end) --\n\n");
+				WMT_INFO_FUNC("\n\n -- CONNSYS paged trace ascii output (end) --\n\n");
 				wmt_dbg_fwinfor_print_buff(len);
 				prev_idx_pagedtrace = cur_idx_pagedtrace;
 			}
@@ -562,7 +573,7 @@ INT32 wmt_dbg_fwinfor_from_emi(INT32 par1, INT32 par2, INT32 par3)
 		} while (isBreak);
 	}
 
-	pr_debug("\n\n -- control word --\n\n");
+	WMT_INFO_FUNC("\n\n -- control word --\n\n");
 	wmt_dbg_fwinfor_print_buff(256);
 	if (len > 1024 * 4)
 		len = 1024 * 4;
@@ -571,9 +582,9 @@ INT32 wmt_dbg_fwinfor_from_emi(INT32 par1, INT32 par2, INT32 par3)
 	osal_memset(&gEmiBuf[0], 0, WMT_EMI_DEBUG_BUF_SIZE);
 	wmt_lib_get_fwinfor_from_emi(1, offset, &gEmiBuf[0], len);
 
-	pr_debug("\n\n -- paged trace hex output --\n\n");
+	WMT_INFO_FUNC("\n\n -- paged trace hex output --\n\n");
 	wmt_dbg_fwinfor_print_buff(len);
-	pr_debug("\n\n -- paged trace ascii output --\n\n");
+	WMT_INFO_FUNC("\n\n -- paged trace ascii output --\n\n");
 	wmt_dbg_fwinfor_print_buff(len);
 	kfree(buf_emi);
 
@@ -651,6 +662,57 @@ INT32 wmt_dbg_rst_ctrl(INT32 par1, INT32 par2, INT32 par3)
 	mtk_wcn_stp_set_auto_rst(par2 == 0 ? 0 : 1);
 
 	return 0;
+}
+
+INT32 wmt_dbg_func0_reg_read(INT32 par1, INT32 address, INT32 value)
+{
+	INT32 ret = -1;
+
+	ret = wmt_lib_sdio_reg_rw(0, 0, (UINT32)address, (UINT32)value);
+	if (ret) {
+		WMT_ERR_FUNC("read fucn0 SDIO register fail");
+		return ret;
+	}
+	return ret;
+}
+
+INT32 wmt_dbg_func0_reg_write(INT32 par1, INT32 address, INT32 value)
+{
+	INT32 ret = -1;
+
+	ret = wmt_lib_sdio_reg_rw(0, 1, (UINT32)address, (UINT32)value);
+	if (ret) {
+		WMT_ERR_FUNC("write func0 SDIO register fail");
+		return ret;
+	}
+
+	return ret;
+}
+
+INT32 wmt_dbg_stp_sdio_reg_read(INT32 par1, INT32 address, INT32 value)
+{
+	INT32 ret = -1;
+
+	ret = wmt_lib_sdio_reg_rw(2, 0, (UINT32)address, (UINT32)value);
+	if (ret) {
+		WMT_ERR_FUNC("read  SDIO register fail");
+		return ret;
+	}
+
+	return ret;
+}
+
+INT32 wmt_dbg_stp_sdio_reg_write(INT32 par1, INT32 address, INT32 value)
+{
+	INT32 ret = -1;
+
+	ret = wmt_lib_sdio_reg_rw(2, 1, (UINT32)address, (UINT32)value);
+	if (ret) {
+		WMT_ERR_FUNC("write  SDIO register fail");
+		return ret;
+	}
+
+	return ret;
 }
 
 INT32 wmt_dbg_ut_test(INT32 par1, INT32 par2, INT32 par3)

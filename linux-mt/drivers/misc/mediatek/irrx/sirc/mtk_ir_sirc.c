@@ -11,9 +11,9 @@
 * See http://www.gnu.org/licenses/gpl-2.0.html for more details.
 **/
 #include <linux/jiffies.h>
-#include "../inc/mtk_ir_common.h"
-#include "../inc/mtk_ir_core.h"
-#include "../inc/mtk_ir_regs.h" /* include ir registers */
+#include "mtk_ir_common.h"
+#include "mtk_ir_core.h"
+#include "mtk_ir_regs.h" /* include ir registers */
 #include "mtk_ir_cus_sirc.h"	/* include customer's key map */
 
 #define IRRX_SIRC_BITCNT12 (u32)(0xc)
@@ -148,7 +148,8 @@ static int mtk_ir_sirc_enable_hwirq(int enable)
 	IR_SIRC_LOG("IRRX enable hwirq: %d\n", enable);
 	if (enable) {
 		info = IR_READ32(IRRX_COUNT_HIGH_REG);
-		IR_WRITE_MASK(IRRX_IRCLR, IRRX_IRCLR_MASK, IRRX_IRCLR_OFFSET, 0x1);	/* clear irrx state machine */
+		IR_WRITE_MASK(IRRX_IRCLR, IRRX_IRCLR_MASK,
+						IRRX_IRCLR_OFFSET, 0x1);	/* clear irrx state machine */
 		dsb(sy);
 
 		IR_WRITE_MASK(IRRX_IRINT_CLR, IRRX_INTCLR_MASK,
@@ -159,12 +160,15 @@ static int mtk_ir_sirc_enable_hwirq(int enable)
 			info = IR_READ32(IRRX_COUNT_HIGH_REG);
 		} while (info != 0);
 
-		/* enable ir interrupt */
+		/* enable ir hw interrupt receiver function */
 		IR_WRITE_MASK(IRRX_IRINT_EN, IRRX_INTEN_MASK, IRRX_INTCLR_OFFSET, 0x1);
 		dsb(sy);
 	} else {
-		/* disable interrupt */
+		/* disable ir hw interrupt receiver function */
 		IR_WRITE_MASK(IRRX_IRINT_EN, IRRX_INTEN_MASK, IRRX_INTCLR_OFFSET, 0x0);
+		dsb(sy);
+		IR_WRITE_MASK(IRRX_IRINT_CLR, IRRX_INTCLR_MASK,
+						IRRX_INTCLR_OFFSET, 0x1);	/* clear irrx eint stat */
 		dsb(sy);
 	}
 	return 0;
@@ -294,7 +298,6 @@ u32 mtk_ir_sirc_decode(void *preserve)
 	u32 u1Command, u1Device, u1Extended, sirc_key;
 	u32 _u4Info = IR_READ32(IRRX_COUNT_HIGH_REG);
 	u32 u4BitCnt = MTK_SIRC_INFO_TO_BITCNT(_u4Info);
-	u32 u4GroupID = 0;
 	char *pu1Data = (char *)_au4IrRxData;
 	static unsigned long last_jiffers;	/* this is only the patch for SIRC disturbed repeat key */
 	unsigned long current_jiffers = jiffies;
@@ -318,13 +321,13 @@ u32 mtk_ir_sirc_decode(void *preserve)
 			u1Device = ((pu1Data[0] & 0x01) << 4) | ((pu1Data[1] & 0xF0) >> 4);
 			u1Device = Reverse1Byte(u1Device<<3);
 			sirc_key = SIRC_KEY_CODE(SIRC_LENGTH_12, u1Device, u1Command);
+			_u4PrevKey = sirc_key;
 			IR_SIRC_LOG("[irrx] SIRC:Received 12B Key: 0x%02x, Device = 0x%02x,sirc_key =0x%08x\n",
 						u1Command, u1Device, sirc_key);
 			/* Check GroupId. */
 			if (u1Device != _u4Sirc_customer_code_12bit) {
-				IR_SIRC_LOG("Received 12B :invalid customer code 0x%x!!!\n", u1Device);
+				IR_SIRC_ERR("Received 12B :invalid customer code 0x%x!!!\n", u1Device);
 				_u4PrevKey = BTN_NONE;
-				return BTN_NONE;
 			}
 
 			break;
@@ -337,13 +340,13 @@ u32 mtk_ir_sirc_decode(void *preserve)
 			u1Device = ((pu1Data[0] & 0x01) << 7) | ((pu1Data[1] & 0xFE) >> 1);
 			u1Device = Reverse1Byte(u1Device);
 			sirc_key = SIRC_KEY_CODE(SIRC_LENGTH_15, u1Device, u1Command);
+			_u4PrevKey = sirc_key;
 			IR_SIRC_LOG("SIRC:Received 15B Key: 0x%02x, u1Device = 0x%02x, sirc_key =:0x%08x\n",
 						u1Command, u1Device, sirc_key);
 			/* Check GroupId. */
 			if (u1Device != _u4Sirc_customer_code_15bit) {
-				IR_SIRC_LOG("Received 15B :invalid customer code 0x%x!!!\n", u1Device);
+				IR_SIRC_ERR("Received 15B :invalid customer code 0x%x!!!\n", u1Device);
 				_u4PrevKey = BTN_NONE;
-				return BTN_NONE;
 			}
 
 			break;
@@ -361,6 +364,7 @@ u32 mtk_ir_sirc_decode(void *preserve)
 			/*IR_LOG_KEY("SIRC:Received 20B Device = 0x%x, u1Extended:0x%x\n", u1Device, u1Extended);*/
 			u1Device = ((u1Extended&0xff) << 5) + ((u1Device)&0x1f);
 			sirc_key = SIRC_KEY_CODE(SIRC_LENGTH_20, u1Device, u1Command);
+			_u4PrevKey = sirc_key;
 
 			IR_SIRC_LOG("SIRC:Received 20B Key: 0x%x, Device = 0x%x, sirc_key:0x%08x\n",
 						u1Command, u1Device, sirc_key);
@@ -368,24 +372,22 @@ u32 mtk_ir_sirc_decode(void *preserve)
 			if ((u1Device != _u4Sirc_customer_code_20bit) &&
 				(u1Device != _u4Sirc_customer_code_20bit_dual) &&
 				(u1Device != _u4Sirc_customer_code_20bit_trible)) {
-				IR_SIRC_LOG("Received 20B :invalid customer code 0x%x!!!\n", u1Device);
+				IR_SIRC_ERR("Received 20B :invalid customer code 0x%x!!!\n", u1Device);
 				_u4PrevKey = BTN_NONE;
-				return BTN_NONE;
 		    }
 
 			break;
 
 		default:
-			IR_SIRC_LOG("BITCNT unmatch:not sirc key\n");
-			return BTN_NONE;
+			IR_SIRC_ERR("BITCNT unmatch:not sirc key\n");
+			_u4PrevKey = BTN_NONE;
 			/*break;*/
 	}
-	return sirc_key;
 
 	IR_SIRC_LOG("repeat_out=%dms\n", jiffies_to_msecs(current_jiffers - last_jiffers));
 	last_jiffers = current_jiffers;
 
-	MTK_IR_KEY_LOG("ID:0x%08x, Key:0x%08x\n", u4GroupID, sirc_key);
+	MTK_IR_KEY_LOG("Customer code:0x%08x, Key:0x%08x\n", u1Device, _u4PrevKey);
 	return _u4PrevKey;
 }
 

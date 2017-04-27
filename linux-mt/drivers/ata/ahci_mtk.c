@@ -374,7 +374,7 @@ static int mtk_ahci_init(struct device *dev, struct ahci_host_priv *hpriv)
 	sata_switch_function_in_soc_chip(mtk_sata_addr.switchsata);
 
 	sata_phy_cdr_charge_adjt(mtk_sata_addr.pbase);
-	if (sata_phy_txrx_init_efuse(mtk_sata_addr.pbase < 0, (unsigned int *)&sata_efuse_val)) {
+	if (sata_phy_txrx_init_efuse(mtk_sata_addr.pbase, (unsigned int *)&sata_efuse_val)  < 0) {
 		dev_err(dev, "[mtahci] init: get TX/RX parameter failed!\n");
 		return -1;
 	}

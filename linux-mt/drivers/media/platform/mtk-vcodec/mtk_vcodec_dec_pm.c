@@ -32,6 +32,7 @@ int mtk_vcodec_init_dec_pm(struct mtk_vcodec_dev *mtkdev)
 	pdev = mtkdev->plat_dev;
 	pm = &mtkdev->pm;
 	pm->mtkdev = mtkdev;
+	pm->chip_node = of_find_compatible_node(NULL, NULL, "mediatek,mt8173-vcodec-dec");
 	node = of_parse_phandle(pdev->dev.of_node, "mediatek,larb", 0);
 	if (!node) {
 		mtk_v4l2_err("of_parse_phandle mediatek,larb fail!");
@@ -127,13 +128,15 @@ void mtk_vcodec_dec_clock_on(struct mtk_vcodec_pm *pm)
 {
 	int ret;
 
-	ret = clk_set_rate(pm->vcodecpll, 1482 * 1000000);
-	if (ret)
-		mtk_v4l2_err("clk_set_rate vcodecpll fail %d", ret);
+	if (pm->chip_node) {
+		ret = clk_set_rate(pm->vcodecpll, 1482 * 1000000);
+		if (ret)
+			mtk_v4l2_err("clk_set_rate vcodecpll fail %d", ret);
 
-	ret = clk_set_rate(pm->vencpll, 800 * 1000000);
-	if (ret)
-		mtk_v4l2_err("clk_set_rate vencpll fail %d", ret);
+		ret = clk_set_rate(pm->vencpll, 800 * 1000000);
+		if (ret)
+			mtk_v4l2_err("clk_set_rate vencpll fail %d", ret);
+	}
 
 	ret = clk_prepare_enable(pm->vcodecpll);
 	if (ret)

@@ -24,18 +24,20 @@
 #include <linux/thermal.h>
 #include "mtk_power_throttle.h"
 #include "mtk_static_power.h"
+#include "mtk_cpufreq.h"
 
 
 #define MIN_VOLT_SHIFT		(100000)
 #define MAX_VOLT_SHIFT		(200000)
-#define MAX_VOLT_LIMIT		(1150000)
+#define MAX_VOLT_LIMIT		(1310000)
 #define VOLT_TOL		(10000)
 
 /*
- * The struct mtk_cpu_dvfs_info holds necessary information for doing CPU DVFS
- * on each CPU power/clock domain of Mediatek SoCs. Each CPU cluster in
- * Mediatek SoCs has two voltage inputs, Vproc and Vsram. In some cases the two
- * voltage inputs need to be controlled under a hardware limitation:
+ * The struct mtk_cpu_dvfs_info holds necessary information for doing CPU
+ * DVFS on each CPU power/clock domain of Mediatek SoCs. Each CPU cluster
+ * in Mediatek SoCs has two voltage inputs, Vproc and Vsram. In some cases
+ * the two voltage inputs need to be controlled under a hardware
+ * limitation:
  * 100mV < Vsram - Vproc < 200mV
  *
  * When scaling the clock frequency of a CPU clock domain, the clock source
@@ -57,6 +59,7 @@ struct mtk_cpu_dvfs_info {
 	int intermediate_voltage;
 	unsigned long opp_freq;
 	bool need_voltage_tracking;
+	bool dvfs_disable_by_ptpod;
 };
 
 static LIST_HEAD(dvfs_info_list);
@@ -67,7 +70,8 @@ static struct mtk_cpu_dvfs_info *mtk_cpu_dvfs_info_lookup(int cpu)
 	struct list_head *list;
 
 	list_for_each(list, &dvfs_info_list) {
-		info = list_entry(list, struct mtk_cpu_dvfs_info, list_head);
+		info = list_entry(list, struct mtk_cpu_dvfs_info,
+			list_head);
 
 		if (cpumask_test_cpu(cpu, &info->cpus))
 			return info;
@@ -75,6 +79,52 @@ static struct mtk_cpu_dvfs_info *mtk_cpu_dvfs_info_lookup(int cpu)
 
 	return NULL;
 }
+
+void mt_cpufreq_enable_by_ptpod(enum mt_cpu_dvfs_id id)
+{
+	struct mtk_cpu_dvfs_info *info;
+	struct list_head *list;
+
+	list_for_each(list, &dvfs_info_list) {
+		info = list_entry(list, struct mtk_cpu_dvfs_info,
+			list_head);
+		info->dvfs_disable_by_ptpod = false;
+	}
+}
+EXPORT_SYMBOL(mt_cpufreq_enable_by_ptpod);
+
+unsigned int mt_cpufreq_disable_by_ptpod(enum mt_cpu_dvfs_id id)
+{
+	struct mtk_cpu_dvfs_info *info;
+	struct list_head *list;
+
+	list_for_each(list, &dvfs_info_list) {
+		info = list_entry(list, struct mtk_cpu_dvfs_info,
+			list_head);
+		info->dvfs_disable_by_ptpod = true;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(mt_cpufreq_disable_by_ptpod);
+
+void mt_cpufreq_setvolt_registerCB(cpuVoltsampler_func pCB)
+{
+}
+EXPORT_SYMBOL(mt_cpufreq_setvolt_registerCB);
+
+
+unsigned int mt_cpufreq_get_cur_volt(void)
+{
+	struct mtk_cpu_dvfs_info *info;
+	int vproc = 0;
+
+	info = mtk_cpu_dvfs_info_lookup(0);
+
+	vproc = regulator_get_voltage(info->proc_reg);
+
+	return vproc;
+}
+EXPORT_SYMBOL(mt_cpufreq_get_cur_volt);
 
 static int mtk_cpufreq_voltage_tracking(struct mtk_cpu_dvfs_info *info,
 					int new_vproc)
@@ -85,7 +135,8 @@ static int mtk_cpufreq_voltage_tracking(struct mtk_cpu_dvfs_info *info,
 
 	old_vproc = regulator_get_voltage(proc_reg);
 	if (old_vproc < 0) {
-		pr_err("%s: invalid Vproc value: %d\n", __func__, old_vproc);
+		pr_err("%s: invalid Vproc value: %d\n",
+			__func__, old_vproc);
 		return old_vproc;
 	}
 	/* Vsram should not exceed the maximum allowed voltage of SoC. */
@@ -94,8 +145,8 @@ static int mtk_cpufreq_voltage_tracking(struct mtk_cpu_dvfs_info *info,
 	if (old_vproc < new_vproc) {
 		/*
 		 * When scaling up voltages, Vsram and Vproc scale up step
-		 * by step. At each step, set Vsram to (Vproc + 200mV) first,
-		 * then set Vproc to (Vsram - 100mV).
+		 * by step. At each step, set Vsram to (Vproc + 200mV)
+		 * first, then set Vproc to (Vsram - 100mV).
 		 * Keep doing it until Vsram and Vproc hit target voltages.
 		 */
 		do {
@@ -117,21 +168,22 @@ static int mtk_cpufreq_voltage_tracking(struct mtk_cpu_dvfs_info *info,
 			if (vsram + VOLT_TOL >= MAX_VOLT_LIMIT) {
 				vsram = MAX_VOLT_LIMIT;
 
-				/*
-				 * If the target Vsram hits the maximum voltage,
-				 * try to set the exact voltage value first.
-				 */
-				ret = regulator_set_voltage(sram_reg, vsram,
-							    vsram);
+			/*
+			 * If the target Vsram hits the maximum voltage,
+			 * try to set the exact voltage value first.
+			 */
+				ret = regulator_set_voltage(
+					sram_reg, vsram, vsram);
 				if (ret)
-					ret = regulator_set_voltage(sram_reg,
-							vsram - VOLT_TOL,
-							vsram);
+					ret = regulator_set_voltage(
+						sram_reg,
+						vsram - VOLT_TOL,
+						vsram);
 
 				vproc = new_vproc;
 			} else {
-				ret = regulator_set_voltage(sram_reg, vsram,
-							    vsram + VOLT_TOL);
+				ret = regulator_set_voltage(
+					sram_reg, vsram, vsram + VOLT_TOL);
 
 				vproc = vsram - MIN_VOLT_SHIFT;
 			}
@@ -148,10 +200,11 @@ static int mtk_cpufreq_voltage_tracking(struct mtk_cpu_dvfs_info *info,
 		} while (vproc < new_vproc || vsram < new_vsram);
 	} else if (old_vproc > new_vproc) {
 		/*
-		 * When scaling down voltages, Vsram and Vproc scale down step
-		 * by step. At each step, set Vproc to (Vsram - 200mV) first,
-		 * then set Vsram to (Vproc + 100mV).
-		 * Keep doing it until Vsram and Vproc hit target voltages.
+		 * When scaling down voltages, Vsram and Vproc scale
+		 * down step by step. At each step, set Vproc to
+		 * (Vsram - 200mV) first, then set Vsram to
+		 * (Vproc + 100mV). Keep doing it until Vsram and Vproc
+		 * hit target voltages.
 		 */
 		do {
 			old_vproc = regulator_get_voltage(proc_reg);
@@ -176,24 +229,24 @@ static int mtk_cpufreq_voltage_tracking(struct mtk_cpu_dvfs_info *info,
 			if (vproc == new_vproc)
 				vsram = new_vsram;
 			else
-				vsram = max(new_vsram, vproc + MIN_VOLT_SHIFT);
+				vsram = max(new_vsram,
+					vproc + MIN_VOLT_SHIFT);
 
 			if (vsram + VOLT_TOL >= MAX_VOLT_LIMIT) {
 				vsram = MAX_VOLT_LIMIT;
 
-				/*
-				 * If the target Vsram hits the maximum voltage,
-				 * try to set the exact voltage value first.
-				 */
-				ret = regulator_set_voltage(sram_reg, vsram,
-							    vsram);
+			/*
+			 * If the target Vsram hits the maximum voltage,
+			 * try to set the exact voltage value first.
+			 */
+				ret = regulator_set_voltage(
+					sram_reg, vsram, vsram);
 				if (ret)
-					ret = regulator_set_voltage(sram_reg,
-							vsram - VOLT_TOL,
-							vsram);
+					ret = regulator_set_voltage(
+					sram_reg, vsram - VOLT_TOL, vsram);
 			} else {
-				ret = regulator_set_voltage(sram_reg, vsram,
-							    vsram + VOLT_TOL);
+				ret = regulator_set_voltage(
+				sram_reg, vsram, vsram + VOLT_TOL);
 			}
 
 			if (ret) {
@@ -208,12 +261,13 @@ static int mtk_cpufreq_voltage_tracking(struct mtk_cpu_dvfs_info *info,
 	return 0;
 }
 
-static int mtk_cpufreq_set_voltage(struct mtk_cpu_dvfs_info *info, int vproc)
+static int mtk_cpufreq_set_voltage(struct mtk_cpu_dvfs_info *info,
+	int vproc)
 {
 	if (info->need_voltage_tracking)
 		return mtk_cpufreq_voltage_tracking(info, vproc);
-	else
-		return regulator_set_voltage(info->proc_reg, vproc,
+
+	return regulator_set_voltage(info->proc_reg, vproc,
 					     vproc + VOLT_TOL);
 }
 
@@ -224,16 +278,20 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 	struct clk *cpu_clk = policy->clk;
 	struct mtk_cpu_dvfs_info *info = policy->driver_data;
 	struct device *cpu_dev = info->cpu_dev;
+	struct clk *armpll = info->arm_clk;
 	struct dev_pm_opp *opp;
 	long freq_hz, old_freq_hz;
 	int vproc, old_vproc, inter_vproc, target_vproc, ret;
 
+	if (info->dvfs_disable_by_ptpod)
+		index = 4; /* ptpod request voltage fixed 1.15V */
 	inter_vproc = info->intermediate_voltage;
 
 	old_freq_hz = clk_get_rate(cpu_clk);
 	old_vproc = regulator_get_voltage(info->proc_reg);
 	if (old_vproc < 0) {
-		pr_err("%s: invalid Vproc value: %d\n", __func__, old_vproc);
+		pr_err("%s: invalid Vproc value: %d\n",
+		__func__, old_vproc);
 		return old_vproc;
 	}
 
@@ -253,8 +311,8 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 	mutex_lock(&info->lock);
 
 	/*
-	 * If the new voltage or the intermediate voltage is higher than the
-	 * current voltage, scale up voltage first.
+	 * If the new voltage or the intermediate voltage is higher
+	 * than the current voltage, scale up voltage first.
 	 */
 	target_vproc = (inter_vproc > vproc) ? inter_vproc : vproc;
 	if (old_vproc < target_vproc) {
@@ -280,18 +338,18 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 	}
 
 	/* Set the original PLL to target rate. */
-	ret = clk_set_rate(info->arm_clk, freq_hz);
+	ret = clk_set_rate(armpll, freq_hz);
 	if (ret) {
 		pr_err("cpu%d: failed to scale cpu clock rate!\n",
 		       policy->cpu);
-		clk_set_parent(cpu_clk, info->arm_clk);
+		clk_set_parent(cpu_clk, armpll);
 		mtk_cpufreq_set_voltage(info, old_vproc);
 		mutex_unlock(&info->lock);
 		return ret;
 	}
 
 	/* Set parent of CPU clock back to the original PLL. */
-	ret = clk_set_parent(cpu_clk, info->arm_clk);
+	ret = clk_set_parent(cpu_clk, armpll);
 	if (ret) {
 		pr_err("cpu%d: failed to re-parent cpu clock!\n",
 		       policy->cpu);
@@ -311,8 +369,8 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 			pr_err("cpu%d: failed to scale down voltage!\n",
 			       policy->cpu);
 			clk_set_parent(cpu_clk, info->inter_clk);
-			clk_set_rate(info->arm_clk, old_freq_hz);
-			clk_set_parent(cpu_clk, info->arm_clk);
+			clk_set_rate(armpll, old_freq_hz);
+			clk_set_parent(cpu_clk, armpll);
 			mutex_unlock(&info->lock);
 			return ret;
 		}
@@ -327,15 +385,18 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 #define DYNAMIC_POWER "dynamic-power-coefficient"
 #define STATIC_POWER "static-power-coefficient"
 
-int plat_static_func(cpumask_t *cpumask, int interval, unsigned long voltage, u32 *power)
+int plat_static_func(cpumask_t *cpumask, int interval,
+unsigned long voltage, u32 *power)
 {
 	unsigned int total_power = 0;
 
 	#if 0
 	/* cluster power + core power */
-	/* total_power = (CA53_LEAKAGE_POWER_BASE*num+CA53_N_LEAKAGE_POWER_BASE) */
+	/* total_power = (CA53_LEAKAGE_POWER_BASE*num+ */
+	/* CA53_N_LEAKAGE_POWER_BASE) */
 	/* *(vol/vol_base)*(vol/vol_base)*(vol/vol_base); */
-	total_power = (CA53_LEAKAGE_POWER_BASE * num + CA53_N_LEAKAGE_POWER_BASE * (num ? 1 : 0))
+	total_power = (CA53_LEAKAGE_POWER_BASE * num
+			+	CA53_N_LEAKAGE_POWER_BASE * (num ? 1 : 0))
 	    * vol / vol_base * vol / vol_base * vol / vol_base;
 	#endif
 
@@ -354,7 +415,8 @@ static void mtk_cpufreq_ready(struct cpufreq_policy *policy)
 
 	if (of_find_property(np, "#cooling-cells", NULL)) {
 		of_property_read_u32(np, DYNAMIC_POWER, &capacitance);
-		of_property_read_u32(np, STATIC_POWER, &static_capacitance);
+		of_property_read_u32(np, STATIC_POWER,
+			&static_capacitance);
 
 		info->cdev = of_cpufreq_power_cooling_register(np,
 						policy->related_cpus,
@@ -394,7 +456,8 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	cpu_clk = clk_get(cpu_dev, "cpu");
 	if (IS_ERR(cpu_clk)) {
 		if (PTR_ERR(cpu_clk) == -EPROBE_DEFER)
-			pr_warn("cpu clk for cpu%d not ready, retry.\n", cpu);
+			pr_warn("cpu clk for cpu%d not ready, retry.\n",
+							cpu);
 		else
 			pr_err("failed to get cpu clk for cpu%d\n", cpu);
 
@@ -444,9 +507,23 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	}
 
 	/* Both presence and absence of sram regulator are valid cases. */
-	sram_reg = regulator_get_exclusive(cpu_dev, "sram");
+	sram_reg = regulator_get_optional(cpu_dev, "sram");
+	if (IS_ERR(sram_reg)) {
+		if (PTR_ERR(sram_reg) == -EPROBE_DEFER)
+			pr_warn("sram regulator for cpu%d not ready, retry.\n",
+				cpu);
+		else
+			pr_err("failed to get sram regulator for cpu%d\n",
+			       cpu);
 
-	/* Get OPP-sharing information from "operating-points-v2" bindings */
+		ret = PTR_ERR(sram_reg);
+		goto out_free_resources;
+	}
+
+	/*
+	 * Get OPP-sharing information from "operating-points-v2"
+	 * bindings
+	 */
 	ret = dev_pm_opp_of_get_sharing_cpus(cpu_dev, &info->cpus);
 	if (ret) {
 		pr_err("failed to get OPP-sharing information for cpu%d\n",
@@ -471,12 +548,23 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 		goto out_free_opp_table;
 	}
 	info->intermediate_voltage = dev_pm_opp_get_voltage(opp);
+#if 0
+	opp_srcu_head = dev_pm_opp_get_notifier(cpu_dev);
+	if (IS_ERR(opp_srcu_head)) {
+		ret = PTR_ERR(opp_srcu_head);
+		goto out_free_opp_table;
+	}
 
+	info->opp_nb.notifier_call = mtk_cpufreq_opp_notifier;
+	ret = srcu_notifier_chain_register(opp_srcu_head, &info->opp_nb);
+	if (ret)
+		goto out_free_opp_table;
+#endif
 	rcu_read_unlock();
 
 	info->cpu_dev = cpu_dev;
 	info->proc_reg = proc_reg;
-	info->sram_reg = IS_ERR(sram_reg) ? NULL : sram_reg;
+	info->sram_reg = sram_reg;
 	info->cpu_clk = cpu_clk;
 	info->inter_clk = inter_clk;
 	info->arm_clk = arm_clk;
@@ -485,8 +573,8 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	mutex_init(&info->lock);
 
 	/*
-	 * If SRAM regulator is present, software "voltage tracking" is needed
-	 * for this CPU power domain.
+	 * If SRAM regulator is present, software "voltage tracking"
+	 * is needed for this CPU power domain.
 	 */
 	info->need_voltage_tracking = !IS_ERR(sram_reg);
 
@@ -572,13 +660,13 @@ static int mtk_cpufreq_init(struct cpufreq_policy *policy)
 		opp = dev_pm_opp_find_freq_ceil(info->cpu_dev, &freq_long);
 
 		opp_tbl_default[opp_idx].cpufreq_khz = freq;
-		opp_tbl_default[opp_idx].cpufreq_volt = (int)dev_pm_opp_get_voltage(opp);
+		opp_tbl_default[opp_idx].cpufreq_volt =
+			(int)dev_pm_opp_get_voltage(opp);
 		opp_idx++;
 		rcu_read_unlock();
 	}
 	mt_spower_init();
 	setup_power_table_tk();
-	dump_power_table();
 
 	cpumask_copy(policy->cpus, &info->cpus);
 	policy->driver_data = info;
@@ -652,7 +740,8 @@ static int mt7622_cpufreq_probe(struct platform_device *pdev)
 
 release_dvfs_info_list:
 	list_for_each_safe(list, tmp, &dvfs_info_list) {
-		info = list_entry(list, struct mtk_cpu_dvfs_info, list_head);
+		info = list_entry(list, struct mtk_cpu_dvfs_info,
+			list_head);
 
 		mtk_cpu_dvfs_info_release(info);
 		list_del(list);
@@ -682,11 +771,12 @@ static int mt7622_cpufreq_driver_init(void)
 
 	/*
 	 * Since there's no place to hold device registration code and no
-	 * device tree based way to match cpufreq driver yet, both the driver
-	 * and the device registration codes are put here to handle defer
-	 * probing.
+	 * device tree based way to match cpufreq driver yet, both the
+	 * driver and the device registration codes are put here to handle
+	 * defer probing.
 	 */
-	pdev = platform_device_register_simple("mt7622-cpufreq", -1, NULL, 0);
+	pdev = platform_device_register_simple(
+	"mt7622-cpufreq",	-1, NULL, 0);
 	if (IS_ERR(pdev)) {
 		pr_err("failed to register mtk-cpufreq platform device\n");
 		return PTR_ERR(pdev);

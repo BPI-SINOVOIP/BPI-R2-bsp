@@ -329,11 +329,6 @@ static int mtk_mfg_fill_opp_table(struct device *dev, struct mfg_base *mfg)
 }
 #endif
 
-static void mtk_mfg_clean_opp_table(struct mfg_base *mfg)
-{
-	mfg->num_of_steps = 0;
-}
-
 static ssize_t show_available_frequencies(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)

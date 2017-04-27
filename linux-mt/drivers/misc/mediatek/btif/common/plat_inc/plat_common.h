@@ -49,8 +49,8 @@ extern int mtk_btif_hal_get_log_lvl(void);
 
 typedef irq_handler_t mtk_btif_irq_handler;
 
-#define MTK_BTIF_ENABLE_CLK_CTL 0
-#define MTK_BTIF_ENABLE_CLK_REF_COUNTER 0
+#define MTK_BTIF_ENABLE_CLK_CTL 1
+#define MTK_BTIF_ENABLE_CLK_REF_COUNTER 1
 
 #define DBG_LOG_STR_SIZE 256
 

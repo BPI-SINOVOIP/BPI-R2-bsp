@@ -69,13 +69,14 @@ static struct mtd_partition g_gpt_Partition[MTK_GPT_MAX_PART];
 static struct mtd_partition g_exist_Partition[MTK_PARTITION_NUM];
 #endif
 
-int mtk_partition_register(struct mtd_info *mtd)
+int mtk_partition_register(struct mtd_info *mtd, int start_blk)
 {
 #ifdef MTK_PARTITION_GPT
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	u8 *buf;
 	int i, j, header_found, current_part, ret = 0;
-	u32 addr, retlen;
+	loff_t addr;
+	size_t retlen;
 	struct mtd_partition *mtk_part = NULL;
 
 	buf = kmalloc(mtd->writesize + mtd->oobsize, GFP_KERNEL);
@@ -83,12 +84,12 @@ int mtk_partition_register(struct mtd_info *mtd)
 		return -1;
 
 	memset(g_gpt_Partition, 0x0, sizeof(g_gpt_Partition));
-	for (i = MTK_GPT_START_BLK; i <= MTK_GPT_END_BLK; i++) {
+	for (i = start_blk; i <= MTK_GPT_END_BLK; i++) {
 		header_found = 0;
 		current_part = 0;
 		for (j = 0; j < (1 << (chip->phys_erase_shift - chip->page_shift)); j++) {
 			addr = (i << chip->phys_erase_shift) + (j << chip->page_shift);
-			if (mtd->_read(mtd, addr, mtd->writesize, (size_t *)&retlen,  buf) < 0) {
+			if (mtd->_read(mtd, addr, mtd->writesize, &retlen,  buf) < 0) {
 				ret = -1;
 				break;
 			}

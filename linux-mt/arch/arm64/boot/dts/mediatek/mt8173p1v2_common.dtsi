@@ -66,29 +66,27 @@
 
 &dsi0 {
 	status = "okay";
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port {
-			dsi_out: endpoint {
-				remote-endpoint = <&panel_in>;
-			};
-		};
-	};
-
+	#address-cells = <1>;
+	#size-cells = <0>;
 	panel@0 {
 		compatible = "cm,n070ice";
+		reg = <0>;
 		pm-enable-gpios = <&pio 103 0>;
 		vsys-supply = <&panel_fixed_3v7>;
 		backlight = <&backlight_lcd>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&panel_default_pins>;
-
 		port {
 			panel_in: endpoint {
 				remote-endpoint = <&dsi_out>;
+			};
+		};
+	};
+
+	ports {
+		port {
+			dsi_out: endpoint {
+				remote-endpoint = <&panel_in>;
 			};
 		};
 	};

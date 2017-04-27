@@ -40,5 +40,12 @@
 #define CM36686_ERR_GETGSENSORDATA		(-5)
 #define CM36686_ERR_IDENTIFICATION		(-6)
 
+/*---------settings for I2C access interface----------*/
+#define CMP_REG_ADDR_LEN	1
+#define CMP_DMA_MAX_TRANSACTION_LEN  255	/* for DMA mode */
+#define CMP_DMA_MAX_RD_SIZE	31
+#define CMP_DMA_MAX_WR_SIZE	(CMP_DMA_MAX_TRANSACTION_LEN - CMP_REG_ADDR_LEN)
+/*-----------------end of I2C interface------------------*/
+
 #endif
 

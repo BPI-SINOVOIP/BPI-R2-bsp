@@ -509,7 +509,7 @@ irqreturn_t ISR_SW_ETH(int irq, void *device_id)
 	int napi_sched = 0;
 	struct rx_queue *rx_queue = NULL;
 	unsigned long MAC_PCS = 0;
-	unsigned long test_data = 0;
+	unsigned long DMA_SR_MERGE = 0;
 
 	DMA_ISR_REG_RD(DMA_ISR);
 	if (DMA_ISR == 0x0)
@@ -544,7 +544,7 @@ irqreturn_t ISR_SW_ETH(int irq, void *device_id)
 				} else if ((MAC_PCS & 0x60000) == 0x20000) {
 					pdata->pcs_speed = SPEED_100;
 					hw_if->set_mii_speed_100();
-				} else if ((MAC_PCS & 0x60000) == 0x30000) {
+				} else if ((MAC_PCS & 0x60000) == 0x40000) {
 					pdata->pcs_speed = SPEED_1000;
 					hw_if->set_gmii_speed();
 				}
@@ -558,6 +558,7 @@ irqreturn_t ISR_SW_ETH(int irq, void *device_id)
 		}
 	}
 
+dma_again:
 	/* Handle DMA interrupts */
 	for (q_inx = 0; q_inx < TX_QUEUE_CNT; q_inx++) {
 		rx_queue = GET_RX_QUEUE_PTR(q_inx);
@@ -602,7 +603,6 @@ irqreturn_t ISR_SW_ETH(int irq, void *device_id)
 		}
 		if (GET_VALUE(DMA_SR, DMA_SR_TBU_LPOS, DMA_SR_TBU_HPOS) & 1) {
 			pdata->xstats.tx_buf_unavailable_irq_n[q_inx]++;
-			DMA_DSR0_TPS0_UDFRD(test_data);
 			GSTATUS = -E_DMA_SR_TBU;
 		}
 		if (GET_VALUE(DMA_SR, DMA_SR_RPS_LPOS, DMA_SR_RPS_HPOS) & 1) {
@@ -619,6 +619,16 @@ irqreturn_t ISR_SW_ETH(int irq, void *device_id)
 			restart_dev(pdata, q_inx);
 		}
 	}
+
+	/* DMA may transfer frame to mac during DMA INTR handle */
+	DMA_SR_MERGE = 0;
+	for (q_inx = 0; q_inx < TX_QUEUE_CNT; q_inx++) {
+		DMA_SR_REG_RD(q_inx, DMA_SR);
+		DMA_SR_MERGE |= DMA_SR;
+	}
+
+	if (DMA_SR_MERGE)
+		goto dma_again;
 
 	return IRQ_HANDLED;
 }
@@ -1314,14 +1324,14 @@ static int frame_hdrs[8][4] = {
 	 * Src addr : 0x00:0x55:0x7B:0xB5:0x7D:0xF7
 	 * Type/Length : 0x8100
 	 */
-	{0x73560D00, 0x5500F3D0, 0xF77DB57B, 0x64200081},
+	{0xFFFFFFFF, 0x5500FFFF, 0xF77DB57B, 0x64200081},
 
 	/* for channel 2 : VLAN tagged header with priority 2
 	 * Dst addr : 0x00:0x0D:0x56:0x73:0xD0:0xF3
 	 * Src addr : 0x00:0x55:0x7B:0xB5:0x7D:0xF7
 	 * Type/Length : 0x8100
 	 */
-	{0x73560D00, 0x5500F3D0, 0xF77DB57B, 0x64400081},
+	{0xFFFFFFFF, 0x5500FFFF, 0xF77DB57B, 0x64400081},
 
 	/* for channel 3 : VLAN tagged header with priority 3
 	 * Dst addr : 0x00:0x0D:0x56:0x73:0xD0:0xF3
@@ -1359,13 +1369,13 @@ static int frame_hdrs[8][4] = {
 	{0x73560D00, 0x5500F3D0, 0xF77DB57B, 0x64E00081},
 };
 
-static int send_frame(struct prv_data *pdata, int q_inx, int num)
+int send_frame(struct prv_data *pdata, int num)
 {
 	struct sk_buff *skb = NULL;
 	unsigned int *skb_data = NULL;
 	int payload_cnt = 0;
-	int i;
-	unsigned int frame_size = 100;
+	int i, j;
+	unsigned int frame_size = 1500;
 	unsigned long tx_framecount, tx_octetcount;
 	unsigned long rx_framecount, rx_octetcount;
 
@@ -1373,34 +1383,37 @@ static int send_frame(struct prv_data *pdata, int q_inx, int num)
 	pdata->mmc.mmc_tx_octetcount_gb += mtk_eth_reg_read(MMC_TXOCTETCOUNT_GB_REG_ADDR);
 	pdata->mmc.mmc_rx_framecount_gb += mtk_eth_reg_read(MMC_RXPACKETCOUNT_GB_REG_ADDR);
 	pdata->mmc.mmc_rx_octetcount_gb += mtk_eth_reg_read(MMC_RXOCTETCOUNT_GB_REG_ADDR);
+	usleep_range(1000, 2000);
+	for (j = 0; j < TX_QUEUE_CNT; j++) {
+		for (i = 0; i < num; i++) {
+			payload_cnt = 0;
+			skb = dev_alloc_skb(MTK_ETH_FRAME_LEN);
+			if (!skb) {
+				pr_err("Failed to allocate tx skb\n");
+				return -CONFIG_FAIL;
+			}
 
-	for (i = 0; i < num; i++) {
-		payload_cnt = 0;
-		skb = dev_alloc_skb(MTK_ETH_FRAME_LEN);
-		if (!skb) {
-			pr_err("Failed to allocate tx skb\n");
-			return -CONFIG_FAIL;
+			skb_set_queue_mapping(skb, j); /*  map skb to queue0 */
+			skb_data = (unsigned int *)skb->data;
+			/* Add Ethernet header */
+			*skb_data++ = frame_hdrs[j][0];
+			*skb_data++ = frame_hdrs[j][1];
+			*skb_data++ = frame_hdrs[j][2];
+			*skb_data++ = frame_hdrs[j][3];
+			/* Add payload */
+			for (payload_cnt = 0; payload_cnt < frame_size;) {
+				*skb_data++ = FRAME_PATTERN_CH[j];
+				/* increment by 4 since we are writing
+				 * one dword at a time
+				 */
+				payload_cnt += 4;
+			}
+			skb->len = frame_size;
+			start_xmit(skb, pdata->dev);
 		}
-
-		skb_set_queue_mapping(skb, q_inx); /*  map skb to queue0 */
-		skb_data = (unsigned int *)skb->data;
-		/* Add Ethernet header */
-		*skb_data++ = frame_hdrs[q_inx][0];
-		*skb_data++ = frame_hdrs[q_inx][1];
-		*skb_data++ = frame_hdrs[q_inx][2];
-		*skb_data++ = frame_hdrs[q_inx][3];
-		/* Add payload */
-		for (payload_cnt = 0; payload_cnt < frame_size;) {
-			*skb_data++ = FRAME_PATTERN_CH[q_inx];
-			/* increment by 4 since we are writing
-			 * one dword at a time
-			 */
-			payload_cnt += 4;
-		}
-		skb->len = frame_size;
-		start_xmit(skb, pdata->dev);
 	}
-	usleep_range(10, 20);
+
+	usleep_range(1000, 2000);
 	tx_framecount = mtk_eth_reg_read(MMC_TXPACKETCOUNT_GB_REG_ADDR);
 	tx_octetcount = mtk_eth_reg_read(MMC_TXOCTETCOUNT_GB_REG_ADDR);
 	pdata->mmc.mmc_tx_framecount_gb += tx_framecount;
@@ -1411,7 +1424,9 @@ static int send_frame(struct prv_data *pdata, int q_inx, int num)
 	pdata->mmc.mmc_rx_framecount_gb += rx_framecount;
 	pdata->mmc.mmc_rx_octetcount_gb += rx_octetcount;
 
-	if ((tx_framecount == rx_framecount) && (tx_octetcount == rx_octetcount)) {
+	if ((tx_framecount == rx_framecount) &&
+	    (tx_octetcount == rx_octetcount) &&
+	    (tx_framecount == TX_QUEUE_CNT * num)) {
 		pr_err("loop back success:\ntx_framecount:%lu\t tx_octetcount:%lu\nrx_framecount:%lu\t rx_octetcount:%lu\n",
 		       tx_framecount, tx_octetcount,
 		       rx_framecount, rx_octetcount);
@@ -1455,7 +1470,7 @@ static int handle_prv_ioctl(struct prv_data *pdata, struct ifr_data_struct *req)
 			ret = CONFIG_FAIL;
 		break;
 	case SEND_FRAME_CMD:
-		ret = send_frame(pdata, req->q_inx, req->num);
+		ret = send_frame(pdata, req->num);
 		break;
 
 	default:

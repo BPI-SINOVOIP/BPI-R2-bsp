@@ -128,6 +128,10 @@ VOID aisInitializeConnectionSettings(IN P_ADAPTER_T prAdapter, IN P_REG_INFO_T p
 	COPY_MAC_ADDR(prConnSettings->aucMacAddress, aucZeroMacAddr);
 
 	prConnSettings->ucDelayTimeOfDisconnectEvent = AIS_DELAY_TIME_OF_DISCONNECT_SEC;
+	/*For 11n 5.2.16*/
+	if (prAdapter->rWifiVar.ucCert11nMode == 1)
+		prConnSettings->ucDelayTimeOfDisconnectEvent = 10;
+
 
 	COPY_MAC_ADDR(prConnSettings->aucBSSID, aucAnyBSSID);
 	prConnSettings->fgIsConnByBssidIssued = FALSE;
@@ -470,7 +474,6 @@ VOID aisFsmStateInit_JOIN(IN P_ADAPTER_T prAdapter, P_BSS_DESC_T prBssDesc)
 
 	} else {
 		ASSERT(prBssDesc->eBSSType == BSS_TYPE_INFRASTRUCTURE);
-		ASSERT(!prBssDesc->fgIsConnected);
 
 		DBGLOG(AIS, LOUD, "JOIN INIT: AUTH TYPE = %d for Roaming\n",
 				   prAisSpecificBssInfo->ucRoamingAuthTypes);
@@ -1810,11 +1813,8 @@ VOID aisFsmRunEventAbort(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T prMsgHdr)
 
 	cnmMemFree(prAdapter, prMsgHdr);
 
-#if DBG
-	DBGLOG(AIS, LOUD, "EVENT-ABORT: Current State %s\n", apucDebugAisState[prAisFsmInfo->eCurrentState]);
-#else
-	DBGLOG(AIS, LOUD, "[%d] EVENT-ABORT: Current State [%d]\n", DBG_AIS_IDX, prAisFsmInfo->eCurrentState);
-#endif
+	DBGLOG(AIS, STATE, "EVENT-ABORT: Current State %s, ucReasonOfDisconnect:%d\n",
+		prAisFsmInfo->eCurrentState, ucReasonOfDisconnect);
 
 	/* record join request time */
 	GET_CURRENT_SYSTIME(&(prAisFsmInfo->rJoinReqTime));
@@ -1842,8 +1842,13 @@ VOID aisFsmRunEventAbort(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T prMsgHdr)
 	if (ucReasonOfDisconnect == DISCONNECT_REASON_CODE_ROAMING &&
 	    prAisFsmInfo->eCurrentState != AIS_STATE_DISCONNECTING) {
 
-		if (prAisFsmInfo->eCurrentState == AIS_STATE_NORMAL_TR &&
-		    prAisFsmInfo->fgIsInfraChannelFinished == TRUE) {
+		if (prAisFsmInfo->eCurrentState == AIS_STATE_NORMAL_TR) {
+			/* 1. release channel */
+			aisFsmReleaseCh(prAdapter);
+			/* 2.1 stop join timeout timer */
+			cnmTimerStopTimer(prAdapter, &prAisFsmInfo->rJoinTimeoutTimer);
+			/* 2.2 reset local variable */
+			prAisFsmInfo->fgIsInfraChannelFinished = TRUE;
 			aisFsmSteps(prAdapter, AIS_STATE_COLLECT_ESS_INFO);
 		} else {
 			aisFsmIsRequestPending(prAdapter, AIS_REQUEST_ROAMING_SEARCH, TRUE);
@@ -1852,6 +1857,7 @@ VOID aisFsmRunEventAbort(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T prMsgHdr)
 		}
 		return;
 	}
+
 #if CFG_SELECT_BSS_BASE_ON_MULTI_PARAM
 	scanGetCurrentEssChnlList(prAdapter);
 #endif
@@ -1859,10 +1865,21 @@ VOID aisFsmRunEventAbort(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T prMsgHdr)
 	aisFsmInsertRequest(prAdapter, AIS_REQUEST_RECONNECT);
 
 	if (prAisFsmInfo->eCurrentState != AIS_STATE_DISCONNECTING) {
-		/* 4 <3> invoke abort handler */
-		aisFsmStateAbort(prAdapter, ucReasonOfDisconnect, fgDelayIndication);
-	}
+		if (ucReasonOfDisconnect != DISCONNECT_REASON_CODE_REASSOCIATION) {
+			/* 4 <3> invoke abort handler */
+			aisFsmStateAbort(prAdapter, ucReasonOfDisconnect, fgDelayIndication);
+		} else {
+			/* 1. release channel */
+			aisFsmReleaseCh(prAdapter);
+			/* 2.1 stop join timeout timer */
+			cnmTimerStopTimer(prAdapter, &prAisFsmInfo->rJoinTimeoutTimer);
+			/* 2.2 reset local variable */
+			prAisFsmInfo->fgIsInfraChannelFinished = TRUE;
 
+			prAdapter->prAisBssInfo->ucReasonOfDisconnect = ucReasonOfDisconnect;
+			aisFsmSteps(prAdapter, AIS_STATE_IDLE);
+		}
+	}
 }				/* end of aisFsmRunEventAbort() */
 
 /*----------------------------------------------------------------------------*/
@@ -2641,7 +2658,8 @@ VOID aisCheckPostponedDisconnTimeout(IN P_ADAPTER_T prAdapter, P_AIS_FSM_INFO_T 
 	/* if we're in	req channel/join/search state, don't report disconnect. */
 	if (prAisFsmInfo->eCurrentState == AIS_STATE_JOIN ||
 		prAisFsmInfo->eCurrentState == AIS_STATE_SEARCH ||
-		prAisFsmInfo->eCurrentState == AIS_STATE_REQ_CHANNEL_JOIN)
+		prAisFsmInfo->eCurrentState == AIS_STATE_REQ_CHANNEL_JOIN ||
+		prAisFsmInfo->eCurrentState == AIS_STATE_COLLECT_ESS_INFO)
 		return;
 
 	prAisBssInfo = prAdapter->prAisBssInfo;
@@ -3347,7 +3365,7 @@ VOID aisFsmRunEventJoinTimeout(IN P_ADAPTER_T prAdapter, ULONG ulParamPtr)
 
 	switch (prAisFsmInfo->eCurrentState) {
 	case AIS_STATE_JOIN:
-		DBGLOG(AIS, LOUD, "EVENT- JOIN TIMEOUT\n");
+		DBGLOG(AIS, WARN, "EVENT- JOIN TIMEOUT\n");
 
 		/* 1. Do abort JOIN */
 		aisFsmStateAbort_JOIN(prAdapter);
@@ -3387,6 +3405,14 @@ VOID aisFsmRunEventJoinTimeout(IN P_ADAPTER_T prAdapter, ULONG ulParamPtr)
 			wlanClearScanningResult(prAdapter);
 			eNextState = AIS_STATE_ONLINE_SCAN;
 		}
+		/* 3. Process for pending roaming scan */
+		else if (aisFsmIsRequestPending(prAdapter, AIS_REQUEST_ROAMING_SEARCH, TRUE) == TRUE)
+			eNextState = AIS_STATE_LOOKING_FOR;
+		/* 4. Process for pending roaming scan */
+		else if (aisFsmIsRequestPending(prAdapter, AIS_REQUEST_ROAMING_CONNECT, TRUE) == TRUE)
+			eNextState = AIS_STATE_COLLECT_ESS_INFO;
+		else if (aisFsmIsRequestPending(prAdapter, AIS_REQUEST_REMAIN_ON_CHANNEL, TRUE) == TRUE)
+			eNextState = AIS_STATE_REQ_REMAIN_ON_CHANNEL;
 
 		break;
 

@@ -72,6 +72,7 @@
 #include <linux/prefetch.h>
 
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 
 #if defined(CONFIG_RA_HW_NAT)  || defined(CONFIG_RA_HW_NAT_MODULE)
 #include <net/ra_nat.h>
@@ -97,7 +98,7 @@
 #define TOTAL_TXQ_NUM (GMAC1_TXQ_NUM + GMAC2_TXQ_NUM)
 #else
 #define GMAC1_TXQ_NUM 1
-#define GMAC1_TXQ_TXD_NUM 1024
+#define GMAC1_TXQ_TXD_NUM 2048
 #define GMAC1_TXD_NUM (GMAC1_TXQ_NUM * GMAC1_TXQ_TXD_NUM)
 #define GMAC2_TXQ_NUM 1
 #define GMAC2_TXQ_TXD_NUM 1024
@@ -174,13 +175,22 @@
 enum mtk_clks_map {
 	MTK_CLK_ETHIF,
 	MTK_CLK_ESW,
+	MTK_CLK_GP0,
 	MTK_CLK_GP1,
 	MTK_CLK_GP2,
+	MTK_CLK_SGMII_TX250M,
+	MTK_CLK_SGMII_RX250M,
+	MTK_CLK_SGMII_CDR_REF,
+	MTK_CLK_SGMII_CDR_FB,
 	MTK_CLK_TRGPLL,
+	MTK_CLK_SGMIPLL,
+	MTK_CLK_ETH1PLL,
+	MTK_CLK_ETH2PLL,
 	MTK_CLK_MAX
 };
 
 struct END_DEVICE {
+	struct device *dev;
 	unsigned int tx_cpu_owner_idx0;
 #ifdef CONFIG_RAETH_RW_PDMAPTR_FROM_VAR
 	unsigned int rx_calc_idx[MAX_RX_RING_NUM];
@@ -264,6 +274,7 @@ struct END_DEVICE {
 	unsigned int irq0;
 	unsigned int irq1;
 	unsigned int irq2;
+	unsigned int esw_irq;
 	void __iomem *fe_tx_int_status;
 	void __iomem *fe_tx_int_enable;
 	void __iomem *fe_rx_int_status;

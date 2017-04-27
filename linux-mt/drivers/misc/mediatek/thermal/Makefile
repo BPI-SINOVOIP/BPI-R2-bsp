@@ -17,8 +17,9 @@ ifeq ($(CONFIG_MACH_MT8521P), y)
 # MT2701 & MT8521P use the same thermal driver.
 THERMAL_CHIP_DRIVER_DIR := $(srctree)/drivers/misc/mediatek/thermal/mt8127
 ccflags-y  += -I$(srctree)/drivers/misc/mediatek/include/mt-plat/mt8127/include
-else
-THERMAL_CHIP_DRIVER_DIR := $(srctree)/drivers/misc/mediatek/thermal/$(MTK_PLATFORM)
+else ifeq ($(CONFIG_MTK_BASE_POWER_MT7622), y)
+THERMAL_CHIP_DRIVER_DIR := $(srctree)/drivers/misc/mediatek/thermal/mt7622
+ccflags-y  += -I$(srctree)/drivers/misc/mediatek/include/mt-plat/mt7622/include
 endif
 
 ccflags-y  += -I$(THERMAL_CHIP_DRIVER_DIR)/inc
@@ -40,6 +41,8 @@ obj-$(CONFIG_THERMAL) += mtk_cooler_vrt.o
 ifeq ($(CONFIG_MACH_MT8521P), y)
 # MT2701 & MT7623 use the same thermal driver.
 obj-y += mt8127/
+else ifeq ($(CONFIG_MTK_BASE_POWER_MT7622), y)
+obj-y += mt7622/
 else
 obj-y += $(subst ",,$(CONFIG_MTK_PLATFORM))/
 endif

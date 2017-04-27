@@ -63,6 +63,7 @@
 #include <linux/of_device.h>
 #include <linux/of_net.h>
 #include <linux/of_platform.h>
+#include <linux/clk.h>
 #include <asm-generic/errno.h>
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 #define ENABLE_VLAN_TAG
@@ -682,6 +683,7 @@ struct extra_stats {
 struct prv_data {
 	struct net_device *dev;
 	struct platform_device *pdev;
+	struct clk *ptp_clk, *ext_125m_clk, *ptp_parent_clk;
 
 	spinlock_t lock;	/* rx lock */
 	spinlock_t tx_lock;	/* tx lock */

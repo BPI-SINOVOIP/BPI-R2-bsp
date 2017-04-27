@@ -38,6 +38,12 @@ static struct led_trigger *led_feedback;
 
 /* Used to keep track of rc devices */
 static DEFINE_IDA(rc_ida);
+static int i4_ir_keypress_timeout = IR_KEYPRESS_TIMEOUT;
+void rc_set_keypress_timeout(int i4value)
+{
+	i4_ir_keypress_timeout = i4value;
+}
+EXPORT_SYMBOL_GPL(rc_set_keypress_timeout);
 
 static struct rc_map_list *seek_rc_map(const char *name)
 {
@@ -684,7 +690,8 @@ void rc_keydown(struct rc_dev *dev, enum rc_type protocol, u32 scancode, u8 togg
 	ir_do_keydown(dev, protocol, scancode, keycode, toggle);
 
 	if (dev->keypressed) {
-		dev->keyup_jiffies = jiffies + msecs_to_jiffies(IR_KEYPRESS_TIMEOUT);
+		/* dev->keyup_jiffies = jiffies + msecs_to_jiffies(IR_KEYPRESS_TIMEOUT); */
+		dev->keyup_jiffies = jiffies + msecs_to_jiffies(i4_ir_keypress_timeout);
 		mod_timer(&dev->timer_keyup, dev->keyup_jiffies);
 	}
 	spin_unlock_irqrestore(&dev->keylock, flags);

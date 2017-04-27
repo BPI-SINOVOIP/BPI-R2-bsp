@@ -103,6 +103,7 @@ struct mtk_crypto_ctx *pctx /* [in/out] memory prepared by caller */
 
 	return 0;
 }
+EXPORT_SYMBOL(mtk_crypto_ctx_init);
 
 /*
 *    un-initialize mtk crypto driver context
@@ -134,6 +135,7 @@ struct mtk_crypto_ctx *pctx /* [in/out] memory prepared by caller */
 
 	return 0;
 }
+EXPORT_SYMBOL(mtk_crypto_ctx_uninit);
 
 /*
 *    random number generation
@@ -184,6 +186,7 @@ u32 buf_len                  /* [in]  buffer length (byte unit) */
 	}
 	return 0;
 }
+EXPORT_SYMBOL(mtk_crypto_rng_gen);
 
 /*
 *    configure additional authenticated data aes gcm mode
@@ -204,7 +207,7 @@ u8 *tag
 	if (pctx == NULL)
 		return -ERROR_MTK_CRYPTO_CTX_IS_NULL;
 
-	if (paad == NULL)
+	if (paad == NULL && aad_len != 0)
 		return -ERROR_MTK_CRYPTO_INPUT_IS_NULL;
 
 	param[0].mem.buffer = (void *)pctx;
@@ -229,6 +232,7 @@ u8 *tag
 	}
 	return 0;
 }
+EXPORT_SYMBOL(mtk_crypto_cfg_aes_aad);
 
 int mtk_crypto_get_aes_tag(
 struct mtk_crypto_ctx *pctx, /* [in]  context of mtk crypto driver */
@@ -237,6 +241,7 @@ u8 *tag					 /* tag length = 16 */
 	memcpy(tag, pctx->tag, 16);
 	return 0;
 }
+EXPORT_SYMBOL(mtk_crypto_get_aes_tag);
 
 /*
 *    aes enc/dec ecb mode
@@ -288,6 +293,7 @@ u32       dat_len		/* [in]  data buffer length for source/destination (byte unit
 	if (packed_buffer == NULL)
 		goto end;
 
+	memset(packed_buffer, 0, AES_IV_SIZE + sizeof(u8) * 2 + sizeof(struct mtk_crypto_ctx));
 	if (blk_mode != AES_ECB_MOD)
 		memcpy(packed_buffer, piv, AES_IV_SIZE);
 	*(packed_buffer + AES_IV_SIZE) = op_mode;
@@ -306,7 +312,7 @@ u32       dat_len		/* [in]  data buffer length for source/destination (byte unit
 
 	if (isKernelLowmem(psrc)) {
 		param[param_index].mem.buffer = (void *)psrc;
-	} else {
+	} else if (dat_len > 0) {
 		param[param_index].mem.buffer = kmalloc(dat_len, GFP_KERNEL);
 		if (!param[param_index].mem.buffer) {
 			result = -ENOMEM;
@@ -314,19 +320,23 @@ u32       dat_len		/* [in]  data buffer length for source/destination (byte unit
 		}
 		memcpy(param[param_index].mem.buffer, psrc, dat_len);
 		src_copied = param_index;
+	} else {
+		param[param_index].mem.buffer = NULL;
 	}
 	param[param_index].mem.size = dat_len;
 	param_index++;
 
 	if (isKernelLowmem(pdes)) {
 		param[param_index].mem.buffer = pdes;
-	} else {
+	} else if (dat_len > 0) {
 		param[param_index].mem.buffer = kmalloc(dat_len, GFP_KERNEL);
 		if (!param[param_index].mem.buffer) {
 			result = -ENOMEM;
 			goto end;
 		}
 		dst_copied = param_index;
+	} else {
+		param[param_index].mem.buffer = NULL;
 	}
 	param[param_index].mem.size = dat_len;
 
@@ -392,6 +402,7 @@ u32       dat_len		/* [in]  data buffer length for source/destination (byte unit
 	return mtk_crypto_aes_helper(pctx, blk_mode, op_mode, piv,
 				     pkey, key_len, psrc, pdes, dat_len);
 }
+EXPORT_SYMBOL(mtk_crypto_aes);
 
 /*
 *    aes enc/dec using hw key in crypto hw
@@ -419,6 +430,7 @@ u32       dat_len		/* [in]  data buffer length for source/destination (byte unit
 	return mtk_crypto_aes_helper(pctx, blk_mode, op_mode, piv,
 				     NULL, 0, psrc, pdes, dat_len);
 }
+EXPORT_SYMBOL(mtk_crypto_aes_using_hw_key);
 
 /*
 *    begin to do sha256
@@ -450,6 +462,7 @@ struct mtk_crypto_ctx *pctx /* context of mtk crypto driver */
 	}
 	return 0;
 }
+EXPORT_SYMBOL(mtk_crypto_sha256_begin);
 
 /*
 *    process data for sha256
@@ -533,6 +546,7 @@ u32       dat_len            /* [in] data buffer length (byte unit) */
 end:
 	return result;
 }
+EXPORT_SYMBOL(mtk_crypto_sha256_process);
 
 /*
 *    generate sha256 hash value
@@ -570,6 +584,7 @@ u8 *pres                     /* [out] hash result buffer, 32 bytes, buffer prepa
 	mutex_unlock((struct mutex *)pctx->mutex);
 	return 0;
 }
+EXPORT_SYMBOL(mtk_crypto_sha256_done);
 
 /*
 *    generate sha256 hash value on data
@@ -631,3 +646,5 @@ end:
 		kfree(param[copied].mem.buffer);
 	return result;
 }
+EXPORT_SYMBOL(mtk_crypto_sha256);
+

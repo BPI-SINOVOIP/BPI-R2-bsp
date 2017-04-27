@@ -76,7 +76,16 @@ static const struct mtk_pin_spec_pupd_set_samereg mt2712_spec_pupd[] = {
 	MTK_PIN_PUPD_SPEC_SR(93, 0xdd0, 2, 1, 0),
 	MTK_PIN_PUPD_SPEC_SR(94, 0xd20, 2, 1, 0),
 	MTK_PIN_PUPD_SPEC_SR(95, 0xcf0, 2, 1, 0),
-	MTK_PIN_PUPD_SPEC_SR(96, 0xd30, 2, 1, 0)
+	MTK_PIN_PUPD_SPEC_SR(96, 0xd30, 2, 1, 0),
+
+	MTK_PIN_PUPD_SPEC_SR(135, 0xe50, 11, 10, 9),
+	MTK_PIN_PUPD_SPEC_SR(136, 0xe50, 14, 13, 12),
+	MTK_PIN_PUPD_SPEC_SR(137, 0xe70, 5, 4, 3),
+	MTK_PIN_PUPD_SPEC_SR(138, 0xe70, 8, 7, 6),
+	MTK_PIN_PUPD_SPEC_SR(139, 0xe70, 11, 10, 9),
+	MTK_PIN_PUPD_SPEC_SR(140, 0xe70, 14, 13, 12),
+	MTK_PIN_PUPD_SPEC_SR(141, 0xe60, 2, 1, 0),
+	MTK_PIN_PUPD_SPEC_SR(142, 0xe60, 5, 4, 3)
 };
 
 static int mt2712_spec_pull_set(struct regmap *regmap, unsigned int pin,
@@ -84,6 +93,12 @@ static int mt2712_spec_pull_set(struct regmap *regmap, unsigned int pin,
 {
 	return mtk_pctrl_spec_pull_set_samereg(regmap, mt2712_spec_pupd,
 		ARRAY_SIZE(mt2712_spec_pupd), pin, align, isup, r1r0);
+}
+
+static int mt2712_spec_pull_get(struct regmap *regmap, unsigned int pin)
+{
+	return mtk_spec_pull_get_samereg(regmap, mt2712_spec_pupd,
+		ARRAY_SIZE(mt2712_spec_pupd), pin);
 }
 
 static const struct mtk_pin_ies_smt_set mt2712_smt_set[] = {
@@ -186,7 +201,8 @@ static const struct mtk_pin_ies_smt_set mt2712_smt_set[] = {
 static const struct mtk_pin_ies_smt_set mt2712_ies_set[] = {
 	MTK_PIN_IES_SMT_SPEC(0, 3, 0x8c0, 2),
 	MTK_PIN_IES_SMT_SPEC(4, 7, 0x8c0, 0),
-	MTK_PIN_IES_SMT_SPEC(8, 11, 0x8c0, 1),
+	MTK_PIN_IES_SMT_SPEC(8, 9, 0x8c0, 1),
+	MTK_PIN_IES_SMT_SPEC(10, 11, 0x8c0, 4),
 	MTK_PIN_IES_SMT_SPEC(12, 12, 0x890, 6),
 	MTK_PIN_IES_SMT_SPEC(13, 13, 0x890, 7),
 	MTK_PIN_IES_SMT_SPEC(14, 14, 0x890, 6),
@@ -289,6 +305,18 @@ static int mt2712_ies_smt_set(struct regmap *regmap, unsigned int pin,
 		return mtk_pconf_spec_set_ies_smt_range(regmap, mt2712_smt_set,
 			ARRAY_SIZE(mt2712_smt_set), pin, align, value);
 	return -EINVAL;
+}
+
+static int mt2712_spec_ies_get(struct regmap *regmap, unsigned int pin)
+{
+	return mtk_spec_get_ies_smt_range(regmap, mt2712_ies_set,
+		ARRAY_SIZE(mt2712_ies_set), pin);
+}
+
+static int mt2712_spec_smt_get(struct regmap *regmap, unsigned int pin)
+{
+	return mtk_spec_get_ies_smt_range(regmap, mt2712_smt_set,
+		ARRAY_SIZE(mt2712_smt_set), pin);
 }
 
 static const struct mtk_drv_group_desc mt2712_drv_grp[] =  {
@@ -559,15 +587,18 @@ static const struct mtk_pinctrl_devdata mt2712_pinctrl_data = {
 	.pin_drv_grp = mt2712_pin_drv,
 	.n_pin_drv_grps = ARRAY_SIZE(mt2712_pin_drv),
 	.spec_pull_set = mt2712_spec_pull_set,
+	.spec_pull_get = mt2712_spec_pull_get,
 	.spec_ies_smt_set = mt2712_ies_smt_set,
+	.spec_ies_get = mt2712_spec_ies_get,
+	.spec_smt_get = mt2712_spec_smt_get,
 	.dir_offset = 0x0000,
 	.pullen_offset = 0x0100,
 	.pullsel_offset = 0x0200,
 	.dout_offset = 0x0300,
 	.din_offset = 0x0400,
 	.pinmux_offset = 0x0500,
-	.type1_start = 241,
-	.type1_end = 241,
+	.type1_start = 210,
+	.type1_end = 210,
 	.port_shf = 4,
 	.port_mask = 0xf,
 	.port_align = 4,

@@ -13,7 +13,7 @@
 #ifndef __MTK_IR_CUS_RCMM_DEFINE_H__
 #define __MTK_IR_CUS_RCMM_DEFINE_H__
 
-#include "../inc/mtk_ir_core.h"
+#include "mtk_ir_core.h"
 
 #ifdef MTK_LK_IRRX_SUPPORT	/* platform/mt8127/lk/rule.mk */
 #include <platform/mtk_ir_lk_core.h>
@@ -25,12 +25,11 @@
 * for BD     (8/3MHZ) * MTK_RCMM_SAPERIOD
 * for 8127 (1/32KHZ)*MTK_RCMM_SAPERIOD
 ************************************/
-#define MTK_RCMM_CONFIG			 0x7F8021
-#define MTK_RCMM_SAPERIOD		 0x1e1e
-#define MTK_RCMM_THRESHOLD		 0x1f01
-#define MTK_RCMM_THRESHOLD_REG   0x84850A00
-#define MTK_RCMM_THRESHOLD_REG_0 0x1BA4
-
+#define MTK_RCMM_CONFIG          0x1f0021    /*0x7F8021*/
+#define MTK_RCMM_SAPERIOD        0x2         /*0x1e1e*/
+#define MTK_RCMM_THRESHOLD       0x200       /*0x1f01*/
+#define MTK_RCMM_THRESHOLD_REG   0x80C10200  /*0x84850A00*/
+#define MTK_RCMM_THRESHOLD_REG_0 0x406       /*0x1BA4*/
 
 #define MTK_RCMM_EXP_POWE_KEY1	0x00000000
 #define MTK_RCMM_EXP_POWE_KEY2	0x00000000

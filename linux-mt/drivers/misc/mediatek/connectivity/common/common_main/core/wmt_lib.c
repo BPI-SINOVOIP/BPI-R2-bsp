@@ -77,6 +77,7 @@ static const WMT_IC_PIN_STATE cmb_aif2pin_stat[] = {
 static UINT32 gPsIdleTime = STP_PSM_IDLE_TIME_SLEEP;
 static UINT32 gPsEnable = 1;
 static PF_WMT_SDIO_PSOP sdio_own_ctrl;
+static PF_WMT_SDIO_DEBUG sdio_reg_rw;
 #endif
 #ifdef CONFIG_MTK_COMBO_CHIP_DEEP_SLEEP_SUPPORT
 static PF_WMT_SDIO_DEEP_SLEEP sdio_deep_sleep_flag_set;
@@ -152,6 +153,8 @@ void wmt_lib_psm_lock_release(VOID)
 INT32 DISABLE_PSM_MONITOR(VOID)
 {
 	INT32 ret = 0;
+	PUINT8 pbuf = NULL;
+	INT32 len = 0;
 
 	/* osal_lock_sleepable_lock(&gDevWmt.psm_lock); */
 	ret = wmt_lib_psm_lock_aquire();
@@ -164,6 +167,11 @@ INT32 DISABLE_PSM_MONITOR(VOID)
 	if (ret) {
 		WMT_ERR_FUNC("wmt_lib_ps_disable fail, ret=%d\n", ret);
 		wmt_lib_psm_lock_release();
+		pbuf = "wmt_lib_ps_disable fail, just collect SYS_FTRACE to DB";
+		len = osal_strlen(pbuf);
+		stp_dbg_trigger_collect_ftrace(pbuf, len);
+		wmt_lib_cmb_rst(WMTRSTSRC_RESET_STP);
+
 	}
 #endif
 	return ret;
@@ -478,7 +486,7 @@ INT32 wmt_lib_set_hif(ULONG hifconf)
 		return -2;
 	}
 
-	WMT_INFO_FUNC("new hifType:%d, fcCtrl:%d, baud:%d, fm:%d\n",
+	WMT_DBG_FUNC("new hifType:%d, fcCtrl:%d, baud:%d, fm:%d\n",
 		      pHif->hifType, pHif->uartFcCtrl, pHif->au4HifConf[0], pHif->au4StrapConf[0]);
 	return 0;
 }
@@ -890,11 +898,16 @@ VOID wmt_lib_ps_set_sdio_psop(PF_WMT_SDIO_PSOP own_cb)
 }
 
 #ifdef CONFIG_MTK_COMBO_CHIP_DEEP_SLEEP_SUPPORT
-VOID wmt_lib_sdio_deep_sleep_flag_set(PF_WMT_SDIO_DEEP_SLEEP flag_cb)
+VOID wmt_lib_sdio_deep_sleep_flag_set_cb_reg(PF_WMT_SDIO_DEEP_SLEEP flag_cb)
 {
 	sdio_deep_sleep_flag_set = flag_cb;
 }
 #endif
+VOID wmt_lib_sdio_reg_rw_cb(PF_WMT_SDIO_DEBUG reg_rw_cb)
+{
+	sdio_reg_rw = reg_rw_cb;
+}
+
 UINT32 wmt_lib_wait_event_checker(P_OSAL_THREAD pThread)
 {
 	P_DEV_WMT pDevWmt;
@@ -1084,8 +1097,6 @@ MTK_WCN_BOOL wmt_lib_put_act_op(P_OSAL_OP pOp)
 	P_OSAL_SIGNAL pSignal = NULL;
 	INT32 waitRet = -1;
 	P_OSAL_THREAD pThread;
-	PUINT8 pbuf = NULL;
-	INT32 len = 0;
 
 	osal_assert(pWmtDev);
 	osal_assert(pOp);
@@ -1138,14 +1149,9 @@ MTK_WCN_BOOL wmt_lib_put_act_op(P_OSAL_OP pOp)
 		/* if (unlikely(!wait_ret)) { */
 		if (waitRet == 0) {
 			pThread = &gDevWmt.thread;
-			pbuf = "Wait wmtd complation timeout, just collect SYS_FTRACE to DB";
-			len = osal_strlen(pbuf);
 			WMT_ERR_FUNC
-				("wait completion timeout, opId(%d), show wmtd_thread stack!\n", pOp->op.opId);
-			/* TODO: how to handle it? retry? */
-			/* wcn_wmtd_timeout_collect_ftrace();*/ /*trigger collect SYS_FTRACE */
+				("Wait wmtd complation timeout, opId(%d), show wmtd_thread stack!\n", pOp->op.opId);
 			osal_thread_show_stack(pThread);
-			stp_dbg_trigger_collect_ftrace(pbuf, len);
 		} else {
 			if (pOp->result)
 				WMT_WARN_FUNC("opId(%d) result:%d\n", pOp->op.opId, pOp->result);
@@ -1958,7 +1964,7 @@ UINT8 *wmt_lib_get_fwinfor_from_emi(UINT8 section, UINT32 offset, UINT8 *buf, UI
 			WMT_ERR_FUNC("wmt-lib: get EMI virtual base address fail\n");
 		} else {
 			WMT_INFO_FUNC("vir addr(0x%p)\n", pAddr);
-			osal_memcpy(&buf[0], pAddr, len);
+			osal_memcpy_fromio(&buf[0], pAddr, len);
 		}
 	} else {
 		if (offset >= 0x7fff)
@@ -1971,7 +1977,7 @@ UINT8 *wmt_lib_get_fwinfor_from_emi(UINT8 section, UINT32 offset, UINT8 *buf, UI
 			} else {
 				WMT_INFO_FUNC("part1 vir addr(0x%p)\n", pAddr);
 				sublen1 = 0x7fff - offset;
-				osal_memcpy(&buf[0], pAddr, sublen1);
+				osal_memcpy_fromio(&buf[0], pAddr, sublen1);
 			}
 			pAddr = wmt_plat_get_emi_virt_add(p_consys_info->paged_trace_off);
 			if (!pAddr) {
@@ -1979,7 +1985,7 @@ UINT8 *wmt_lib_get_fwinfor_from_emi(UINT8 section, UINT32 offset, UINT8 *buf, UI
 			} else {
 				WMT_INFO_FUNC("part2 vir addr(0x%p)\n", pAddr);
 				sublen2 = len - sublen1;
-				osal_memcpy(&buf[sublen1], pAddr, sublen2);
+				osal_memcpy_fromio(&buf[sublen1], pAddr, sublen2);
 			}
 		} else {
 			pAddr = wmt_plat_get_emi_virt_add(offset + p_consys_info->paged_trace_off);
@@ -1987,7 +1993,7 @@ UINT8 *wmt_lib_get_fwinfor_from_emi(UINT8 section, UINT32 offset, UINT8 *buf, UI
 				WMT_ERR_FUNC("wmt-lib: get EMI virtual base address fail\n");
 			} else {
 				WMT_INFO_FUNC("vir addr(0x%p)\n", pAddr);
-				osal_memcpy(&buf[0], pAddr, len);
+				osal_memcpy_fromio(&buf[0], pAddr, len);
 			}
 		}
 	}
@@ -2090,11 +2096,6 @@ UINT32 wmt_lib_quick_sleep_ctrl(UINT32 en)
 }
 #endif
 
-VOID wmt_lib_read_fw_cpupcr(UINT32 times, UINT32 sleep, UINT32 cmd)
-{
-	stp_dbg_poll_cpupcr(times, sleep, cmd);
-}
-
 #if CONSYS_ENALBE_SET_JTAG
 UINT32 wmt_lib_jtag_flag_set(UINT32 en)
 {
@@ -2143,4 +2144,19 @@ INT32 wmt_lib_wifi_fem_cfg_report(PVOID pvInfoBuf)
 	return iRet;
 }
 
+INT32 wmt_lib_sdio_reg_rw(INT32 func_num, INT32 direction, UINT32 offset, UINT32 value)
+{
+	INT32 ret = -1;
+	ENUM_WMT_CHIP_TYPE chip_type;
 
+	chip_type = wmt_detect_get_chip_type();
+
+	if (chip_type == WMT_CHIP_TYPE_COMBO) {
+		if (sdio_reg_rw)
+			ret = sdio_reg_rw(func_num, direction, offset, value);
+		else
+			WMT_ERR_FUNC("sdio_reg_rw callback is not set, maybe the sdio funcxx write/read not used\n");
+	} else
+		WMT_ERR_FUNC("It`s soc project, this function is not used\n");
+	return ret;
+}

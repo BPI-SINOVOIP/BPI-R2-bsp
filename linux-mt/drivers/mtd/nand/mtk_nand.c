@@ -26,6 +26,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/mtd/partitions.h>
 #include "mtk_ecc.h"
 #include "mtk_partition.h"
 
@@ -55,9 +56,11 @@
 #define		PAGEFMT_SPARE_51	(0xb)
 #define		PAGEFMT_SPARE_52	(0xc)
 #define		PAGEFMT_SPARE_62	(0xd)
-#define		PAGEFMT_SPARE_63	(0xe)
-#define		PAGEFMT_SPARE_64	(0xf)
-#define		PAGEFMT_SPARE_SHIFT	(4)
+#define		_PAGEFMT_SPARE_63	(0xe)
+#define		_PAGEFMT_SPARE_64	(0xf)
+#define		PAGEFMT_SPARE_67	(0x11)
+#define		PAGEFMT_SPARE_74	(0x12)
+#define		_PAGEFMT_SPARE_SHIFT	(4)
 #define		PAGEFMT_SEC_SEL_512	BIT(2)
 #define		PAGEFMT_512_2K		(0)
 #define		PAGEFMT_2K_4K		(1)
@@ -108,6 +111,7 @@
 #define NFI_FDM_MIN_SIZE	(1)
 #define _NFI_MASTER_STA		(0x224)
 #define		MASTER_STA_MASK		(0x0FFF)
+#define		RG_HREQ_HRDY_DIS	BIT(4)
 #define _NFI_EMPTY_THRESH	(0x23C)
 
 #define MTK_NAME		"mtk-nand"
@@ -158,6 +162,7 @@ enum nfi_regs {
 	NFI_FDM7L,
 	NFI_FDM7M,
 	NFI_MASTER_STA,
+	NFI_MASTER_RST,
 	NFI_EMPTY_THRESH,
 
 };
@@ -244,9 +249,51 @@ static int mt7622_nfi_regs[] = {
 	[NFI_EMPTY_THRESH] =	0x23c,
 };
 
+static int mt2712_nfi_regs[] = {
+	[NFI_CNFG] =            0x0,
+	[NFI_PAGEFMT] =         0x4,
+	[NFI_CON] =             0x8,
+	[NFI_ACCCON] =          0xc,
+	[NFI_INTR_EN] =         0x10,
+	[NFI_INTR_STA] =        0x14,
+	[NFI_CMD] =             0x20,
+	[NFI_ADDRNOB] =         0x30,
+	[NFI_COLADDR] =         0x34,
+	[NFI_ROWADDR] =         0x38,
+	[NFI_STRDATA] =         0x40,
+	[NFI_CNRNB] =           0x44,
+	[NFI_DATAW] =           0x50,
+	[NFI_DATAR] =           0x54,
+	[NFI_PIO_DIRDY] =       0x58,
+	[NFI_STA] =             0x60,
+	[NFI_ADDRCNTR] =        0x70,
+	[NFI_STRADDR] =         0x80,
+	[NFI_BYTELEN] =         0x84,
+	[NFI_CSEL] =            0x90,
+	[NFI_FDM0L] =           0xa0,
+	[NFI_FDM0M] =           0xa4,
+	[NFI_FDM1L] =           0xa8,
+	[NFI_FDM1M] =           0xac,
+	[NFI_FDM2L] =           0xb0,
+	[NFI_FDM2M] =           0xb4,
+	[NFI_FDM3L] =           0xb8,
+	[NFI_FDM3M] =           0xbc,
+	[NFI_FDM4L] =           0xc0,
+	[NFI_FDM4M] =           0xc4,
+	[NFI_FDM5L] =           0xc8,
+	[NFI_FDM5M] =           0xcc,
+	[NFI_FDM6L] =           0xd0,
+	[NFI_FDM6M] =           0xd4,
+	[NFI_FDM7L] =           0xd8,
+	[NFI_FDM7M] =           0xdc,
+	[NFI_MASTER_STA] =      0x224,
+	[NFI_MASTER_RST] =	0x228,
+	[NFI_EMPTY_THRESH] =    0x23c,
+};
 enum mtk_nfc_type {
 	MTK_NAND_MT2701,
 	MTK_NAND_MT7622,
+	MTK_NAND_MT2712,
 };
 
 struct mtk_nand_type {
@@ -259,6 +306,11 @@ struct mtk_nand_type {
 	void (*mark_swap)(struct mtd_info *mtd, u8 *buf, int raw);
 	void (*adjust_spare_fmt)(struct mtd_info *mtd, u32 *fmt);
 	void (*nfc_adjust_ecc)(struct mtd_info *mtd);
+	/* NFI_PAGEFMT register special bit define */
+	int PAGEFMT_SPARE_61;
+	int PAGEFMT_SPARE_63;
+	int PAGEFMT_SPARE_64;
+	int PAGEFMT_SPARE_SHIFT;
 };
 
 struct mtk_nfc_bad_mark_ctl {
@@ -454,7 +506,9 @@ static int mtk_nfc_hw_runtime_config(struct mtd_info *mtd)
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct mtk_nfc_nand_chip *mtk_nand = to_mtk_nand(chip);
 	struct mtk_nfc *nfc = nand_get_controller_data(chip);
+	struct mtk_nand_type *chip_data = nfc->chip_data;
 	u32 fmt, spare;
+	int PAGEFMT_SPARE_SHIFT = chip_data->PAGEFMT_SPARE_SHIFT;
 
 	if (!mtd->writesize)
 		return 0;
@@ -538,14 +592,23 @@ static int mtk_nfc_hw_runtime_config(struct mtd_info *mtd)
 	case 52:
 		fmt |= (PAGEFMT_SPARE_52 << PAGEFMT_SPARE_SHIFT);
 		break;
+	case 61:
+		fmt |= (chip_data->PAGEFMT_SPARE_61 << PAGEFMT_SPARE_SHIFT);
+		break;
 	case 62:
 		fmt |= (PAGEFMT_SPARE_62 << PAGEFMT_SPARE_SHIFT);
 		break;
 	case 63:
-		fmt |= (PAGEFMT_SPARE_63 << PAGEFMT_SPARE_SHIFT);
+		fmt |= (chip_data->PAGEFMT_SPARE_63 << PAGEFMT_SPARE_SHIFT);
 		break;
 	case 64:
-		fmt |= (PAGEFMT_SPARE_64 << PAGEFMT_SPARE_SHIFT);
+		fmt |= (chip_data->PAGEFMT_SPARE_64 << PAGEFMT_SPARE_SHIFT);
+		break;
+	case 67:
+		fmt |= (PAGEFMT_SPARE_67 << PAGEFMT_SPARE_SHIFT);
+		break;
+	case 74:
+		fmt |= (PAGEFMT_SPARE_74 << PAGEFMT_SPARE_SHIFT);
 		break;
 	default:
 		dev_err(nfc->dev, "invalid spare per sector %d\n", spare);
@@ -557,7 +620,7 @@ static int mtk_nfc_hw_runtime_config(struct mtd_info *mtd)
 
 	fmt |= mtk_nand->fdm.reg_size << PAGEFMT_FDM_SHIFT;
 	fmt |= mtk_nand->fdm.ecc_size << PAGEFMT_FDM_ECC_SHIFT;
-	nfi_writew(nfc, fmt, NFI_PAGEFMT);
+	nfi_writel(nfc, fmt, NFI_PAGEFMT);
 
 	nfc->ecc_cfg.strength = chip->ecc.strength;
 	nfc->ecc_cfg.len = chip->ecc.size + mtk_nand->fdm.ecc_size;
@@ -703,6 +766,7 @@ static void mt2701_adjust_spare_fmt(struct mtd_info *mtd, u32 *fmt)
 	struct mtk_nfc_nand_chip *mtk_nand = to_mtk_nand(chip);
 	struct mtk_nfc *nfc = nand_get_controller_data(chip);
 	u32 spare;
+	int PAGEFMT_SPARE_SHIFT = nfc->chip_data->PAGEFMT_SPARE_SHIFT;
 
 	spare = mtk_nand->spare_per_sector;
 	if (chip->ecc.size == 1024)
@@ -724,7 +788,9 @@ static void mt7622_adjust_spare_fmt(struct mtd_info *mtd, u32 *fmt)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct mtk_nfc_nand_chip *mtk_nand = to_mtk_nand(chip);
+	struct mtk_nfc *nfc = nand_get_controller_data(chip);
 	u32 spare;
+	int PAGEFMT_SPARE_SHIFT = nfc->chip_data->PAGEFMT_SPARE_SHIFT;
 
 	spare = mtk_nand->spare_per_sector;
 	*fmt &= ~(0xf << PAGEFMT_SPARE_SHIFT);
@@ -1217,7 +1283,7 @@ static inline void mtk_nfc_hw_init(struct mtk_nfc *nfc)
 	 * 0  : poll the status of the busy/ready signal after [7:4]*16 cycles.
 	 */
 	nfi_writew(nfc, 0xf1, NFI_CNRNB);
-	nfi_writew(nfc, PAGEFMT_8K_16K, NFI_PAGEFMT);
+	nfi_writel(nfc, PAGEFMT_8K_16K, NFI_PAGEFMT);
 
 	mtk_nfc_hw_reset(nfc);
 
@@ -1350,7 +1416,7 @@ static void mtk_nfc_set_spare_per_sector(u32 *sps, struct mtd_info *mtd)
 	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct mtk_nfc *nfc = nand_get_controller_data(nand);
 	u32 spare[] = {16, 26, 27, 28, 32, 36, 40, 44,
-			48, 49, 50, 51, 52, 62, 63, 64};
+			48, 49, 50, 51, 52, 61, 62, 63, 64, 67, 74};
 	u32 eccsteps, i;
 	u32 max_sector_spare = ARRAY_SIZE(spare);
 
@@ -1419,7 +1485,6 @@ static int mtk_nfc_ecc_init(struct device *dev, struct mtd_info *mtd)
 		/* calculate oob bytes except ecc parity data */
 		free = ((nand->ecc.strength * nfc->chip_data->parity_bit) + 7) >> 3;
 		free = spare - free;
-
 		/*
 		 * enhance ecc strength if oob left is bigger than max FDM size
 		 * or reduce ecc strength if oob size is not enough for ecc
@@ -1450,6 +1515,8 @@ static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
 	struct mtk_nfc_nand_chip *chip;
 	struct nand_chip *nand;
 	struct mtd_info *mtd;
+	struct mtd_part_parser_data ppdata;
+	struct device_node *ofpart_node;
 	int nsels, len;
 	u32 tmp;
 	int ret;
@@ -1549,11 +1616,24 @@ static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
 
 	list_add_tail(&chip->node, &nfc->chips);
 
-#ifdef MTK_PARTITION
-	ret = mtk_partition_register(mtd);
-#else
-	ret = mtd_device_parse_register(mtd, NULL, NULL, NULL, 0);
-#endif
+	ppdata.of_node = of_get_next_available_child(dev->of_node, NULL);
+	if (!ppdata.of_node) {
+		dev_err(dev, "no nand device to configure\n");
+		return -ENODEV;
+	}
+
+	ofpart_node = of_get_child_by_name(ppdata.of_node, "partitions");
+	if (ofpart_node) {
+		static const char * const probes[] = {"ofpart", NULL};
+
+		ret = mtd_device_parse_register(mtd, probes, &ppdata, NULL, 0);
+	} else {
+		if (nfc->chip_data->type == MTK_NAND_MT2712)
+			ret = mtk_partition_register(mtd, 0);
+		else
+			ret = mtk_partition_register(mtd, 8);
+	}
+
 	if (ret) {
 		dev_err(dev, "mtd parse partition error\n");
 		nand_release(mtd);
@@ -1589,6 +1669,9 @@ static const struct mtk_nand_type nfc_mt2701 = {
 	.max_sector_spare = 16,
 	.mark_swap = mtk_nfc_no_bad_mark_swap,
 	.adjust_spare_fmt = mt2701_adjust_spare_fmt,
+	.PAGEFMT_SPARE_63 = 0xe,
+	.PAGEFMT_SPARE_64 = 0xf,
+	.PAGEFMT_SPARE_SHIFT = 4,
 };
 
 static const struct mtk_nand_type nfc_mt7622 = {
@@ -1600,7 +1683,21 @@ static const struct mtk_nand_type nfc_mt7622 = {
 	.max_sector_spare = 4,
 	.mark_swap = mtk_nfc_bad_mark_swap,
 	.adjust_spare_fmt = mt7622_adjust_spare_fmt,
+	.PAGEFMT_SPARE_SHIFT = 4,
 	.nfc_adjust_ecc = mt7622_nfc_adjust_ecc,
+};
+
+static const struct mtk_nand_type nfc_mt2712 = {
+	.nfi_regs = mt2712_nfi_regs,
+	.type = MTK_NAND_MT2712,
+	.fdm_ecc_size = 1,
+	.parity_bit = 14,
+	.max_sector = 16,
+	.max_sector_spare = 16,
+	.PAGEFMT_SPARE_61 = 0xe,
+	.PAGEFMT_SPARE_63 = 0xf,
+	.PAGEFMT_SPARE_64 = 0x10,
+	.PAGEFMT_SPARE_SHIFT = 16,
 };
 
 static const struct of_device_id mtk_nfc_id_table[] = {
@@ -1610,6 +1707,9 @@ static const struct of_device_id mtk_nfc_id_table[] = {
 	}, {
 		.compatible = "mediatek,mt7622-nfc",
 		.data = &nfc_mt7622,
+	}, {
+		.compatible = "mediatek,mt2712-nfc",
+		.data = &nfc_mt2712,
 	}, {
 	}
 };

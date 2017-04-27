@@ -32,19 +32,24 @@ struct mtk_drm_debugfs_table {
 /* ------------------------------------------------------------------------- */
 /* External variable declarations */
 /* ------------------------------------------------------------------------- */
-void __iomem *gdrm_disp_base[6];
-void __iomem *gdrm_hdmi_base[3];
-struct mtk_drm_debugfs_table gdrm_disp_table[6] = {
+void __iomem *gdrm_disp_base[7];
+void __iomem *gdrm_hdmi_base[7];
+struct mtk_drm_debugfs_table gdrm_disp_table[7] = {
 	{ DDP_COMPONENT_OVL0, "OVL0 ", {0, 0xf40}, {0x260, 0x80} },
-	{ DDP_COMPONENT_RDMA0, "RDMA0 ", {0, 0}, {0x100, 0} },
 	{ DDP_COMPONENT_COLOR0, "COLOR0 ", {0x400, 0xc00}, {0x100, 0x100} },
-	{ DDP_COMPONENT_BLS, "BLS ", {0, 0}, {0x100, 0} },
+	{ DDP_COMPONENT_AAL, "AAL ", {0, 0}, {0x100, 0} },
+	{ DDP_COMPONENT_OD, "OD ", {0, 0}, {0x100, 0} },
+	{ DDP_COMPONENT_RDMA0, "RDMA0 ", {0, 0}, {0x100, 0} },
 	{ -1, "CONFIG ", {0, 0}, {0x120, 0} },
 	{ -1, "MUTEX ", {0, 0}, {0x100, 0} }
 };
 
-struct mtk_drm_debugfs_table gdrm_hdmi_table[3] = {
+struct mtk_drm_debugfs_table gdrm_hdmi_table[7] = {
 	{ DDP_COMPONENT_OVL1, "OVL1 ", {0, 0xf40}, {0x260, 0x80} },
+	{ DDP_COMPONENT_COLOR1, "COLOR1 ", {0x400, 0xc00}, {0x100, 0x100} },
+	{ DDP_COMPONENT_AAL1, "AAL1 ", {0, 0}, {0x100, 0} },
+	{ DDP_COMPONENT_OD1, "OD1 ", {0, 0}, {0x100, 0} },
+	{ DDP_COMPONENT_RDMA1, "RDMA1 ", {0, 0}, {0x100, 0} },
 	{ -1, "CONFIG ", {0, 0}, {0x120, 0} },
 	{ -1, "MUTEX ", {0, 0}, {0x100, 0} }
 };

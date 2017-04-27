@@ -21,6 +21,8 @@
 #include <linux/soc/mediatek/infracfg.h>
 
 #include <dt-bindings/power/mt2701-power.h>
+#include <dt-bindings/power/mt2712-power.h>
+#include <dt-bindings/power/mt7622-power.h>
 #include <dt-bindings/power/mt8173-power.h>
 
 #define SPM_VDE_PWR_CON			0x0210
@@ -30,7 +32,7 @@
 #define SPM_DIS_PWR_CON			0x023c
 #define SPM_CONN_PWR_CON		0x0280
 #define SPM_VEN2_PWR_CON		0x0298
-#define SPM_AUDIO_PWR_CON		0x029c	/* MT8173 */
+#define SPM_AUDIO_PWR_CON		0x029c	/* MT8173, MT2712 */
 #define SPM_BDP_PWR_CON			0x029c	/* MT2701 */
 #define SPM_ETH_PWR_CON			0x02a0
 #define SPM_HIF_PWR_CON			0x02a4
@@ -38,6 +40,10 @@
 #define SPM_MFG_2D_PWR_CON		0x02c0
 #define SPM_MFG_ASYNC_PWR_CON		0x02c4
 #define SPM_USB_PWR_CON			0x02cc
+#define SPM_USB2_PWR_CON		0x02d4	/* MT2712 */
+#define SPM_ETHSYS_PWR_CON		0x02e0	/* MT7622 */
+#define SPM_HIF0_PWR_CON		0x02e4	/* MT7622 */
+#define SPM_HIF1_PWR_CON		0x02e8	/* MT7622 */
 
 #define SPM_PWR_STATUS			0x060c
 #define SPM_PWR_STATUS_2ND		0x0610
@@ -57,12 +63,16 @@
 #define PWR_STATUS_ETH			BIT(15)
 #define PWR_STATUS_HIF			BIT(16)
 #define PWR_STATUS_IFR_MSC		BIT(17)
+#define PWR_STATUS_USB2			BIT(19)	/* MT2712 */
 #define PWR_STATUS_VENC_LT		BIT(20)
 #define PWR_STATUS_VENC			BIT(21)
-#define PWR_STATUS_MFG_2D		BIT(22)
-#define PWR_STATUS_MFG_ASYNC		BIT(23)
-#define PWR_STATUS_AUDIO		BIT(24)
-#define PWR_STATUS_USB			BIT(25)
+#define PWR_STATUS_MFG_2D		BIT(22)	/* MT8173 */
+#define PWR_STATUS_MFG_ASYNC		BIT(23)	/* MT8173 */
+#define PWR_STATUS_AUDIO		BIT(24)	/* MT8173, MT2712 */
+#define PWR_STATUS_USB			BIT(25)	/* MT8173, MT2712 */
+#define PWR_STATUS_ETHSYS		BIT(24)	/* MT7622 */
+#define PWR_STATUS_HIF0			BIT(25)	/* MT7622 */
+#define PWR_STATUS_HIF1			BIT(26)	/* MT7622 */
 
 enum clk_id {
 	CLK_NONE,
@@ -76,6 +86,13 @@ enum clk_id {
 
 #define MAX_CLKS	2
 
+struct bus_prot_ext {
+	u32 set_ofs;
+	u32 clr_ofs;
+	u32 en_ofs;
+	u32 sta_ofs;
+};
+
 struct scp_domain_data {
 	const char *name;
 	u32 sta_mask;
@@ -83,6 +100,7 @@ struct scp_domain_data {
 	u32 sram_pdn_bits;
 	u32 sram_pdn_ack_bits;
 	u32 bus_prot_mask;
+	struct bus_prot_ext bp_ext;
 	enum clk_id clk_id[MAX_CLKS];
 	bool active_wakeup;
 };
@@ -98,6 +116,7 @@ struct scp_domain {
 	u32 sram_pdn_bits;
 	u32 sram_pdn_ack_bits;
 	u32 bus_prot_mask;
+	struct bus_prot_ext bp_ext;
 	bool active_wakeup;
 };
 
@@ -205,8 +224,14 @@ static int scpsys_power_on(struct generic_pm_domain *genpd)
 	}
 
 	if (scpd->bus_prot_mask) {
-		ret = mtk_infracfg_clear_bus_protection(scp->infracfg,
-				scpd->bus_prot_mask);
+		if (((scpd->bp_ext.set_ofs && scpd->bp_ext.clr_ofs) || scpd->bp_ext.en_ofs) &&
+				scpd->bp_ext.sta_ofs)
+			ret = mtk_infracfg_clear_bus_protection_ext(scp->infracfg,
+					scpd->bus_prot_mask, scpd->bp_ext.clr_ofs,
+					scpd->bp_ext.sta_ofs, scpd->bp_ext.en_ofs);
+		else
+			ret = mtk_infracfg_clear_bus_protection(scp->infracfg,
+					scpd->bus_prot_mask);
 		if (ret)
 			goto err_pwr_ack;
 	}
@@ -237,8 +262,14 @@ static int scpsys_power_off(struct generic_pm_domain *genpd)
 	int i;
 
 	if (scpd->bus_prot_mask) {
-		ret = mtk_infracfg_set_bus_protection(scp->infracfg,
-				scpd->bus_prot_mask);
+		if (((scpd->bp_ext.set_ofs && scpd->bp_ext.clr_ofs) || scpd->bp_ext.en_ofs) &&
+				scpd->bp_ext.sta_ofs)
+			ret = mtk_infracfg_set_bus_protection_ext(scp->infracfg,
+					scpd->bus_prot_mask, scpd->bp_ext.set_ofs,
+					scpd->bp_ext.sta_ofs, scpd->bp_ext.en_ofs);
+		else
+			ret = mtk_infracfg_set_bus_protection(scp->infracfg,
+					scpd->bus_prot_mask);
 		if (ret)
 			goto out;
 	}
@@ -411,6 +442,10 @@ static struct scp *init_scp(struct platform_device *pdev,
 		scpd->sram_pdn_bits = data->sram_pdn_bits;
 		scpd->sram_pdn_ack_bits = data->sram_pdn_ack_bits;
 		scpd->bus_prot_mask = data->bus_prot_mask;
+		scpd->bp_ext.set_ofs = data->bp_ext.set_ofs;
+		scpd->bp_ext.clr_ofs = data->bp_ext.clr_ofs;
+		scpd->bp_ext.en_ofs = data->bp_ext.en_ofs;
+		scpd->bp_ext.sta_ofs = data->bp_ext.sta_ofs;
 		scpd->active_wakeup = data->active_wakeup;
 		for (j = 0; j < MAX_CLKS && data->clk_id[j]; j++)
 			scpd->clk[j] = clk[data->clk_id[j]];
@@ -555,6 +590,164 @@ static int __init scpsys_probe_mt2701(struct platform_device *pdev)
 }
 
 /*
+ * MT2712 power domain support
+ */
+
+static const struct scp_domain_data scp_domain_data_mt2712[] = {
+	[MT2712_POWER_DOMAIN_MM] = {
+		.name = "mm",
+		.sta_mask = PWR_STATUS_DISP,
+		.ctl_offs = SPM_DIS_PWR_CON,
+		.sram_pdn_bits = GENMASK(8, 8),
+		.sram_pdn_ack_bits = GENMASK(12, 12),
+		.clk_id = {CLK_NONE},
+		.active_wakeup = true,
+	},
+	[MT2712_POWER_DOMAIN_VDEC] = {
+		.name = "vdec",
+		.sta_mask = PWR_STATUS_VDEC,
+		.ctl_offs = SPM_VDE_PWR_CON,
+		.sram_pdn_bits = GENMASK(8, 8),
+		.sram_pdn_ack_bits = GENMASK(12, 12),
+		.clk_id = {CLK_MM},
+		.active_wakeup = true,
+	},
+	[MT2712_POWER_DOMAIN_VENC] = {
+		.name = "venc",
+		.sta_mask = PWR_STATUS_VENC,
+		.ctl_offs = SPM_VEN_PWR_CON,
+		.sram_pdn_bits = GENMASK(11, 8),
+		.sram_pdn_ack_bits = GENMASK(15, 12),
+		.clk_id = {CLK_MM},
+		.active_wakeup = true,
+	},
+	[MT2712_POWER_DOMAIN_ISP] = {
+		.name = "isp",
+		.sta_mask = PWR_STATUS_ISP,
+		.ctl_offs = SPM_ISP_PWR_CON,
+		.sram_pdn_bits = GENMASK(11, 8),
+		.sram_pdn_ack_bits = GENMASK(13, 12),
+		.clk_id = {CLK_MM},
+		.active_wakeup = true,
+	},
+	[MT2712_POWER_DOMAIN_AUDIO] = {
+		.name = "audio",
+		.sta_mask = PWR_STATUS_AUDIO,
+		.ctl_offs = SPM_AUDIO_PWR_CON,
+		.sram_pdn_bits = GENMASK(11, 8),
+		.sram_pdn_ack_bits = GENMASK(15, 12),
+		.clk_id = {CLK_NONE},
+		.active_wakeup = true,
+	},
+	[MT2712_POWER_DOMAIN_USB] = {
+		.name = "usb",
+		.sta_mask = PWR_STATUS_USB,
+		.ctl_offs = SPM_USB_PWR_CON,
+		.sram_pdn_bits = GENMASK(10, 8),
+		.sram_pdn_ack_bits = GENMASK(14, 12),
+		.clk_id = {CLK_NONE},
+		.active_wakeup = true,
+	},
+	[MT2712_POWER_DOMAIN_USB2] = {
+		.name = "usb2",
+		.sta_mask = PWR_STATUS_USB2,
+		.ctl_offs = SPM_USB2_PWR_CON,
+		.sram_pdn_bits = GENMASK(10, 8),
+		.sram_pdn_ack_bits = GENMASK(14, 12),
+		.clk_id = {CLK_NONE},
+		.active_wakeup = true,
+	},
+	[MT2712_POWER_DOMAIN_MFG] = {
+		.name = "mfg",
+		.sta_mask = PWR_STATUS_MFG,
+		.ctl_offs = SPM_MFG_PWR_CON,
+		.sram_pdn_bits = GENMASK(11, 8),
+		.sram_pdn_ack_bits = GENMASK(19, 16),
+		.clk_id = {CLK_NONE},
+		.active_wakeup = true,
+	},
+};
+
+#define NUM_DOMAINS_MT2712	ARRAY_SIZE(scp_domain_data_mt2712)
+
+static int __init scpsys_probe_mt2712(struct platform_device *pdev)
+{
+	struct scp *scp;
+
+	scp = init_scp(pdev, scp_domain_data_mt2712, NUM_DOMAINS_MT2712);
+	if (IS_ERR(scp))
+		return PTR_ERR(scp);
+
+	mtk_register_power_domains(pdev, scp, NUM_DOMAINS_MT2712);
+
+	return 0;
+}
+
+/*
+ * MT7622 power domain support
+ */
+
+static const struct scp_domain_data scp_domain_data_mt7622[] = {
+	[MT7622_POWER_DOMAIN_ETHSYS] = {
+		.name = "ethsys",
+		.sta_mask = PWR_STATUS_ETHSYS,
+		.ctl_offs = SPM_ETHSYS_PWR_CON,
+		.sram_pdn_bits = GENMASK(11, 8),
+		.sram_pdn_ack_bits = GENMASK(15, 12),
+		.clk_id = {CLK_NONE},
+		.bus_prot_mask = MT7622_TOP_AXI_PROT_EN_ETHSYS,
+		.bp_ext = {
+			.en_ofs = INFRA_TOPAXI_PROTECTEN,
+			.sta_ofs = INFRA_TOPAXI_PROTECTSTA1,
+		},
+		.active_wakeup = true,
+	},
+	[MT7622_POWER_DOMAIN_HIF0] = {
+		.name = "hif0",
+		.sta_mask = PWR_STATUS_HIF0,
+		.ctl_offs = SPM_HIF0_PWR_CON,
+		.sram_pdn_bits = GENMASK(11, 8),
+		.sram_pdn_ack_bits = GENMASK(15, 12),
+		.clk_id = {CLK_NONE},
+		.bus_prot_mask = MT7622_TOP_AXI_PROT_EN_HIF0,
+		.bp_ext = {
+			.en_ofs = INFRA_TOPAXI_PROTECTEN,
+			.sta_ofs = INFRA_TOPAXI_PROTECTSTA1,
+		},
+		.active_wakeup = true,
+	},
+	[MT7622_POWER_DOMAIN_HIF1] = {
+		.name = "hif1",
+		.sta_mask = PWR_STATUS_HIF1,
+		.ctl_offs = SPM_HIF1_PWR_CON,
+		.sram_pdn_bits = GENMASK(11, 8),
+		.sram_pdn_ack_bits = GENMASK(15, 12),
+		.clk_id = {CLK_NONE},
+		.bus_prot_mask = MT7622_TOP_AXI_PROT_EN_HIF1,
+		.bp_ext = {
+			.en_ofs = INFRA_TOPAXI_PROTECTEN,
+			.sta_ofs = INFRA_TOPAXI_PROTECTSTA1,
+		},
+		.active_wakeup = true,
+	},
+};
+
+#define NUM_DOMAINS_MT7622	ARRAY_SIZE(scp_domain_data_mt7622)
+
+static int __init scpsys_probe_mt7622(struct platform_device *pdev)
+{
+	struct scp *scp;
+
+	scp = init_scp(pdev, scp_domain_data_mt7622, NUM_DOMAINS_MT7622);
+	if (IS_ERR(scp))
+		return PTR_ERR(scp);
+
+	mtk_register_power_domains(pdev, scp, NUM_DOMAINS_MT7622);
+
+	return 0;
+}
+
+/*
  * MT8173 power domain support
  */
 
@@ -685,6 +878,12 @@ static const struct of_device_id of_scpsys_match_tbl[] = {
 	{
 		.compatible = "mediatek,mt2701-scpsys",
 		.data = scpsys_probe_mt2701,
+	}, {
+		.compatible = "mediatek,mt2712-scpsys",
+		.data = scpsys_probe_mt2712,
+	}, {
+		.compatible = "mediatek,mt7622-scpsys",
+		.data = scpsys_probe_mt7622,
 	}, {
 		.compatible = "mediatek,mt8173-scpsys",
 		.data = scpsys_probe_mt8173,

@@ -33,17 +33,17 @@ static UINT32 g_opid_record_num;
 #define STP_PSM_LOUD_FUNC(fmt, arg...) \
 do { \
 	if (gPsmDbgLevel >= STP_PSM_LOG_LOUD) \
-		pr_debug(PFX_PSM "%s: "  fmt, __func__, ##arg); \
+		pr_warn(PFX_PSM "%s: "  fmt, __func__, ##arg); \
 } while (0)
 #define STP_PSM_DBG_FUNC(fmt, arg...) \
 do { \
 	if (gPsmDbgLevel >= STP_PSM_LOG_DBG) \
-		pr_debug(PFX_PSM "%s: "  fmt, __func__, ##arg); \
+		pr_warn(PFX_PSM "%s: "  fmt, __func__, ##arg); \
 } while (0)
 #define STP_PSM_INFO_FUNC(fmt, arg...) \
 do { \
 	if (gPsmDbgLevel >= STP_PSM_LOG_INFO) \
-		pr_debug(PFX_PSM "[I]%s: "  fmt, __func__, ##arg); \
+		pr_warn(PFX_PSM "[I]%s: "  fmt, __func__, ##arg); \
 } while (0)
 #define STP_PSM_WARN_FUNC(fmt, arg...) \
 do { \
@@ -58,7 +58,7 @@ do { \
 #define STP_PSM_TRC_FUNC(f) \
 do { \
 	if (gPsmDbgLevel >= STP_PSM_LOG_DBG) \
-		pr_debug(PFX_PSM "<%s> <%d>\n", __func__, __LINE__); \
+		pr_warn(PFX_PSM "<%s> <%d>\n", __func__, __LINE__); \
 } while (0)
 
 
@@ -707,6 +707,7 @@ INT32 _stp_psm_release_data(MTKSTP_PSM_T *stp_psm)
 	UINT8 type = 0;
 	UINT32 len = 0;
 	UINT8 delimiter[2];
+	INT32 winspace_flag = 0;
 
 	/* STP_PSM_ERR_FUNC("++++++++++release data++len=%d\n", osal_fifo_len(&stp_psm->hold_fifo)); */
 	while (osal_fifo_len(&stp_psm->hold_fifo) && i > 0) {
@@ -714,6 +715,7 @@ INT32 _stp_psm_release_data(MTKSTP_PSM_T *stp_psm)
 		/* psm_fifo_lock(stp_psm); */
 		osal_lock_sleepable_lock(&stp_psm->hold_fifo_spinlock_global);
 
+		if (winspace_flag == 0) {
 		ret = osal_fifo_out(&stp_psm->hold_fifo, (PUINT8) &type, sizeof(UINT8));
 		ret = osal_fifo_out(&stp_psm->hold_fifo, (PUINT8) &len, sizeof(UINT32));
 
@@ -726,19 +728,31 @@ INT32 _stp_psm_release_data(MTKSTP_PSM_T *stp_psm)
 		}
 
 		ret = osal_fifo_out(&stp_psm->hold_fifo, (PUINT8) delimiter, 2);
+		}
 
 		if (delimiter[0] == 0xbb && delimiter[1] == 0xbb) {
 			/* osal_buffer_dump(stp_psm->out_buf, "psm->out_buf", len, 32); */
-			stp_send_data_no_ps(stp_psm->out_buf, len, type);
+			ret = stp_send_data_no_ps(stp_psm->out_buf, len, type);
+			if (ret == 0)
+				winspace_flag++;
+			else
+				winspace_flag = 0;
 		} else {
 			STP_PSM_ERR_FUNC("***psm packet fifo parsing fail****\n");
 			STP_PSM_INFO_FUNC("***reset psm's fifo***\n");
 
 			osal_fifo_reset(&stp_psm->hold_fifo);
 		}
+		if (winspace_flag == 0)
 		i--;
 		/* psm_fifo_unlock(stp_psm); */
 		osal_unlock_sleepable_lock(&stp_psm->hold_fifo_spinlock_global);
+		if (winspace_flag > 0 && winspace_flag < 10)
+			osal_sleep_ms(2);
+		else if (winspace_flag >= 10) {
+			STP_PSM_ERR_FUNC("***More than 20ms no winspace available***\n");
+			break;
+		}
 	}
 	return STP_PSM_OPERATION_SUCCESS;
 }
@@ -1540,6 +1554,7 @@ INT32 stp_psm_disable_by_tx_rx_density(MTKSTP_PSM_T *stp_psm, INT32 dir, INT32 l
 				stp_psm->idle_time_to_sleep = STP_PSM_IDLE_TIME_SLEEP;
 				osal_clear_bit(STP_PSM_WMT_EVENT_DISABLE_MONITOR_TX_HIGH_DENSITY, &stp_psm->flag);
 			}
+			wmt_lib_ps_set_idle_time(stp_psm->idle_time_to_sleep);
 			sample_start = 0;
 			rx_sum_len = 0;
 			tx_sum_len = 0;

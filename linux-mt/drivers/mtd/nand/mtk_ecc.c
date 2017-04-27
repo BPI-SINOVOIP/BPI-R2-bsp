@@ -28,6 +28,7 @@
 
 #define ECC_IDLE_MASK		BIT(0)
 #define ECC_IRQ_EN		BIT(0)
+#define	ECC_PG_IRQ_SEL		BIT(1)
 #define ECC_OP_ENABLE		(1)
 #define ECC_OP_DISABLE		(0)
 
@@ -53,6 +54,9 @@
 #define		ECC_CNFG_52BIT		(0x11)
 #define		ECC_CNFG_56BIT		(0x12)
 #define		ECC_CNFG_60BIT		(0x13)
+#define		ECC_CNFG_68BIT		(0x14)
+#define		ECC_CNFG_72BIT		(0x15)
+#define		ECC_CNFG_80BIT		(0x16)
 #define		ECC_MODE_SHIFT		(5)
 #define		ECC_MS_SHIFT		(16)
 #define _ECC_ENCDIADDR		(0x08)
@@ -66,7 +70,7 @@
 #define		DEC_CNFG_CORRECT	(0x3 << 12)
 #define _ECC_DECIDLE		(0x10C)
 #define _ECC_DECENUM0		(0x114)
-#define		ERR_MASK		(0x3f)
+#define		_ERR_MASK		(0x3f)
 #define _ECC_DECDONE		(0x124)
 #define _ECC_DECIRQ_EN		(0x200)
 #define _ECC_DECIRQ_STA		(0x204)
@@ -89,6 +93,7 @@ enum ecc_regs {
 	ECC_ENCCNFG,
 	ECC_ENCDIADDR,
 	ECC_ENCIDLE,
+	ECC_ENCSTA,
 	ECC_ENCPAR00,
 	ECC_ENCPAR01,
 	ECC_ENCPAR02,
@@ -116,6 +121,14 @@ enum ecc_regs {
 	ECC_ENCPAR24,
 	ECC_ENCPAR25,
 	ECC_ENCPAR26,
+	ECC_ENCPAR27,
+	ECC_ENCPAR28,
+	ECC_ENCPAR29,
+	ECC_ENCPAR30,
+	ECC_ENCPAR31,
+	ECC_ENCPAR32,
+	ECC_ENCPAR33,
+	ECC_ENCPAR34,
 	ECC_ENCIRQ_EN,
 	ECC_ENCIRQ_STA,
 	ECC_PIO_DIRDY,
@@ -137,6 +150,7 @@ static int mt2701_ecc_regs[] = {
 	[ECC_ENCCNFG] =		0x4,
 	[ECC_ENCDIADDR] =	0x8,
 	[ECC_ENCIDLE] =		0xc,
+	[ECC_ENCSTA] =		0x7c,
 	[ECC_ENCPAR00] =	0x10,
 	[ECC_ENCPAR01] =	0x14,
 	[ECC_ENCPAR02] =	0x18,
@@ -206,9 +220,66 @@ static int mt7622_ecc_regs[] = {
 	[ECC_DECIRQ_STA] =	0x144,
 };
 
+static int mt2712_ecc_regs[] = {
+	[ECC_ENCCON] =          0x0,
+	[ECC_ENCCNFG] =         0x4,
+	[ECC_ENCDIADDR] =       0x8,
+	[ECC_ENCIDLE] =         0xc,
+	[ECC_ENCSTA] =		0x7c,
+	[ECC_ENCPAR00] =        0x300,
+	[ECC_ENCPAR01] =        0x304,
+	[ECC_ENCPAR02] =        0x308,
+	[ECC_ENCPAR03] =        0x30c,
+	[ECC_ENCPAR04] =        0x310,
+	[ECC_ENCPAR05] =        0x314,
+	[ECC_ENCPAR06] =        0x318,
+	[ECC_ENCPAR07] =        0x31c,
+	[ECC_ENCPAR08] =        0x320,
+	[ECC_ENCPAR09] =        0x324,
+	[ECC_ENCPAR10] =        0x328,
+	[ECC_ENCPAR11] =        0x32c,
+	[ECC_ENCPAR12] =        0x330,
+	[ECC_ENCPAR13] =        0x334,
+	[ECC_ENCPAR14] =        0x338,
+	[ECC_ENCPAR15] =        0x33c,
+	[ECC_ENCPAR16] =        0x340,
+	[ECC_ENCPAR17] =        0x344,
+	[ECC_ENCPAR18] =        0x348,
+	[ECC_ENCPAR19] =        0x34c,
+	[ECC_ENCPAR20] =        0x350,
+	[ECC_ENCPAR21] =        0x354,
+	[ECC_ENCPAR22] =        0x358,
+	[ECC_ENCPAR23] =        0x35c,
+	[ECC_ENCPAR24] =        0x360,
+	[ECC_ENCPAR25] =        0x364,
+	[ECC_ENCPAR26] =        0x368,
+	[ECC_ENCPAR27] =        0x36c,
+	[ECC_ENCPAR28] =        0x370,
+	[ECC_ENCPAR29] =        0x374,
+	[ECC_ENCPAR30] =        0x378,
+	[ECC_ENCPAR31] =        0x37c,
+	[ECC_ENCPAR32] =        0x380,
+	[ECC_ENCPAR33] =        0x384,
+	[ECC_ENCPAR34] =        0x388,
+	[ECC_ENCIRQ_EN] =       0x80,
+	[ECC_ENCIRQ_STA] =      0x84,
+	[ECC_PIO_DIRDY] =       0x90,
+	[ECC_PIO_DI] =          0x94,
+	[ECC_DECCON] =          0x100,
+	[ECC_DECCNFG] =         0x104,
+	[ECC_DECIDLE] =         0x10c,
+	[ECC_DECENUM0] =        0x114,
+	[ECC_DECENUM1] =        0x118,
+	[ECC_DECENUM2] =        0x11c,
+	[ECC_DECENUM3] =        0x120,
+	[ECC_DECDONE] =         0x124,
+	[ECC_DECIRQ_EN] =       0x200,
+	[ECC_DECIRQ_STA] =      0x204,
+};
 enum mtk_ecc_type {
 	MTK_ECC_MT2701,
 	MTK_ECC_MT7622,
+	MTK_ECC_MT2712,
 };
 
 struct mtk_ecc_comp {
@@ -217,6 +288,10 @@ struct mtk_ecc_comp {
 	int mode_shift;
 	int max_ecc_str;
 	int parity_bit;
+	/* ECC_DECENUMx register bit definition */
+	int ERR_MASK;
+
+	int pg_irq_enable;
 };
 
 struct mtk_ecc {
@@ -344,6 +419,15 @@ static void mtk_ecc_config(struct mtk_ecc *ecc, struct mtk_ecc_config *config)
 	case 60:
 		ecc_bit = ECC_CNFG_60BIT;
 		break;
+	case 68:
+		ecc_bit = ECC_CNFG_68BIT;
+		break;
+	case 72:
+		ecc_bit = ECC_CNFG_72BIT;
+		break;
+	case 80:
+		ecc_bit = ECC_CNFG_80BIT;
+		break;
 	default:
 		dev_err(ecc->dev, "invalid strength %d, default to 4 bits\n",
 			config->strength);
@@ -398,8 +482,8 @@ void mtk_ecc_get_stats(struct mtk_ecc *ecc, struct mtk_ecc_stats *stats,
 		offset = i >> 2;
 		err = readl(ECC_REG(ecc, ECC_DECENUM0 + offset));
 		err = err >> ((i % 4) * 8);
-		err &= ERR_MASK;
-		if (err == ERR_MASK) {
+		err &= ecc->ecc_data->ERR_MASK;
+		if (err == ecc->ecc_data->ERR_MASK) {
 			/* uncorrectable errors */
 			stats->failed++;
 			continue;
@@ -465,6 +549,7 @@ int mtk_ecc_enable(struct mtk_ecc *ecc, struct mtk_ecc_config *config)
 {
 	enum mtk_ecc_operation op = config->op;
 	int ret;
+	u32 reg;
 
 	ret = mutex_lock_interruptible(&ecc->lock);
 	if (ret) {
@@ -477,7 +562,10 @@ int mtk_ecc_enable(struct mtk_ecc *ecc, struct mtk_ecc_config *config)
 	writew(ECC_OP_ENABLE, ECC_CTL_REG(ecc, op));
 
 	init_completion(&ecc->done);
-	writew(ECC_IRQ_EN, ECC_IRQ_REG(ecc, op));
+	reg = ECC_IRQ_EN;
+	if ((ecc->ecc_data->pg_irq_enable) && (config->mode == ECC_NFI_MODE))
+		reg |= ECC_PG_IRQ_SEL;
+	writew(reg, ECC_IRQ_REG(ecc, op));
 
 	return 0;
 }
@@ -590,6 +678,8 @@ static const struct mtk_ecc_comp ecc_mt2701 = {
 	.mode_shift = 5,
 	.max_ecc_str = 19,
 	.parity_bit = 14,
+	.ERR_MASK = 0x3f,
+	.pg_irq_enable = 0,
 };
 
 /* Compatible to MT7622 */
@@ -599,6 +689,19 @@ static const struct mtk_ecc_comp ecc_mt7622 = {
 	.mode_shift = 4,
 	.max_ecc_str = 6,
 	.parity_bit = 13,
+	.ERR_MASK = 0x3f,
+	.pg_irq_enable = 0,
+};
+
+/* Compatible to MT2712 */
+static const struct mtk_ecc_comp ecc_mt2712 = {
+	.ecc_regs = mt2712_ecc_regs,
+	.type = MTK_ECC_MT2712,
+	.mode_shift = 5,
+	.max_ecc_str = 19,
+	.parity_bit = 14,
+	.ERR_MASK = 0x7f,
+	.pg_irq_enable = 1,
 };
 
 static const struct of_device_id mtk_ecc_dt_match[] = {
@@ -608,6 +711,9 @@ static const struct of_device_id mtk_ecc_dt_match[] = {
 	}, {
 		.compatible = "mediatek,mt7622-ecc",
 		.data = &ecc_mt7622,
+	}, {
+		.compatible = "mediatek,mt2712-ecc",
+		.data = &ecc_mt2712,
 	}, {
 	},
 };

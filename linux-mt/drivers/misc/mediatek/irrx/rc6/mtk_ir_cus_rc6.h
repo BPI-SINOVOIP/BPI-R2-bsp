@@ -13,7 +13,7 @@
 #ifndef __MTK_IR_CUS_RC6_DEFINE_H__
 #define __MTK_IR_CUS_RC6_DEFINE_H__
 
-#include "../inc/mtk_ir_core.h"
+#include "mtk_ir_core.h"
 
 #ifdef MTK_LK_IRRX_SUPPORT	/* platform/mt8127/lk/rule.mk */
 #include <platform/mtk_ir_lk_core.h>

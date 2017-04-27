@@ -672,6 +672,7 @@ struct pmic_wrapper_type {
 	int has_bridge:1;
 	int slv_switch:1;
 	int slv_program:1;
+	int is_32bit:1;
 	int (*init_reg_clock)(struct pmic_wrapper *wrp);
 	int (*init_soc_specific)(struct pmic_wrapper *wrp);
 };
@@ -742,41 +743,78 @@ static int pwrap_wait_for_state(struct pmic_wrapper *wrp,
 	} while (1);
 }
 
-static int pwrap_write(struct pmic_wrapper *wrp, u32 adr, u32 wdata)
+static int pwrap_read(struct pmic_wrapper *wrp, u32 adr, u32 *rdata)
 {
-	int ret;
+	int ret, msb;
+	*rdata = 0;
 
-	ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
-	if (ret) {
-		pwrap_leave_fsm_vldclr(wrp);
-		return ret;
+	if (wrp->master->is_32bit) {
+		for (msb = 0; msb < 2; msb++) {
+			ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
+			if (ret) {
+				pwrap_leave_fsm_vldclr(wrp);
+				return ret;
+			}
+
+			pwrap_writel(wrp, ((msb << 30) | (adr << 16)), PWRAP_WACS2_CMD);
+
+			ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_vldclr);
+			if (ret)
+				return ret;
+
+			*rdata += (PWRAP_GET_WACS_RDATA(pwrap_readl(wrp, PWRAP_WACS2_RDATA)) << (16*msb));
+
+			pwrap_writel(wrp, 1, PWRAP_WACS2_VLDCLR);
+		}
+	} else {
+		ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
+		if (ret) {
+			pwrap_leave_fsm_vldclr(wrp);
+			return ret;
+		}
+
+		pwrap_writel(wrp, (adr >> 1) << 16, PWRAP_WACS2_CMD);
+
+		ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_vldclr);
+		if (ret)
+			return ret;
+
+		*rdata = PWRAP_GET_WACS_RDATA(pwrap_readl(wrp, PWRAP_WACS2_RDATA));
+
+		pwrap_writel(wrp, 1, PWRAP_WACS2_VLDCLR);
 	}
-
-	pwrap_writel(wrp, (1 << 31) | ((adr >> 1) << 16) | wdata,
-			PWRAP_WACS2_CMD);
 
 	return 0;
 }
 
-static int pwrap_read(struct pmic_wrapper *wrp, u32 adr, u32 *rdata)
+static int pwrap_write(struct pmic_wrapper *wrp, u32 adr, u32 wdata)
 {
-	int ret;
+	int ret, msb, rdata;
 
-	ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
-	if (ret) {
-		pwrap_leave_fsm_vldclr(wrp);
-		return ret;
+	if (wrp->master->is_32bit) {
+		for (msb = 0; msb < 2; msb++) {
+			ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
+			if (ret) {
+				pwrap_leave_fsm_vldclr(wrp);
+				return ret;
+			}
+
+			pwrap_writel(wrp, (1 << 31) | (msb << 30) | (adr << 16) | ((wdata >> (msb * 16)) & 0xffff),
+					PWRAP_WACS2_CMD);
+
+			if (msb == 0)
+				pwrap_read(wrp, adr, &rdata);
+		}
+	} else {
+		ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
+		if (ret) {
+			pwrap_leave_fsm_vldclr(wrp);
+			return ret;
+		}
+
+		pwrap_writel(wrp, (1 << 31) | ((adr >> 1) << 16) | wdata,
+				PWRAP_WACS2_CMD);
 	}
-
-	pwrap_writel(wrp, (adr >> 1) << 16, PWRAP_WACS2_CMD);
-
-	ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_vldclr);
-	if (ret)
-		return ret;
-
-	*rdata = PWRAP_GET_WACS_RDATA(pwrap_readl(wrp, PWRAP_WACS2_RDATA));
-
-	pwrap_writel(wrp, 1, PWRAP_WACS2_VLDCLR);
 
 	return 0;
 }
@@ -1087,7 +1125,8 @@ static int pwrap_init(struct pmic_wrapper *wrp)
 	int ret;
 	u32 rdata;
 
-	reset_control_reset(wrp->rstc);
+	if (wrp->rstc)
+		reset_control_reset(wrp->rstc);
 	if (wrp->rstc_bridge)
 		reset_control_reset(wrp->rstc_bridge);
 
@@ -1112,10 +1151,11 @@ static int pwrap_init(struct pmic_wrapper *wrp)
 	}
 
 	/* Reset SPI slave */
-	ret = pwrap_reset_spislave(wrp);
-	if (ret)
-		return ret;
-
+	if (wrp->master->slv_program) {
+		ret = pwrap_reset_spislave(wrp);
+		if (ret)
+			return ret;
+	}
 	pwrap_writel(wrp, 1, PWRAP_WRAP_EN);
 
 	pwrap_writel(wrp, wrp->master->arb_en_all, PWRAP_HIPRIO_ARB_EN);
@@ -1258,6 +1298,7 @@ static const struct pmic_wrapper_type pwrap_mt2701 = {
 	.has_bridge = 0,
 	.slv_switch = 1,
 	.slv_program = 1,
+	.is_32bit = 0,
 	.init_reg_clock = pwrap_mt2701_init_reg_clock,
 	.init_soc_specific = pwrap_mt2701_init_soc_specific,
 };
@@ -1272,6 +1313,7 @@ static struct pmic_wrapper_type pwrap_mt8135 = {
 	.has_bridge = 1,
 	.slv_switch = 0,
 	.slv_program = 1,
+	.is_32bit = 0,
 	.init_reg_clock = pwrap_mt8135_init_reg_clock,
 	.init_soc_specific = pwrap_mt8135_init_soc_specific,
 };
@@ -1286,6 +1328,7 @@ static struct pmic_wrapper_type pwrap_mt8173 = {
 	.has_bridge = 0,
 	.slv_switch = 0,
 	.slv_program = 1,
+	.is_32bit = 0,
 	.init_reg_clock = pwrap_mt8173_init_reg_clock,
 	.init_soc_specific = pwrap_mt8173_init_soc_specific,
 };
@@ -1300,6 +1343,7 @@ static struct pmic_wrapper_type pwrap_mt7622 = {
 	.has_bridge = 0,
 	.slv_switch = 0,
 	.slv_program = 0,
+	.is_32bit = 1,
 	.init_reg_clock = pwrap_mt7622_init_reg_clock,
 	.init_soc_specific = pwrap_mt7622_init_soc_specific,
 };
@@ -1356,11 +1400,13 @@ static int pwrap_probe(struct platform_device *pdev)
 	if (IS_ERR(wrp->base))
 		return PTR_ERR(wrp->base);
 
-	wrp->rstc = devm_reset_control_get(wrp->dev, "pwrap");
-	if (IS_ERR(wrp->rstc)) {
-		ret = PTR_ERR(wrp->rstc);
-		dev_dbg(wrp->dev, "cannot get pwrap reset: %d\n", ret);
-		return ret;
+	if (of_property_read_bool(pdev->dev.of_node, "resets")) {
+		wrp->rstc = devm_reset_control_get(wrp->dev, "pwrap");
+		if (IS_ERR(wrp->rstc)) {
+			ret = PTR_ERR(wrp->rstc);
+			dev_dbg(wrp->dev, "cannot get pwrap reset: %d\n", ret);
+			return ret;
+		}
 	}
 
 	if (wrp->master->has_bridge) {
@@ -1429,11 +1475,13 @@ static int pwrap_probe(struct platform_device *pdev)
 	pwrap_writel(wrp, 0x1, PWRAP_TIMER_EN);
 	pwrap_writel(wrp, wrp->master->int_en_all, PWRAP_INT_EN);
 
-	irq = platform_get_irq(pdev, 0);
-	ret = devm_request_irq(wrp->dev, irq, pwrap_interrupt, IRQF_TRIGGER_HIGH,
-			"mt-pmic-pwrap", wrp);
-	if (ret)
-		goto err_out2;
+	if (of_property_read_bool(pdev->dev.of_node, "interrupts")) {
+		irq = platform_get_irq(pdev, 0);
+		ret = devm_request_irq(wrp->dev, irq, pwrap_interrupt, IRQF_TRIGGER_HIGH,
+				"mt-pmic-pwrap", wrp);
+		if (ret)
+			goto err_out2;
+	}
 
 	wrp->regmap = devm_regmap_init(wrp->dev, NULL, wrp, &pwrap_regmap_config);
 	if (IS_ERR(wrp->regmap))

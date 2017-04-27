@@ -116,6 +116,7 @@ static MTK_WCN_BOOL mtk_wcn_wmt_func_ctrl(ENUM_WMTDRV_TYPE_T type, ENUM_WMT_OPID
 	if (DISABLE_PSM_MONITOR()) {
 		WMT_ERR_FUNC("wake up failed,OPID(%d) type(%zu) abort\n", pOp->op.opId, pOp->op.au4OpData[0]);
 		wmt_lib_put_op_to_free_queue(pOp);
+		wmt_lib_host_awake_put();
 		return MTK_WCN_BOOL_FALSE;
 	}
 
@@ -348,11 +349,16 @@ EXPORT_SYMBOL(mtk_wcn_stp_wmt_sdio_op_reg);
 #ifdef CONFIG_MTK_COMBO_CHIP_DEEP_SLEEP_SUPPORT
 INT32 mtk_wcn_wmt_sdio_deep_sleep_flag_cb_reg(PF_WMT_SDIO_DEEP_SLEEP flag_cb)
 {
-	wmt_lib_sdio_deep_sleep_flag_set(flag_cb);
+	wmt_lib_sdio_deep_sleep_flag_set_cb_reg(flag_cb);
 	return 0;
 }
 EXPORT_SYMBOL(mtk_wcn_wmt_sdio_deep_sleep_flag_cb_reg);
 #endif
+INT32 mtk_wcn_wmt_sdio_rw_cb_reg(PF_WMT_SDIO_DEBUG reg_rw_cb)
+{
+	wmt_lib_sdio_reg_rw_cb(reg_rw_cb);
+	return 0;
+}
 
 INT32 mtk_wcn_stp_wmt_sdio_host_awake(VOID)
 {
@@ -372,7 +378,6 @@ MTK_WCN_BOOL mtk_wcn_wmt_assert_timeout(ENUM_WMTDRV_TYPE_T type, UINT32 reason, 
 		WMT_DBG_FUNC("get_free_lxop fail\n");
 		return MTK_WCN_BOOL_FALSE;
 	}
-	wmt_lib_set_host_assert_info(type, reason, 1);
 
 	pSignal = &pOp->signal;
 
@@ -398,15 +403,15 @@ MTK_WCN_BOOL mtk_wcn_wmt_assert_timeout(ENUM_WMTDRV_TYPE_T type, UINT32 reason, 
 		      pOp->op.au4OpData[1],
 		      bRet, MTK_WCN_BOOL_FALSE == bRet ? "failed" : "succeed");
 	/*If trigger stp assert succeed, just return; trigger WMT level assert if failed */
-	if (bRet == MTK_WCN_BOOL_TRUE)
+	if (bRet == MTK_WCN_BOOL_TRUE) {
+		wmt_lib_set_host_assert_info(type, reason, 1);
 		return bRet;
-
+	}
 	pOp = wmt_lib_get_free_op();
 	if (!pOp) {
 		WMT_DBG_FUNC("get_free_lxop fail\n");
 		return MTK_WCN_BOOL_FALSE;
 	}
-	wmt_lib_set_host_assert_info(type, reason, 1);
 
 	pSignal = &pOp->signal;
 
@@ -433,6 +438,10 @@ MTK_WCN_BOOL mtk_wcn_wmt_assert_timeout(ENUM_WMTDRV_TYPE_T type, UINT32 reason, 
 		      pOp->op.au4OpData[0],
 		      pOp->op.au4OpData[1],
 		      bRet, MTK_WCN_BOOL_FALSE == bRet ? "failed" : "succeed");
+	if (bRet == MTK_WCN_BOOL_TRUE) {
+		wmt_lib_set_host_assert_info(type, reason, 1);
+		return bRet;
+	}
 
 	return bRet;
 }

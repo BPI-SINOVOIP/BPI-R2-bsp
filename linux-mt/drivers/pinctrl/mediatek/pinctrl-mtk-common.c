@@ -465,13 +465,6 @@ static int mtk_pconf_set_pull_select(struct mtk_pinctrl *pctl,
 			return 0;
 	}
 
-	/* For generic pull config, default arg value should be 0 or 1. */
-	if (arg != 0 && arg != 1) {
-		dev_err(pctl->dev, "invalid pull-up argument %d on pin %d .\n",
-			arg, pin);
-		return -EINVAL;
-	}
-
 	bit = BIT(pin & 0xf);
 	if (enable)
 		reg_pullen = SET_ADDR(mtk_get_port(pctl, pin) +
@@ -501,7 +494,7 @@ static int mtk_pconf_parse_conf(struct pinctrl_dev *pctldev,
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
-		ret = mtk_pconf_set_pull_select(pctl, pin, false, false, arg);
+		ret = mtk_pconf_set_pull_select(pctl, pin, false, false, MTK_PUPD_SET_R1R0_00);
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
 		ret = mtk_pconf_set_pull_select(pctl, pin, true, true, arg);
@@ -1500,6 +1493,8 @@ static ssize_t mt_gpio_show_pin(struct device *dev, struct device_attribute *att
 
 	for (i = dbg_start; i < pctl->chip->ngpio; i++) {
 		pull_val = mtk_pullsel_get(chip, i);
+		if ((len+32) >= bufLen)
+			break;
 
 		len += snprintf(buf+len, bufLen-len, "%4d:% d% d% d% d% d% d% d% d% d",
 				i,
@@ -1542,7 +1537,7 @@ static ssize_t mt_gpio_store_pin(struct device *dev, struct device_attribute *at
 		val_set = mtk_pconf_set_ies_smt(pctl, pin, val, PIN_CONFIG_INPUT_ENABLE);
 	} else if (!strncmp(buf, "smt", 3) && (sscanf(buf+3, "%d %d", &pin, &val) == 2)) {
 		val_set = mtk_pconf_set_ies_smt(pctl, pin, val, PIN_CONFIG_INPUT_SCHMITT_ENABLE);
-	} else if (!strncmp(buf, "start", 5) && (sscanf(buf+5, "%d", &val) == 2)) {
+	} else if (!strncmp(buf, "start", 5) && (sscanf(buf+5, "%d", &val) == 1)) {
 		dbg_start = val;
 	}
 

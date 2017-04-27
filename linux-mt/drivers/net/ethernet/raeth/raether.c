@@ -40,7 +40,9 @@ struct lro_para_struct lro_para;
 int lro_flush_needed;
 
 static const char *const mtk_clks_source_name[] = {
-	"ethif", "esw", "gp1", "gp2", "trgpll"
+	"ethif", "esw", "gp0", "gp1", "gp2",
+	"sgmii_tx250m", "sgmii_rx250m", "sgmii_cdr_ref", "sgmii_cdr_fb",
+	"trgpll", "sgmipll", "eth1pll", "eth2pll"
 };
 
 /* reset frame engine */
@@ -280,8 +282,8 @@ static int rt2880_eth_recv(struct net_device *dev,
  * ra_sw_nat_hook_rx return 0 --> FWD & without netif_rx
  */
 #if defined(CONFIG_RA_HW_NAT)  || defined(CONFIG_RA_HW_NAT_MODULE)
-		if ((ra_sw_nat_hook_rx) ||
-		    (!ra_sw_nat_hook_rx && ra_sw_nat_hook_rx(rx_skb))) {
+		if ((!ra_sw_nat_hook_rx) ||
+		    (ra_sw_nat_hook_rx && ra_sw_nat_hook_rx(rx_skb))) {
 #endif
 			if (!(ei_local->features & FE_SW_LRO)) {
 				if (ei_local->features & FE_INT_NAPI)
@@ -434,8 +436,15 @@ static int raeth_poll_rx(struct napi_struct *napi, int budget)
 	reg_int_val_rx = sys_reg_read(ei_local->fe_rx_int_status);
 
 	if (reg_int_val_rx & (RX_DLY_INT | RX_DONE_INT3 | RX_DONE_INT2 |
-			      RX_DONE_INT1 | RX_DONE_INT0))
+			      RX_DONE_INT1 | RX_DONE_INT0)) {
+		/* Clear RX interrupt status */
+		sys_reg_write(ei_local->fe_rx_int_status, (RX_DLY_INT |
+							   RX_DONE_INT3 |
+							   RX_DONE_INT2 |
+							   RX_DONE_INT1 |
+							   RX_DONE_INT0));
 		rx_done = ei_local->ei_eth_recv(netdev, napi, budget);
+	}
 
 	if (rx_done >= budget)
 		return budget;
@@ -443,13 +452,6 @@ static int raeth_poll_rx(struct napi_struct *napi, int budget)
 	napi_complete(napi);
 
 	spin_lock_irqsave(&ei_local->irq_lock, flags);
-
-	/* Clear RX interrupt status */
-	sys_reg_write(ei_local->fe_rx_int_status, (RX_DLY_INT |
-						   RX_DONE_INT3 |
-						   RX_DONE_INT2 |
-						   RX_DONE_INT1 |
-						   RX_DONE_INT0));
 
 	/* Enable RX interrupt */
 	reg_int_mask_rx = sys_reg_read(ei_local->fe_rx_int_enable);
@@ -474,16 +476,17 @@ static int raeth_poll_tx(struct napi_struct *napi, int budget)
 
 	reg_int_val_tx = sys_reg_read(ei_local->fe_tx_int_status);
 
-	if (reg_int_val_tx & (TX_DLY_INT | TX_DONE_INT0))
+	if (reg_int_val_tx & (TX_DLY_INT | TX_DONE_INT0)) {
+		/* Clear TX interrupt status */
+		sys_reg_write(ei_local->fe_tx_int_status, (TX_DLY_INT |
+							   TX_DONE_INT0));
 		tx_done = ei_local->ei_xmit_housekeeping(netdev,
 							 NUM_TX_MAX_PROCESS);
+	}
 
 	napi_complete(napi);
 
 	spin_lock_irqsave(&ei_local->irq_lock, flags);
-
-	/* Clear TX interrupt status */
-	sys_reg_write(ei_local->fe_tx_int_status, (TX_DLY_INT | TX_DONE_INT0));
 
 	/* Enable TX interrupts */
 	reg_int_mask_tx = sys_reg_read(ei_local->fe_tx_int_enable);
@@ -1388,13 +1391,16 @@ static int fe_int_enable(struct net_device *dev)
 
 	if (ei_local->chip_name == MT7623_FE) {
 		gsw = platform_get_drvdata(pdev);
-		if (request_threaded_irq(gsw->irq, esw_interrupt, NULL, 0,
+		if (request_threaded_irq(gsw->irq, gsw_interrupt, NULL, 0,
 					 "gsw", NULL))
 			pr_err("fail to request irq\n");
 
 		/* enable switch link change intr */
 		mii_mgr_write(31, 0x7008, 0x1f);
 	}
+
+	if (ei_local->features & RAETH_ESW)
+		request_irq(ei_local->esw_irq, esw_interrupt, IRQF_TRIGGER_LOW, "esw", dev);
 
 	spin_lock_irqsave(&ei_local->irq_lock, flags);
 
@@ -1478,6 +1484,9 @@ static int fe_int_disable(struct net_device *dev)
 		free_irq(ei_local->irq1, dev);
 		free_irq(ei_local->irq2, dev);
 	}
+
+	if (ei_local->features & RAETH_ESW)
+		free_irq(ei_local->esw_irq, dev);
 
 	cancel_work_sync(&ei_local->reset_task);
 
@@ -1761,6 +1770,75 @@ static int ei_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static int ei_clock_enable(struct END_DEVICE *ei_local)
+{
+	unsigned long rate;
+	int ret;
+
+	pm_runtime_enable(ei_local->dev);
+	pm_runtime_get_sync(ei_local->dev);
+
+	clk_prepare_enable(ei_local->clks[MTK_CLK_ETH1PLL]);
+	clk_prepare_enable(ei_local->clks[MTK_CLK_ETH2PLL]);
+	clk_prepare_enable(ei_local->clks[MTK_CLK_ETHIF]);
+	clk_prepare_enable(ei_local->clks[MTK_CLK_ESW]);
+	clk_prepare_enable(ei_local->clks[MTK_CLK_GP1]);
+	clk_prepare_enable(ei_local->clks[MTK_CLK_GP2]);
+
+	if (ei_local->architecture & RAETH_ESW)
+		clk_prepare_enable(ei_local->clks[MTK_CLK_GP0]);
+
+	if (ei_local->architecture &
+	    (GE1_TRGMII_FORCE_2000 | GE1_TRGMII_FORCE_2600)) {
+		ret = clk_set_rate(ei_local->clks[MTK_CLK_TRGPLL], 500000000);
+		if (ret)
+			pr_err("Failed to set mt7530 trgmii pll: %d\n", ret);
+		rate = clk_get_rate(ei_local->clks[MTK_CLK_TRGPLL]);
+		pr_info("TRGMII_PLL rate = %ld\n", rate);
+		clk_prepare_enable(ei_local->clks[MTK_CLK_TRGPLL]);
+	}
+
+	if (ei_local->architecture & RAETH_SGMII) {
+		clk_prepare_enable(ei_local->clks[MTK_CLK_SGMIPLL]);
+		clk_prepare_enable(ei_local->clks[MTK_CLK_SGMII_TX250M]);
+		clk_prepare_enable(ei_local->clks[MTK_CLK_SGMII_RX250M]);
+		clk_prepare_enable(ei_local->clks[MTK_CLK_SGMII_CDR_REF]);
+		clk_prepare_enable(ei_local->clks[MTK_CLK_SGMII_CDR_FB]);
+	}
+
+	return 0;
+}
+
+static int ei_clock_disable(struct END_DEVICE *ei_local)
+{
+	if (ei_local->architecture & RAETH_ESW)
+		clk_disable_unprepare(ei_local->clks[MTK_CLK_GP0]);
+
+	if (ei_local->architecture &
+	    (GE1_TRGMII_FORCE_2000 | GE1_TRGMII_FORCE_2600))
+		clk_disable_unprepare(ei_local->clks[MTK_CLK_TRGPLL]);
+
+	if (ei_local->architecture & RAETH_SGMII) {
+		clk_disable_unprepare(ei_local->clks[MTK_CLK_SGMII_TX250M]);
+		clk_disable_unprepare(ei_local->clks[MTK_CLK_SGMII_RX250M]);
+		clk_disable_unprepare(ei_local->clks[MTK_CLK_SGMII_CDR_REF]);
+		clk_disable_unprepare(ei_local->clks[MTK_CLK_SGMII_CDR_FB]);
+		clk_disable_unprepare(ei_local->clks[MTK_CLK_SGMIPLL]);
+	}
+
+	clk_disable_unprepare(ei_local->clks[MTK_CLK_GP2]);
+	clk_disable_unprepare(ei_local->clks[MTK_CLK_GP1]);
+	clk_disable_unprepare(ei_local->clks[MTK_CLK_ESW]);
+	clk_disable_unprepare(ei_local->clks[MTK_CLK_ETHIF]);
+	clk_disable_unprepare(ei_local->clks[MTK_CLK_ETH2PLL]);
+	clk_disable_unprepare(ei_local->clks[MTK_CLK_ETH1PLL]);
+
+	pm_runtime_put_sync(ei_local->dev);
+	pm_runtime_disable(ei_local->dev);
+
+	return 0;
+}
+
 static struct ethtool_ops ra_ethtool_ops = {
 	.get_settings = et_get_settings,
 	.get_link = et_get_link,
@@ -1935,6 +2013,8 @@ int ei_close(struct net_device *dev)
 		virtualif_close(ei_local->pseudo_dev);
 
 	ei_deinit_dma(dev);
+
+	fe_sw_deinit(ei_local);
 
 	fe_reset();
 	module_put(THIS_MODULE);
@@ -2302,6 +2382,7 @@ void raeth_setup_dev_fptable(struct net_device *dev)
 void ei_ioc_setting(struct platform_device *pdev, struct END_DEVICE *ei_local)
 {
 	void __iomem *reg_virt;
+	unsigned int reg_val;
 
 	if (ei_local->features & FE_HW_IOCOHERENT) {
 		pr_info("[Raether] HW IO coherent is enabled !\n");
@@ -2312,7 +2393,9 @@ void ei_ioc_setting(struct platform_device *pdev, struct END_DEVICE *ei_local)
 		/* Enable ETHSYS io coherence path */
 		reg_virt = ioremap(0x1B000400, 0x10);
 		reg_virt += 0x8;
-		sys_reg_write(reg_virt, 0x000000FF);
+		reg_val = sys_reg_read(reg_virt);
+		reg_val |= IOC_ETH_PDMA | IOC_ETH_QDMA;
+		sys_reg_write(reg_virt, reg_val);
 		reg_virt -= 0x8;
 		iounmap(reg_virt);
 
@@ -2341,25 +2424,6 @@ static void fe_chip_name_config(struct END_DEVICE *ei_local)
 	ei_local->chip_name = chip_id;
 }
 
-static int ei_clock_enable(struct END_DEVICE *ei_local)
-{
-	unsigned long rate;
-	int ret;
-
-	clk_prepare_enable(ei_local->clks[MTK_CLK_ETHIF]);
-	clk_prepare_enable(ei_local->clks[MTK_CLK_ESW]);
-	clk_prepare_enable(ei_local->clks[MTK_CLK_GP1]);
-	clk_prepare_enable(ei_local->clks[MTK_CLK_GP2]);
-	ret = clk_set_rate(ei_local->clks[MTK_CLK_TRGPLL], 500000000);
-	if (ret)
-		pr_err("Failed to set mt7530 trgmii pll: %d\n", ret);
-	rate = clk_get_rate(ei_local->clks[MTK_CLK_TRGPLL]);
-	pr_info("TRGMII_PLL rate = %ld\n", rate);
-	clk_prepare_enable(ei_local->clks[MTK_CLK_TRGPLL]);
-
-	return 0;
-}
-
 static int rather_probe(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2379,6 +2443,7 @@ static int rather_probe(struct platform_device *pdev)
 
 	dev_raether = netdev;
 	ei_local = netdev_priv(netdev);
+	ei_local->dev = &pdev->dev;
 	ei_local->netdev = netdev;
 	fe_features_config(ei_local);
 	pr_info("[%s]ei_local->features = 0x%x\n", __func__,
@@ -2430,6 +2495,10 @@ static int rather_probe(struct platform_device *pdev)
 	pr_info("ei_local->irq0 = %d\n", ei_local->irq0);
 	pr_info("ei_local->irq1 = %d\n", ei_local->irq1);
 	pr_info("ei_local->irq2 = %d\n", ei_local->irq2);
+	if (ei_local->features & RAETH_ESW) {
+		ei_local->esw_irq = platform_get_irq(pdev, 3);
+		pr_info("ei_local->esw_irq = %d\n", ei_local->esw_irq);
+	}
 
 	ei_clock_enable(ei_local);
 
@@ -2484,6 +2553,15 @@ err_free_dev:
 	return ret;
 }
 
+static int raether_remove(struct platform_device *pdev)
+{
+	struct END_DEVICE *ei_local = netdev_priv(dev_raether);
+
+	ei_clock_disable(ei_local);
+
+	return 0;
+}
+
 static const char raeth_string[] = "RAETH_DRV";
 
 static const struct of_device_id raether_of_ids[] = {
@@ -2494,6 +2572,7 @@ static const struct of_device_id raether_of_ids[] = {
 
 static struct platform_driver raeth_driver = {
 	.probe = rather_probe,
+	.remove = raether_remove,
 	.driver = {
 		   .name = raeth_string,
 		   .owner = THIS_MODULE,

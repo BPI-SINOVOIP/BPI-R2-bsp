@@ -48,7 +48,7 @@ UINT32 gDbgLevel = WIFI_LOG_DBG;
 #define WIFI_DBG_FUNC(fmt, arg...)	\
 	do { if (gDbgLevel >= WIFI_LOG_DBG) pr_debug(PFX "%s: " fmt, __func__, ##arg); } while (0)
 #define WIFI_INFO_FUNC(fmt, arg...)	\
-	do { if (gDbgLevel >= WIFI_LOG_INFO) pr_debug(PFX "%s: " fmt, __func__, ##arg); } while (0)
+	do { if (gDbgLevel >= WIFI_LOG_INFO) pr_info(PFX "%s: " fmt, __func__, ##arg); } while (0)
 #define WIFI_WARN_FUNC(fmt, arg...)	\
 	do { if (gDbgLevel >= WIFI_LOG_WARN) pr_warn(PFX "%s: " fmt, __func__, ##arg); } while (0)
 #define WIFI_ERR_FUNC(fmt, arg...)	\
@@ -68,7 +68,7 @@ static struct device *wmtwifi_dev;
 static struct semaphore wr_mtx;
 
 #define WLAN_IFACE_NAME "wlan0"
-#if CFG_TC1_FEATURE
+#if defined(CFG_USE_AOSP_TETHERING_NAME)
 #define LEGACY_IFACE_NAME "legacy0"
 #endif
 
@@ -81,7 +81,7 @@ enum {
 static INT32 wlan_mode = WLAN_MODE_HALT;
 static INT32 powered;
 static INT8 *ifname = WLAN_IFACE_NAME;
-#if CFG_TC1_FEATURE
+#if defined(CFG_USE_AOSP_TETHERING_NAME)
 volatile INT32 wlan_if_changed;
 EXPORT_SYMBOL(wlan_if_changed);
 #endif
@@ -117,7 +117,7 @@ do { \
 	if (g_IsNeedDoChipReset) { \
 		g_IsNeedDoChipReset = 0; \
 		WIFI_ERR_FUNC("Do core dump and chip reset in %s line %d\n", __func__, __LINE__); \
-		mtk_wcn_wmt_assert(WMTDRV_TYPE_WIFI, 40); \
+		mtk_wcn_wmt_assert(WMTDRV_TYPE_WIFI, 0x40); \
 	} \
 } while (0)
 
@@ -313,7 +313,7 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 				powered = 0;
 				retval = count;
 				wlan_mode = WLAN_MODE_HALT;
-#if CFG_TC1_FEATURE
+#if defined(CFG_USE_AOSP_TETHERING_NAME)
 				ifname = WLAN_IFACE_NAME;
 				wlan_if_changed = 0;
 #endif
@@ -383,7 +383,7 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 			}
 
 			if (local[0] == 'S' || local[0] == 'P') {
-#if CFG_TC1_FEATURE
+#if defined(CFG_USE_AOSP_TETHERING_NAME)
 				if (strcmp(ifname, WLAN_IFACE_NAME) != 0) {
 					/* Restore NIC name to wlan0 */
 					rtnl_lock();
@@ -410,7 +410,7 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 					retval = count;
 				}
 			} else if (local[0] == 'A') {
-#if CFG_TC1_FEATURE
+#if defined(CFG_USE_AOSP_TETHERING_NAME)
 				if (strcmp(ifname, LEGACY_IFACE_NAME) != 0) {
 					/* Change NIC name to legacy0, since wlan0 is used for AP interface */
 					rtnl_lock();

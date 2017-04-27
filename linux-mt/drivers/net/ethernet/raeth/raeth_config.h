@@ -21,8 +21,6 @@
 #define CONFIG_RAETH_RW_PDMAPTR_FROM_VAR
 
 #define CONFIG_RAETH_NAPI_TX_RX
-/* QDMA pseudo multiple tx queue support */
-#define CONFIG_QDMA_MQ
 
 /* definitions */
 #ifdef	DELAY_INT
@@ -276,6 +274,11 @@
 #else
 #define    MT7622_EPHY    (0)
 #endif
+#ifdef CONFIG_RAETH_SGMII
+#define    RAETH_SGMII	BIT(19)
+#else
+#define    RAETH_SGMII	(0)
+#endif
 
 #ifndef CONFIG_MAC_TO_GIGAPHY_MODE_ADDR
 #define CONFIG_MAC_TO_GIGAPHY_MODE_ADDR (0)
@@ -335,6 +338,7 @@ end_device->architecture |= GE2_RGMII_AN;               \
 end_device->architecture |= GE2_INTERNAL_GPHY;          \
 end_device->architecture |= GE2_SGMII_AN;               \
 end_device->architecture |= GE2_SGMII_FORCE_2500;       \
-end_device->architecture |= MT7622_EPHY;       \
+end_device->architecture |= MT7622_EPHY;		\
+end_device->architecture |= RAETH_SGMII;		\
 }
 #endif

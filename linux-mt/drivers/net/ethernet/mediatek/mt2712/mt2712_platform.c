@@ -56,13 +56,14 @@ static int probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	phy_intf_sel_addr =
-		(unsigned long)ioremap_nocache(0x10003000, 32);
+	phy_intf_sel_addr = (unsigned long)ioremap_nocache(0x10003000, 32);
 	if (!(void __iomem *)phy_intf_sel_addr) {
 		dev_err(&pdev->dev, "cannot map register memory, aborting");
 		ret = -EIO;
 		goto err_out_map_failed;
 	}
+
+	iowrite32(0x1, (void *)ioremap_nocache(0x10001010, 32));
 
 	switch (of_get_phy_mode(np)) {
 	case PHY_INTERFACE_MODE_MII:
@@ -70,10 +71,11 @@ static int probe(struct platform_device *pdev)
 		iowrite32(0x0, (void *)(phy_intf_sel_addr + 0x418));
 		break;
 	case PHY_INTERFACE_MODE_RMII:
-		iowrite32(0x4, (void *)(phy_intf_sel_addr + 0x418));
+		iowrite32(0x14, (void *)(phy_intf_sel_addr + 0x418));	/* bit[5:4] = 1 select rxc */
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
 		iowrite32(0x1, (void *)(phy_intf_sel_addr + 0x418));
+		iowrite32(0x24, (void *)(phy_intf_sel_addr + 0x428)); /* TX Timing */
 		break;
 	default:
 		dev_err(&pdev->dev, "phy interface not set\n");
@@ -142,13 +144,58 @@ static int probe(struct platform_device *pdev)
 	dev->irq = irq;
 	dev_info(&pdev->dev, "irq number is %d\n", irq);
 
+	pdata->ext_125m_clk = devm_clk_get(&pdev->dev, "mac_ext");
+	if (IS_ERR(pdata->ext_125m_clk)) {
+		ret = PTR_ERR(pdata->ext_125m_clk);
+		dev_err(&pdev->dev, "failed to get ext_125m_clk: %d\n", ret);
+		goto err_out_q_alloc_failed;
+	}
+
+	pdata->ptp_clk = devm_clk_get(&pdev->dev, "ptp");
+	if (IS_ERR(pdata->ptp_clk)) {
+		ret = PTR_ERR(pdata->ptp_clk);
+		dev_err(&pdev->dev, "failed to get ptp_clk: %d\n", ret);
+		goto err_out_q_alloc_failed;
+	}
+
+	pdata->ptp_parent_clk = devm_clk_get(&pdev->dev, "ptp_parent");
+	if (IS_ERR(pdata->ptp_parent_clk)) {
+		ret = PTR_ERR(pdata->ptp_parent_clk);
+		dev_err(&pdev->dev, "failed to get ptp_parent_clk-clk: %d\n", ret);
+		goto err_out_q_alloc_failed;
+	}
+
+	ret = clk_prepare_enable(pdata->ext_125m_clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to enable ext_125m_clk (%d)\n", ret);
+		goto err_out_q_alloc_failed;
+	}
+
+	ret = clk_prepare_enable(pdata->ptp_clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to enable ptp_clk (%d)\n", ret);
+		goto err_ptp_enable;
+	}
+
+	ret = clk_prepare_enable(pdata->ptp_parent_clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to enable ptp_parent_clk (%d)\n", ret);
+		goto err_ptp_parent_enable;
+	}
+
+	ret = clk_set_parent(pdata->ptp_clk, pdata->ptp_parent_clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to set ptp parent clk (%d)\n", ret);
+		goto err_ptp_parent_enable;
+	}
+
 	get_all_hw_features(pdata);
 	print_all_hw_features(pdata);
 
 	ret = desc_if->alloc_queue_struct(pdata);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Unable to alloc Tx/Rx queue\n");
-		goto err_out_q_alloc_failed;
+		goto err_alloc_queue;
 	}
 
 	dev->netdev_ops = get_netdev_ops();
@@ -156,6 +203,10 @@ static int probe(struct platform_device *pdev)
 	pdata->interface = get_phy_interface(pdata);
 
 	ret = mdio_register(dev);
+	while (ret == -ENOLINK) {
+		ret = mdio_register(dev);
+		usleep_range(100, 200);
+	}
 	if (ret < 0) {
 		dev_err(&pdev->dev, "MDIO bus (id %d) registration failed\n", pdata->bus_id);
 		goto err_out_mdio_reg;
@@ -190,6 +241,15 @@ static int probe(struct platform_device *pdev)
 
  err_out_mdio_reg:
 	desc_if->free_queue_struct(pdata);
+
+ err_alloc_queue:
+	clk_disable_unprepare(pdata->ptp_parent_clk);
+
+ err_ptp_parent_enable:
+	clk_disable_unprepare(pdata->ptp_clk);
+
+ err_ptp_enable:
+	clk_disable_unprepare(pdata->ext_125m_clk);
 
  err_out_q_alloc_failed:
 	free_netdev(dev);

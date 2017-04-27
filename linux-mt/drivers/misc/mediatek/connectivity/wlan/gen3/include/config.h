@@ -46,8 +46,8 @@
 #ifdef CONFIG_X86
 #define MTK_WCN_HIF_SDIO            0
 #else
-#if defined(MT6797)
-#define MTK_WCN_HIF_SDIO        0
+#if defined(MT6631)
+#define MTK_WCN_HIF_SDIO            0
 #else
 #define MTK_WCN_HIF_SDIO            1
 #endif
@@ -121,6 +121,17 @@
 #define CFG_SUPPORT_WAPI            1
 #define CFG_SUPPORT_FCC_DYNAMIC_TX_PWR_ADJUST	0  /* Support FCC/CE Dynamic Tx Power Adjust */
 
+/* Enable QA Tool Support */
+#define CFG_SUPPORT_QA_TOOL			1
+
+/* Enable TX BF Support */
+#define CFG_SUPPORT_TX_BF			1
+
+/* Enable MU MIMO Support */
+#define CFG_SUPPORT_MU_MIMO			1
+
+#define CFG_SUPPORT_BUFFER_MODE                 1
+
 /*------------------------------------------------------------------------------
  * SLT Option
  *------------------------------------------------------------------------------
@@ -173,16 +184,6 @@
  * Flags for HIFSYS Interface
  *------------------------------------------------------------------------------
  */
-#if defined(MT6797)
-#define MTK_WCN_SINGLE_MODULE		0 /* 1: without WMT */
-#endif
-
-#ifdef _lint
-#if defined(MT6630)
-#define _HIF_SDIO   1
-#endif
-#endif
-
 /*
  * 1(default): Enable SDIO ISR & TX/RX status enhance mode
  * 0: Disable
@@ -237,16 +238,12 @@
  * Flags and Parameters for Integration
  *------------------------------------------------------------------------------
  */
-#if defined(MT6630) || defined(MT6797)
 #define CFG_MULTI_ECOVER_SUPPORT    1
 
 #define CFG_ENABLE_CAL_LOG          1
 #define CFG_REPORT_RFBB_VERSION     1
 
 #define HW_BSSID_NUM                4	/* HW BSSID number by chip */
-#else
-#error Unknown chip ID.
-#endif
 
 #define CFG_CHIP_RESET_SUPPORT          1
 
@@ -287,7 +284,7 @@
 /* Max Tx page count */
 #define CFG_MAX_TX_PAGE_COUNT               968
 
-#if defined(MT6797)
+#if defined(MT6631)
 #define MY_SDIO_BLOCK_SIZE	512	/* it must be less than or eaqual to 512 */
 #if CFG_SDIO_TX_AGG || CFG_TX_BUFFER_IS_SCATTER_LIST
 #define BLK_MODE_COALESCING_SZ	(NIC_TX_PAGE_SIZE * CFG_MAX_TX_PAGE_COUNT  + MY_SDIO_BLOCK_SIZE - 1)
@@ -388,6 +385,11 @@
  *------------------------------------------------------------------------------
  */
 #define CFG_RESPONSE_POLLING_TIMEOUT            512
+#define CFG_RESPONSE_CLEAR_RDY_TIMEOUT		100
+#define CFG_MCU_POWER_OFF_POLLING_CNT		20
+#define CFG_MCU_POWER_OFF_MAGIC_CODE		0xa0000001
+#define CFG_MCU_POWER_OFF_MAILBOX_INDEX		0x1
+#define CFG_MCU_POWER_OFF_SOFTINT_BIT		16
 
 /*------------------------------------------------------------------------------
  * Flags and Parameters for Protocol Stack
@@ -456,6 +458,10 @@
  * Flags and Parameters for Maximum Scan SSID number
  *------------------------------------------------------------------------------
  */
+#define CFG_SUPPORT_SCHED_SCN_SSID_SETS		1 /* Sched Scan support hidden SSID */
+#if CFG_SUPPORT_SCHED_SCN_SSID_SETS
+#define CFG_SCAN_HIDDEN_SSID_MAX_NUM       (7)
+#endif
 #define CFG_SCAN_SSID_MAX_NUM                   (4)
 #define CFG_SCAN_SSID_MATCH_MAX_NUM             (16)
 
@@ -515,24 +521,13 @@
 #define CFG_ENABLE_FW_DOWNLOAD_ACK              1
 #define CFG_ENABLE_FW_ENCRYPTION                1
 
-#if defined(MT6630) || defined(MT6797)
 #define CFG_ENABLE_FW_DIVIDED_DOWNLOAD		1
-#else
-#define CFG_ENABLE_FW_DIVIDED_DOWNLOAD		0
-#endif
 
-#if defined(MT6630)
+/* Vary between projects, already replaced by device tree */
+/* default value is for MT6630 */
 #define CFG_FW_LOAD_ADDRESS                     0x00091400
 #define CFG_OVERRIDE_FW_START_ADDRESS           0
 #define CFG_FW_START_ADDRESS                    0x00091400
-
-#elif defined(MT6797)
-#define CFG_FW_LOAD_ADDRESS                     0x000a2800
-#define CFG_OVERRIDE_FW_START_ADDRESS           0
-#define CFG_FW_START_ADDRESS                    0x000a2800
-
-#else
-#endif
 
 /*------------------------------------------------------------------------------
  * Flags of Bluetooth-over-WiFi (BT 3.0 + HS) support
@@ -754,12 +749,6 @@
 #define CFG_SUPPORT_AIS_PASSIVE_SCAN        0
 
 /*------------------------------------------------------------------------------
- * Flags of Workaround
- *------------------------------------------------------------------------------
- */
-#define CFG_ENABLE_READ_EXTRA_4_BYTES       1
-
-/*------------------------------------------------------------------------------
  * Flags of 5G NVRAM SUPPORT
  *------------------------------------------------------------------------------
  */
@@ -808,6 +797,21 @@
 #define CFG_SUPPORT_SNIFFER                 1
 
 #define CFG_SUPPORT_DETECT_SECURITY_MODE_CHANGE 1
+
+/*------------------------------------------------------------------------------
+ * Flags of driver delay calibration atfer efuse buffer mode CMD
+ *------------------------------------------------------------------------------
+ */
+
+#define CFG_EFUSE_BUFFER_MODE_DELAY_CAL         1
+
+
+/*------------------------------------------------------------------------------
+ * Flags of driver EEPROM pages for QA tool
+ *------------------------------------------------------------------------------
+ */
+
+#define CFG_EEPROM_PAGE_ACCESS         0
 
 /*******************************************************************************
 *                             D A T A   T Y P E S

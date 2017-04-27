@@ -149,7 +149,7 @@ const struct clk_ops mtk_clk_gate_ops_no_setclr_inv = {
 	.disable	= mtk_cg_disable_inv_no_setclr,
 };
 
-struct clk * __init mtk_clk_register_gate(
+struct clk *mtk_clk_register_gate(
 		const char *name,
 		const char *parent_name,
 		struct regmap *regmap,

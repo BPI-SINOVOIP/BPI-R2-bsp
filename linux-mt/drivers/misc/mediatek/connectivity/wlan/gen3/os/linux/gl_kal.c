@@ -113,10 +113,10 @@ static PUINT_8 apucFwPath[] = {
 	NULL
 };
 
-#if defined(MT6797)
+#if defined(MT6631)	/* MT6631 A-D die chip */
 
 static PUINT_8 apucFwName[] = {
-	(PUINT_8) CFG_FW_FILENAME "_6797",
+	(PUINT_8) CFG_FW_FILENAME "_",
 	NULL
 };
 
@@ -124,7 +124,7 @@ static PPUINT_8 appucFwNameTable[] = {
 	apucFwName
 };
 
-#else
+#else	/* MT6630 */
 /* E2 */
 static PUINT_8 apucFwNameE2[] = {
 	(PUINT_8) CFG_FW_FILENAME "_MT6630_E2",
@@ -155,6 +155,7 @@ static PPUINT_8 appucFwNameTable[] = {
 	apucFwNameE3,
 };
 #endif
+
 /*----------------------------------------------------------------------------*/
 /*!
 * \brief This function is provided by GLUE Layer for internal driver stack to
@@ -173,6 +174,9 @@ WLAN_STATUS kalFirmwareOpen(IN P_GLUE_INFO_T prGlueInfo)
 	PPUINT_8 apucNameTable;
 	UINT_8 ucMaxEcoVer = (sizeof(appucFwNameTable) / sizeof(PPUINT_8));
 	UINT_8 ucCurEcoVer = wlanGetEcoVersion(prGlueInfo->prAdapter);
+#if defined(MT6631)
+	UINT_16 u2ChipID = nicGetChipID(prGlueInfo->prAdapter);
+#endif
 	UINT_8 aucFwName[128];
 	BOOLEAN fgResult = FALSE;
 
@@ -207,14 +211,17 @@ WLAN_STATUS kalFirmwareOpen(IN P_GLUE_INFO_T prGlueInfo)
 		for (ucNameIdx = 0; apucNameTable[ucNameIdx]; ucNameIdx++) {
 
 			kalSprintf(aucFwName, "%s%s", apucFwPath[ucPathIdx], apucNameTable[ucNameIdx]);
+#if defined(MT6631)
+			kalSprintf(aucFwName + strlen(aucFwName), "%x", u2ChipID);
+#endif
 
 			filp = filp_open(aucFwName, O_RDONLY, 0);
 			if (IS_ERR(filp)) {
-				DBGLOG(INIT, TRACE, "Open FW image: %s failed, errno[%d]\n",
-						     aucFwName, ERR_PTR((LONG) filp));
+				DBGLOG(INIT, TRACE, "Open FW image %s failed, filp[%p]\n",
+				       aucFwName, filp);
 				continue;
 			} else {
-				DBGLOG(INIT, TRACE, "Open FW image: %s done\n", aucFwName);
+				DBGLOG(INIT, INFO, "Open FW image %s success\n", aucFwName);
 				fgResult = TRUE;
 				break;
 			}
@@ -225,26 +232,9 @@ WLAN_STATUS kalFirmwareOpen(IN P_GLUE_INFO_T prGlueInfo)
 	}
 
 	/* Check result */
-	if (fgResult) {
-		DBGLOG(INIT, INFO, "Open FW image: %s done\n", aucFwName);
-	} else {
-		DBGLOG(INIT, ERROR, "Open FW image failed! Cur/Max ECO Ver[E%u/E%u]\n", ucCurEcoVer, ucMaxEcoVer);
-
-		/* Dump tried FW path/name */
-		for (ucPathIdx = 0; apucFwPath[ucPathIdx]; ucPathIdx++) {
-			for (ucNameIdx = 0; apucNameTable[ucNameIdx]; ucNameIdx++) {
-
-				kalSprintf(aucFwName, "%s%s", apucFwPath[ucPathIdx], apucNameTable[ucNameIdx]);
-
-				filp = filp_open(aucFwName, O_RDONLY, 0);
-				if (IS_ERR(filp)) {
-					DBGLOG(INIT, INFO, "Open FW image: %s failed, errno[%d]\n",
-							    aucFwName, ERR_PTR((LONG) filp));
-				} else {
-					DBGLOG(INIT, INFO, "Open FW image: %s done\n", aucFwName);
-				}
-			}
-		}
+	if (!fgResult) {
+		DBGLOG(INIT, ERROR, "Open FW image failed! Cur/Max ECO Ver[E%u/E%u]\n",
+		       ucCurEcoVer, ucMaxEcoVer);
 		goto error_open;
 	}
 
@@ -905,6 +895,8 @@ WLAN_STATUS kalRxIndicateOnePkt(IN P_GLUE_INFO_T prGlueInfo, IN PVOID pvPkt)
 
 	}
 #endif
+	StatsEnvRxTime2Host(prGlueInfo->prAdapter, prSkb);
+
 	prNetDev->last_rx = jiffies;
 #if CFG_SUPPORT_SNIFFER
 	if (prGlueInfo->fgIsEnableMon) {
@@ -1021,7 +1013,7 @@ kalIndicateStatusAndComplete(IN P_GLUE_INFO_T prGlueInfo, IN WLAN_STATUS eStatus
 
 			/* ensure BSS exists */
 			bss = cfg80211_get_bss(priv_to_wiphy(prGlueInfo), prChannel, arBssid,
-					       ssid.aucSsid, ssid.u4SsidLen, WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
+				ssid.aucSsid, ssid.u4SsidLen, IEEE80211_BSS_TYPE_ESS, IEEE80211_PRIVACY_ANY);
 
 			if (bss == NULL) {
 				/* create BSS on-the-fly */
@@ -1049,13 +1041,15 @@ kalIndicateStatusAndComplete(IN P_GLUE_INFO_T prGlueInfo, IN WLAN_STATUS eStatus
 			 */
 			while (ucLoopCnt--) {
 				bss_others = cfg80211_get_bss(priv_to_wiphy(prGlueInfo), NULL, arBssid,
-						ssid.aucSsid, ssid.u4SsidLen, WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
+					ssid.aucSsid, ssid.u4SsidLen, IEEE80211_BSS_TYPE_ESS, IEEE80211_PRIVACY_ANY);
 				if (bss && bss_others && bss_others != bss) {
 					DBGLOG(SCN, INFO, "remove BSSes that only channel different\n");
 					cfg80211_unlink_bss(priv_to_wiphy(prGlueInfo), bss_others);
 				} else
 					break;
 			}
+
+			StatsResetTxRx();
 
 			/* CFG80211 Indication */
 			if (eStatus == WLAN_STATUS_ROAM_OUT_FIND_BEST) {
@@ -1718,13 +1712,15 @@ kalSecurityFrameClassifier(IN P_GLUE_INFO_T prGlueInfo,
 		       IN P_NATIVE_PACKET prPacket, IN PUINT_8 pucIpHdr,
 		       IN UINT_16 u2EthType, OUT P_TX_PACKET_INFO prTxPktInfo)
 {
-	PUINT_8 pucEapol;
+	PUINT_8 pucEapol, pucPos;
 	UINT_8 ucEapolType;
-	UINT_8 ucSeqNo;
+	UINT_8 ucSeqNo, ucAisBssIndex;
 
 	UINT_8 ucSubType; /* sub type filed*/
 	UINT_16 u2Length;
 	UINT_16 u2Seq;
+	INT_32 i4ExpVendor;
+	UINT_32 u32ExpType;
 
 	pucEapol = pucIpHdr;
 
@@ -1734,12 +1730,31 @@ kalSecurityFrameClassifier(IN P_GLUE_INFO_T prGlueInfo,
 
 		switch (ucEapolType) {
 		case 0: /* eap packet */
+			ucAisBssIndex = prGlueInfo->prAdapter->prAisBssInfo->ucBssIndex;
 
 			ucSeqNo = nicIncreaseTxSeqNum(prGlueInfo->prAdapter);
 			GLUE_SET_PKT_SEQ_NO(prPacket, ucSeqNo);
 
 			DBGLOG(SW4, INFO, "<TX> EAP Packet: code %d, id %d, type %d, SeqNo: %d\n",
 					pucEapol[4], pucEapol[5], pucEapol[7], ucSeqNo);
+			pucPos = pucEapol + 8;
+			if (*pucPos != EAP_TYPE_EXPANDED)
+				break;
+			pucPos += 1;
+			WLAN_GET_FIELD_BE24(pucPos, &i4ExpVendor);
+			pucPos += 3;
+			WLAN_GET_FIELD_BE32(pucPos, &u32ExpType);
+			if (i4ExpVendor != EAP_VENDOR_WFA || u32ExpType != EAP_VENDOR_TYPE_WSC)
+				break;
+			pucPos += 4;
+			if (*pucPos != 5)
+				break;
+			if (GLUE_GET_PKT_BSS_IDX(prPacket) == ucAisBssIndex)
+				break;
+			DBGLOG(TX, INFO, "P2P: WSC Waiting EAP-FAILURE...\n");
+			prGlueInfo->prAdapter->prP2pInfo->fgWaitEapFailure = TRUE;
+			prGlueInfo->prAdapter->prP2pInfo->u4EapWscDoneTxTime = kalGetTimeTick();
+
 			break;
 		case 1: /* eapol start */
 			ucSeqNo = nicIncreaseTxSeqNum(prGlueInfo->prAdapter);
@@ -2548,7 +2563,7 @@ int hif_thread(void *data)
 
 		/* Release to FW own */
 		wlanReleasePowerControl(prGlueInfo->prAdapter);
-#if defined(MT6797)
+#if defined(MT6631)
 		nicEnableInterrupt(prGlueInfo->prAdapter);
 #endif
 	}
@@ -3819,6 +3834,68 @@ UINT_32 kalCheckPath(const PUINT_8 pucPath)
 
 	kalFileClose(file);
 	return 1;
+}
+
+UINT_32 kalTrunkPath(const PUINT_8 pucPath)
+{
+	struct file *file = NULL;
+	UINT_32 u4Flags = O_TRUNC;
+
+	file = kalFileOpen(pucPath, O_WRONLY | O_CREAT | u4Flags, S_IRWXU);
+	if (!file)
+		return -1;
+
+	kalFileClose(file);
+	return 1;
+}
+
+/*----------------------------------------------------------------------------*/
+/*!
+* \brief read request firmware file binary to pucData
+*
+* \param[in] pucPath  file name
+* \param[out] pucData  Request file output buffer
+* \param[in] u4Size  read size
+* \param[out] pu4ReadSize  real read size
+* \param[in] dev
+*
+* \return
+*           0 success
+*           >0 fail
+*/
+/*----------------------------------------------------------------------------*/
+INT_32 kalRequestFirmware(const PUINT_8 pucPath, PUINT_8 pucData, UINT_32 u4Size,
+		PUINT_32 pu4ReadSize, struct device *dev)
+{
+	const struct firmware *fw;
+	int ret = 0;
+
+	/*
+	* Driver support request_firmware() to get files
+	* Android path: "/etc/firmware", "/vendor/firmware", "/firmware/image"
+	* Linux path: "/lib/firmware", "/lib/firmware/update"
+	*/
+	ret = request_firmware(&fw, pucPath, dev);
+
+	if (ret != 0) {
+		DBGLOG(INIT, INFO, "kalRequestFirmware %s Fail, errno[%d]!!\n", pucPath, ret);
+		pucData = NULL;
+		*pu4ReadSize = 0;
+		return ret;
+	}
+
+	DBGLOG(INIT, INFO, "kalRequestFirmware(): %s OK\n", pucPath);
+
+	if (fw->size < u4Size)
+		u4Size = fw->size;
+
+	memcpy(pucData, fw->data, u4Size);
+	if (pu4ReadSize)
+		*pu4ReadSize = u4Size;
+
+	release_firmware(fw);
+
+	return ret;
 }
 
 /*----------------------------------------------------------------------------*/

@@ -76,7 +76,7 @@ static ssize_t bow_ampc_write(IN struct file *filp, OUT const char __user *buf, 
 
 static long bow_ampc_ioctl(IN struct file *filp, IN unsigned int cmd, IN OUT unsigned long arg);
 
-static unsigned int bow_ampc_poll(IN struct file *filp, IN poll_table *wait);
+static unsigned int bow_ampc_poll(IN struct file *filp, IN poll_table * wait);
 
 static int bow_ampc_open(IN struct inode *inodep, IN struct file *filp);
 
@@ -374,7 +374,7 @@ static long bow_ampc_ioctl(IN struct file *filp, IN unsigned int cmd, IN OUT uns
 *
 */
 /*----------------------------------------------------------------------------*/
-static unsigned int bow_ampc_poll(IN struct file *filp, IN poll_table *wait)
+static unsigned int bow_ampc_poll(IN struct file *filp, IN poll_table * wait)
 {
 	unsigned int retval;
 	P_GLUE_INFO_T prGlueInfo;

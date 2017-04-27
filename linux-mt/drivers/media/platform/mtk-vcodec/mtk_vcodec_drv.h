@@ -216,6 +216,7 @@ struct mtk_vcodec_pm {
 	struct device	*larbvenc;
 	struct device	*larbvenclt;
 	struct device	*dev;
+	struct device_node	*chip_node;
 	struct mtk_vcodec_dev	*mtkdev;
 };
 

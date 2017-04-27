@@ -118,7 +118,8 @@ static UINT_8 gatewayIp[4];
 do { \
 	if (IS_BMCAST_MAC_ADDR(pucEthDestAddr)) { \
 		prCurrSwRfb->eDst = RX_PKT_DESTINATION_HOST_WITH_FORWARD; \
-	} else if (UNEQUAL_MAC_ADDR(prBssInfo->aucOwnMacAddr, pucEthDestAddr)) { \
+	} else if (UNEQUAL_MAC_ADDR(prBssInfo->aucOwnMacAddr, pucEthDestAddr) && \
+			bssGetClientByAddress(prBssInfo, pucEthDestAddr)) { \
 		prCurrSwRfb->eDst = RX_PKT_DESTINATION_FORWARD; \
 		/* TODO : need to check the dst mac is valid */ \
 		/* If src mac is invalid, the packet will be freed in fw */ \
@@ -2599,7 +2600,8 @@ P_SW_RFB_T qmHandleRxPackets(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfbList
 
 		} else if (prCurrSwRfb->fgDataFrame) {
 			/* Check Class Error */
-			if (secCheckClassError(prAdapter, prCurrSwRfb, prCurrSwRfb->prStaRec) == TRUE) {
+			if (prCurrSwRfb->prStaRec && (secCheckClassError(prAdapter, prCurrSwRfb,
+									prCurrSwRfb->prStaRec) == TRUE)) {
 				P_RX_BA_ENTRY_T prReorderQueParm = NULL;
 
 				/* Invalid BA aggrement */
@@ -5678,7 +5680,7 @@ mqmRxModifyBaEntryStatus(IN P_ADAPTER_T prAdapter, IN P_RX_BA_ENTRY_T prRxBaEntr
 		kalMemCopy(prCmdBody->aucMacAddr, prStaRec->aucMacAddr, PARAM_MAC_ADDR_LEN);
 
 		wlanoidResetBAScoreboard(prAdapter, prCmdBody, sizeof(CMD_RESET_BA_SCOREBOARD_T));
-
+		cnmMemFree(prAdapter, prCmdBody);
 	}
 
 	DBGLOG(QM, WARN, "[Puff]QM: (RX_BA) [STA=%d TID=%d] status from %d to %d\n",

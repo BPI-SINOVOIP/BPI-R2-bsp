@@ -1,6 +1,5 @@
 subdir-ccflags-y += -Werror -I$(srctree)/drivers/misc/mediatek/include/mt-plat/$(MTK_PLATFORM)/include
 subdir-ccflags-y += -Werror -I$(srctree)/drivers/misc/mediatek/include/mt-plat
-subdir-ccflags-y += -Werror -I$(srctree)/include/linux/mfd/mt6397
 
 ifneq ($(filter "MT6628",$(CONFIG_MTK_COMBO_CHIP)),)
 	subdir-ccflags-y += -D MT6628

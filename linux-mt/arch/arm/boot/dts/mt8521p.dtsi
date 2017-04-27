@@ -951,7 +951,7 @@
 			 <&topckgen CLK_TOP_ETHIF_SEL>;
 		clock-names = "sys_ck", "free_ck";
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_HIF>;
-		phys = <&phy1_port0 PHY_TYPE_USB3>;
+		phys = <&u2port0 PHY_TYPE_USB2>, <&u3port0 PHY_TYPE_USB3>;
 		status = "disabled";
 	};
 
@@ -965,8 +965,14 @@
 		ranges;
 		status = "disabled";
 
-		phy1_port0: port@1a1c4800 {
-			reg = <0 0x1a1c4800 0 0x0800>;
+		u2port0: usb-phy@1a1c4800 {
+			reg = <0 0x1a1c4800 0 0x0100>;
+			#phy-cells = <1>;
+			status = "okay";
+		};
+
+		u3port0: usb-phy@1a1c4900 {
+			reg = <0 0x1a1c4900 0 0x0700>;
 			#phy-cells = <1>;
 			status = "okay";
 		};
@@ -982,7 +988,7 @@
 			 <&topckgen CLK_TOP_ETHIF_SEL>;
 		clock-names = "sys_ck", "free_ck";
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_HIF>;
-		phys = <&phy2_port0 PHY_TYPE_USB3>;
+		phys = <&u2port1 PHY_TYPE_USB2>, <&u3port1 PHY_TYPE_USB3>;
 		status = "disabled";
 	};
 
@@ -996,8 +1002,14 @@
 		ranges;
 		status = "disabled";
 
-		phy2_port0: port@1a244800 {
-			reg = <0 0x1a244800 0 0x0800>;
+		u2port1: usb-phy@1a244800 {
+			reg = <0 0x1a244800 0 0x0100>;
+			#phy-cells = <1>;
+			status = "okay";
+		};
+
+		u3port1: usb-phy@1a244900 {
+			reg = <0 0x1a244900 0 0x0700>;
 			#phy-cells = <1>;
 			status = "okay";
 		};

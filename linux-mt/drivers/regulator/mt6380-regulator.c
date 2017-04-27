@@ -162,7 +162,7 @@ static const struct regulator_linear_range buck_volt_range1[] = {
 };
 
 static const struct regulator_linear_range buck_volt_range2[] = {
-	REGULATOR_LINEAR_RANGE(700000, 0, 0xfe, 6250),
+	REGULATOR_LINEAR_RANGE(600000, 0, 0xfe, 6250),
 };
 
 static const struct regulator_linear_range buck_volt_range3[] = {
@@ -170,7 +170,7 @@ static const struct regulator_linear_range buck_volt_range3[] = {
 };
 
 static const u32 ldo_volt_table1[] = {
-	1050000, 1100000, 1150000, 1200000, 1250000, 1300000, 1350000, 1400000,
+	1400000, 1350000, 1300000, 1250000, 1200000, 1150000, 1100000, 1050000,
 };
 
 static const u32 ldo_volt_table2[] = {
@@ -299,11 +299,11 @@ static struct mt6380_regulator_info mt6380_regulators[] = {
 	mt6380_BUCK("buck_vcore1", VCPU, 600000, 1393750, 6250,
 		buck_volt_range1, MT6380_ANA_CTRL_3, MT6380_ANA_CTRL_1, 0xfe,
 		3, MT6380_ANA_CTRL_1),
-	mt6380_BUCK("buck_vcore", VCORE, 700000, 1493750, 6250,
+	mt6380_BUCK("buck_vcore", VCORE, 600000, 1393750, 6250,
 		buck_volt_range2, MT6380_ANA_CTRL_3, MT6380_ANA_CTRL_2, 0xfe,
 		2, MT6380_ANA_CTRL_2),
 	mt6380_BUCK("buck_vrf", VRF, 1200000, 1575000, 25000,
-		buck_volt_range3, MT6380_ANA_CTRL_3, MT6380_SIDO_CON_0, 0x3c,
+		buck_volt_range3, MT6380_ANA_CTRL_3, MT6380_SIDO_CON_0, 0x78,
 		1, MT6380_SIDO_CON_0),
 	mt6380_LDO("ldo_vmldo", VMLDO, ldo_volt_table1,
 		MT6380_LDO_CTRL_0, 1, MT6380_MLDO_CON_0, 0xE000,
@@ -314,7 +314,7 @@ static struct mt6380_regulator_info mt6380_regulators[] = {
 	mt6380_REG_FIXED("ldo_vphyldo", VPHYLDO, MT6380_LDO_CTRL_0, 7, 1800000,
 		MT6380_PHYLDO_CON_0, 0x80),
 	mt6380_LDO("ldo_vddrldo", VDDRLDO, ldo_volt_table3,
-		MT6380_LDO_CTRL_0, 6, MT6380_DDRLDO_CON_0, 0x3000,
+		MT6380_LDO_CTRL_0, 8, MT6380_DDRLDO_CON_0, 0x3000,
 		MT6380_DDRLDO_CON_0, 0x80),
 	mt6380_LDO("ldo_vtldo", VTLDO, ldo_volt_table4,
 		MT6380_LDO_CTRL_0, 3, MT6380_TLDO_CON_0, 0x400,

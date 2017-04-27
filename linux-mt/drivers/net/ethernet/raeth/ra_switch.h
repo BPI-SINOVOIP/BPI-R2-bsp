@@ -35,9 +35,11 @@ extern struct net_device *dev_raether;
 #define FE_CAL_P0			0
 void fe_sw_init(void);
 void fe_sw_preinit(struct END_DEVICE *ei_local);
+void fe_sw_deinit(struct END_DEVICE *ei_local);
 void gsw_delay_setting(void);
 void sw_ioctl(struct ra_switch_ioctl_data *ioctl_data);
 irqreturn_t esw_interrupt(int irq, void *resv);
+irqreturn_t gsw_interrupt(int irq, void *resv);
 
 /* struct mtk_gsw -	the structure that holds the SoC specific data
  * @dev:		The Device struct
@@ -70,6 +72,7 @@ struct mtk_gsw {
 	struct pinctrl_state *ps_reset;
 	int reset_pin;
 	struct regulator *supply;
+	struct regulator *b3v;
 };
 
 extern u8 fe_cal_flag;

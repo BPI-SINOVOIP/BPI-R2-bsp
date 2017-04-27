@@ -102,6 +102,7 @@ typedef struct _WLAN_INFO_T {
 	/* Network Type In Use */
 	UINT_8 ucNetworkTypeInUse;
 
+	BOOLEAN fgEnSpecPwrMgt;
 } WLAN_INFO_T, *P_WLAN_INFO_T;
 
 /* Session for CONNECTION SETTINGS */
@@ -662,6 +663,7 @@ typedef struct _WIFI_VAR_T {
 	UINT_8 ucStaVhtMuBfee;
 
 	UINT_8 ucApWpsMode;
+	UINT_8 ucCert11nMode;
 	UINT_8 ucApChannel;
 
 	UINT_8 ucApSco;
@@ -723,6 +725,9 @@ typedef struct _WIFI_VAR_T {
 	PARAM_POWER_MODE ePowerMode;
 #if CFG_RX_BA_REORDERING_ENHANCEMENT
 	BOOLEAN fgEnableReportIndependentPkt;
+#endif
+#if (CFG_EFUSE_BUFFER_MODE_DELAY_CAL == 1)
+	UINT_8 ucEfuseBufferModeCal;
 #endif
 } WIFI_VAR_T, *P_WIFI_VAR_T;	/* end of _WIFI_VAR_T */
 
@@ -798,7 +803,8 @@ struct PERF_MONITOR_T {
  * Major data structure for driver operation
  */
 struct _ADAPTER_T {
-	UINT_8 ucRevID;
+	UINT_16 u2ChipID;
+	UINT_8  ucRevID;
 	BOOLEAN fgIsReadRevID;
 
 	UINT_16 u2NicOpChnlNum;
@@ -1028,7 +1034,10 @@ struct _ADAPTER_T {
 
 	ULONG	ulSuspendFlag;
 	struct PERF_MONITOR_T rPerMonitor;
-
+/*#if (CFG_EEPROM_PAGE_ACCESS == 1)*/
+	UINT_8 aucEepromVaule[16]; /* HQA CMD for Efuse Block size contents */
+	UINT_32 u4FreeBlockNum;
+/*#endif*/
 };				/* end of _ADAPTER_T */
 
 /*******************************************************************************
