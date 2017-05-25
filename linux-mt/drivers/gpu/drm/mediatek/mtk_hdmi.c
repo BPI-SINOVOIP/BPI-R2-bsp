@@ -1591,15 +1591,15 @@ find_ddc_adpt:
  */
 
 static int mtk_hdmi_audio_hw_params(struct device *dev, void *data,
-				    struct hdmi_codec_daifmt *daifmt,
-				    struct hdmi_codec_params *params)
+				    struct hdmi_codec_daifmt *fmt,
+				    struct hdmi_codec_params *hparams)
 {
 	struct mtk_hdmi *hdmi = dev_get_drvdata(dev);
 	struct hdmi_audio_param hdmi_params;
-	unsigned int chan = params->cea.channels;
+	unsigned int chan = hparams->cea.channels;
 
-	dev_dbg(hdmi->dev, "%s: %u Hz, %d bit, %d channels\n", __func__,
-		params->sample_rate, params->sample_width, chan);
+	dev_dbg(hdmi->dev, "%s: %u Hz, %d bit, %d channels, fmt=%d\n", __func__,
+		hparams->sample_rate, hparams->sample_width, chan, fmt->fmt);
 
 	if (!hdmi->bridge.encoder)
 		return -ENODEV;
@@ -1622,7 +1622,7 @@ static int mtk_hdmi_audio_hw_params(struct device *dev, void *data,
 		return -EINVAL;
 	}
 
-	switch (params->sample_rate) {
+	switch (hparams->sample_rate) {
 	case 32000:
 	case 44100:
 	case 48000:
@@ -1633,11 +1633,11 @@ static int mtk_hdmi_audio_hw_params(struct device *dev, void *data,
 		break;
 	default:
 		dev_err(hdmi->dev, "rate[%d] not supported!\n",
-			params->sample_rate);
+			hparams->sample_rate);
 		return -EINVAL;
 	}
 
-	switch (daifmt->fmt) {
+	switch (fmt->fmt) {
 	case HDMI_I2S:
 		hdmi_params.aud_codec = HDMI_AUDIO_CODING_TYPE_PCM;
 		hdmi_params.aud_sampe_size = HDMI_AUDIO_SAMPLE_SIZE_16;
@@ -1645,13 +1645,18 @@ static int mtk_hdmi_audio_hw_params(struct device *dev, void *data,
 		hdmi_params.aud_i2s_fmt = HDMI_I2S_MODE_I2S_24BIT;
 		hdmi_params.aud_mclk = HDMI_AUD_MCLK_128FS;
 		break;
+	case HDMI_SPDIF:
+		hdmi_params.aud_codec = HDMI_AUDIO_CODING_TYPE_PCM;
+		hdmi_params.aud_sampe_size = HDMI_AUDIO_SAMPLE_SIZE_16;
+		hdmi_params.aud_input_type = HDMI_AUD_INPUT_SPDIF;
+		break;
 	default:
 		dev_err(hdmi->dev, "%s: Invalid DAI format %d\n", __func__,
-			daifmt->fmt);
+			fmt->fmt);
 		return -EINVAL;
 	}
 
-	memcpy(&hdmi_params.codec_params, params,
+	memcpy(&hdmi_params.codec_params, hparams,
 	       sizeof(hdmi_params.codec_params));
 
 	mtk_hdmi_audio_set_param(hdmi, &hdmi_params);
@@ -1693,7 +1698,8 @@ int mtk_hdmi_audio_digital_mute(struct device *dev, void *data, bool enable)
 	return 0;
 }
 
-static int mtk_hdmi_audio_get_eld(struct device *dev, void *data, uint8_t *buf, size_t len)
+static int mtk_hdmi_audio_get_eld(struct device *dev, void *data,
+		   uint8_t *buf, size_t len)
 {
 	struct mtk_hdmi *hdmi = dev_get_drvdata(dev);
 
@@ -1718,16 +1724,17 @@ static void mtk_hdmi_register_audio_driver(struct device *dev)
 		.ops = &mtk_hdmi_audio_codec_ops,
 		.max_i2s_channels = 2,
 		.i2s = 1,
+		.spdif = 1,
 	};
-	struct platform_device *pdev;
+	static struct platform_device *pdev = (struct platform_device *)-MAX_ERRNO;
 
-	pdev = platform_device_register_data(dev, HDMI_CODEC_DRV_NAME,
-					     PLATFORM_DEVID_AUTO, &codec_data,
-					     sizeof(codec_data));
-	if (IS_ERR(pdev))
-		return;
-
-	DRM_INFO("%s driver bound to HDMI\n", HDMI_CODEC_DRV_NAME);
+	if (IS_ERR(pdev)) {
+		pdev = platform_device_register_data(dev, HDMI_CODEC_DRV_NAME,
+			     PLATFORM_DEVID_NONE, &codec_data,
+			     sizeof(codec_data));
+		DRM_INFO("%s driver bound to HDMI\n", HDMI_CODEC_DRV_NAME);
+	}
+	return;
 }
 
 static int mtk_drm_hdmi_probe(struct platform_device *pdev)
@@ -1741,6 +1748,7 @@ static int mtk_drm_hdmi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	hdmi->dev = dev;
+	mtk_hdmi_register_audio_driver(dev);
 
 	ret = mtk_hdmi_dt_parse_pdata(hdmi, pdev);
 	if (ret)
@@ -1760,8 +1768,6 @@ static int mtk_drm_hdmi_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to initialize hdmi output\n");
 		return ret;
 	}
-
-	mtk_hdmi_register_audio_driver(dev);
 
 	hdmi->bridge.funcs = &mtk_hdmi_bridge_funcs;
 	hdmi->bridge.of_node = pdev->dev.of_node;
