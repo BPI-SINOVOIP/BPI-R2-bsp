@@ -1726,9 +1726,9 @@ static void mtk_hdmi_register_audio_driver(struct device *dev)
 		.i2s = 1,
 		.spdif = 1,
 	};
-	static struct platform_device *pdev = (struct platform_device *)-MAX_ERRNO;
+	static struct platform_device *pdev;
 
-	if (IS_ERR(pdev)) {
+	if (pdev == NULL) {
 		pdev = platform_device_register_data(dev, HDMI_CODEC_DRV_NAME,
 			     PLATFORM_DEVID_NONE, &codec_data,
 			     sizeof(codec_data));
