@@ -21,7 +21,7 @@
 #define	MTK_PARTITION_GPT
 #define MTK_GPT_START_BLK		(8)
 #define MTK_GPT_END_BLK			(11)
-#define MTK_GPT_MAX_PART		(20)
+#define MTK_GPT_MAX_PART		(30)
 
 int mtk_partition_register(struct mtd_info *mtd, int start_blk);
 

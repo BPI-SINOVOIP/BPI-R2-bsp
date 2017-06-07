@@ -118,6 +118,7 @@ struct mtk_dpi_yc_limit {
 struct mtk_dpi_conf {
 	unsigned int (*cal_factor)(int clock);
 	const u32 reg_h_fre_con;
+	bool edge_sel_en;
 };
 
 static void mtk_dpi_mask(struct mtk_dpi *dpi, u32 offset, u32 val, u32 mask)
@@ -347,12 +348,11 @@ static void mtk_dpi_config_2n_h_fre(struct mtk_dpi *dpi)
 {
 	mtk_dpi_mask(dpi, dpi->conf->reg_h_fre_con, H_FRE_2N, H_FRE_2N);
 }
-
 static void mtk_dpi_config_disable_edge(struct mtk_dpi *dpi)
 {
-	mtk_dpi_mask(dpi, dpi->conf->reg_h_fre_con, 0, EDGE_SEL_EN);
+	if (dpi->conf->edge_sel_en && dpi->conf->edge_sel_en == true)
+		mtk_dpi_mask(dpi, dpi->conf->reg_h_fre_con, 0, EDGE_SEL_EN);
 }
-
 static void mtk_dpi_config_color_format(struct mtk_dpi *dpi,
 					enum mtk_dpi_out_color_format format)
 {
@@ -711,6 +711,7 @@ static const struct mtk_dpi_conf mt8173_lvdsdpi_conf = {
 static const struct mtk_dpi_conf mt2701_conf = {
 	.cal_factor = mt2701_calculate_factor,
 	.reg_h_fre_con = 0xb0,
+	.edge_sel_en = true,
 };
 
 static const struct mtk_dpi_conf mt2712_conf = {

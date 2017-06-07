@@ -497,6 +497,7 @@ static int mtk_ddp_remove(struct platform_device *pdev)
 
 static const struct of_device_id ddp_driver_dt_match[] = {
 	{ .compatible = "mediatek,mt2701-disp-mutex", .data = mt2701_mutex_mod},
+	{ .compatible = "mediatek,mt2712-disp-mutex", .data = mt2712_mutex_mod},
 	{ .compatible = "mediatek,mt8173-disp-mutex", .data = mt8173_mutex_mod},
 	{},
 };

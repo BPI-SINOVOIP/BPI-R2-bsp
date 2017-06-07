@@ -224,6 +224,20 @@ config DM_MQ_DEFAULT
 
 	  If unsure say N.
 
+config DM_NFSB
+	tristate "Netflix Secure Boot device mapper support"
+	depends on BLK_DEV_DM
+	select CRYPTO_SHA256
+	select CRYPTO_MD5
+	select DM_VERITY
+	---help---
+	  Enable this to support booting with a Netflix Secure Boot root device
+	  on device-mapper. Mtk private config to control verify rootfs's
+	  integrity. If the config swicth to open state, there is another switch
+	  (SECURE_BOOT_ENABLE)need to open.
+
+	  If unsure, say N.
+
 config DM_DEBUG
 	bool "Device mapper debugging support"
 	depends on BLK_DEV_DM
@@ -357,6 +371,7 @@ config DM_LOG_USERSPACE
 config DM_RAID
        tristate "RAID 1/4/5/6/10 target"
        depends on BLK_DEV_DM
+       select MD_RAID0
        select MD_RAID1
        select MD_RAID10
        select MD_RAID456
@@ -512,6 +527,17 @@ config DM_LOG_WRITES
 
 	  To compile this code as a module, choose M here: the module will
 	  be called dm-log-writes.
+
+	  If unsure, say N.
+
+config DM_VERITY_AVB
+	tristate "Support AVB specific verity error behavior"
+	depends on DM_VERITY
+	---help---
+	  Enables Android Verified Boot platform-specific error
+	  behavior. In particular, it will modify the vbmeta partition
+	  specified on the kernel command-line when non-transient error
+	  occurs (followed by a panic).
 
 	  If unsure, say N.
 

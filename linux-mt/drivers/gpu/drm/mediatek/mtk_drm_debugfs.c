@@ -36,7 +36,7 @@ void __iomem *gdrm_disp_base[7];
 void __iomem *gdrm_hdmi_base[7];
 struct mtk_drm_debugfs_table gdrm_disp_table[7] = {
 	{ DDP_COMPONENT_OVL0, "OVL0 ", {0, 0xf40}, {0x260, 0x80} },
-	{ DDP_COMPONENT_COLOR0, "COLOR0 ", {0x400, 0xc00}, {0x100, 0x100} },
+	{ DDP_COMPONENT_COLOR0, "COLOR0 ", {0x400, 0xc00}, {0x400, 0x100} },
 	{ DDP_COMPONENT_AAL, "AAL ", {0, 0}, {0x100, 0} },
 	{ DDP_COMPONENT_OD, "OD ", {0, 0}, {0x100, 0} },
 	{ DDP_COMPONENT_RDMA0, "RDMA0 ", {0, 0}, {0x100, 0} },
@@ -54,6 +54,24 @@ struct mtk_drm_debugfs_table gdrm_hdmi_table[7] = {
 	{ -1, "MUTEX ", {0, 0}, {0x100, 0} }
 };
 static bool dbgfs_alpha;
+
+void mtk_read_reg(unsigned long addr)
+{
+	unsigned long reg_va = 0;
+
+	reg_va = (unsigned long)ioremap_nocache(addr, sizeof(unsigned long));
+	pr_info("r:0x%8lx = 0x%08x\n", addr, readl((void *)reg_va));
+	iounmap((void *)reg_va);
+}
+
+void mtk_write_reg(unsigned long addr, unsigned long val)
+{
+	unsigned long reg_va = 0;
+
+	reg_va = (unsigned long)ioremap_nocache(addr, sizeof(unsigned long));
+	writel(val, (void *)reg_va);
+	iounmap((void *)reg_va);
+}
 
 /* ------------------------------------------------------------------------- */
 /* Debug Options */
@@ -186,6 +204,31 @@ static void process_dbg_opt(const char *opt)
 			DRM_INFO("set src alpha to ONE\n");
 			dbgfs_alpha = true;
 		}
+	} else if (strncmp(opt, "r:", 2) == 0) {
+		char *p = (char *)opt + 2;
+		unsigned long addr;
+
+		if (kstrtoul(p, 16, &addr))
+			goto error;
+
+		mtk_read_reg(addr);
+	} else if (strncmp(opt, "w:", 2) == 0) {
+		char *p = (char *)opt + 2;
+		char *np;
+		unsigned long addr, val;
+
+		np = strsep(&p, "=");
+		if (kstrtoul(np, 16, &addr))
+			goto error;
+
+		if (p == NULL)
+			goto error;
+
+		np = strsep(&p, "=");
+		if (kstrtoul(np, 16, &val))
+			goto error;
+
+		mtk_write_reg(addr, val);
 	} else {
 	    goto error;
 	}
@@ -199,7 +242,6 @@ static void process_dbg_cmd(char *cmd)
 {
 	char *tok;
 
-	DRM_INFO("[mtkdrm_dbg] %s\n", cmd);
 	while ((tok = strsep(&cmd, " ")) != NULL)
 		process_dbg_opt(tok);
 }
@@ -213,14 +255,38 @@ static int debug_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static char dis_cmd_buf[512];
 static ssize_t debug_read(struct file *file, char __user *ubuf, size_t count,
 			  loff_t *ppos)
 {
-	return simple_read_from_buffer(ubuf, count, ppos, STR_HELP,
-				       strlen(STR_HELP));
+	if (strncmp(dis_cmd_buf, "regr:", 5) == 0) {
+		char read_buf[512] = {0};
+		char *p = (char *)dis_cmd_buf + 5;
+		unsigned long addr;
+		int i;
+
+		if (kstrtoul(p, 16, &addr))
+			return 0;
+
+		for (i = 0; i < ARRAY_SIZE(gdrm_disp_table); i++) {
+			if (addr >= gdrm_disp_table[i].reg_base &&
+			addr < gdrm_disp_table[i].reg_base + 0x1000) {
+				sprintf(read_buf, "%8s Read register 0x%08lX: 0x%08X\n",
+					gdrm_disp_table[i].name, addr,
+					readl(gdrm_disp_base[i] + addr -
+							gdrm_disp_table[i].reg_base));
+				break;
+			}
+		}
+
+		return simple_read_from_buffer(ubuf, count, ppos, read_buf,
+						strlen(read_buf));
+	} else {
+		return simple_read_from_buffer(ubuf, count, ppos, STR_HELP,
+						strlen(STR_HELP));
+	}
 }
 
-static char dis_cmd_buf[512];
 static ssize_t debug_write(struct file *file, const char __user *ubuf,
 	size_t count, loff_t *ppos)
 {

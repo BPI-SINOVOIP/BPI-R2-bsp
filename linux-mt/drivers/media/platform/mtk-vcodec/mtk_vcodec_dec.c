@@ -539,6 +539,7 @@ static void mtk_vdec_worker(struct work_struct *work)
 	int ret;
 	struct mtk_video_dec_buf *dst_buf_info, *src_buf_info;
 	struct vb2_v4l2_buffer *dst_vb2_v4l2, *src_vb2_v4l2;
+	int fourcc = ctx->q_data[MTK_Q_DATA_SRC].fmt->fourcc;
 
 	src_buf = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
 	if (src_buf == NULL) {
@@ -640,7 +641,8 @@ static void mtk_vdec_worker(struct work_struct *work)
 			ret, res_chg);
 		src_buf = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
 		v4l2_m2m_buf_done(&src_buf_info->vb, VB2_BUF_STATE_ERROR);
-	} else if ((ret == 0) && (res_chg == false)) {
+	} else if ((ret == 0) && ((fourcc == V4L2_PIX_FMT_RV40) ||
+			(fourcc == V4L2_PIX_FMT_RV30) || (res_chg == false))) {
 		/*
 		 * we only return src buffer with VB2_BUF_STATE_DONE
 		 * when decode success without resolution change
@@ -656,22 +658,34 @@ static void mtk_vdec_worker(struct work_struct *work)
 	clean_free_buffer(ctx);
 
 	if (!ret && res_chg) {
-		mtk_vdec_pic_info_update(ctx);
-		/*
-		 * On encountering a resolution change in the stream.
-		 * The driver must first process and decode all
-		 * remaining buffers from before the resolution change
-		 * point, so call flush decode here
-		 */
-		mtk_vdec_flush_decoder(ctx);
-		/*
-		 * After all buffers containing decoded frames from
-		 * before the resolution change point ready to be
-		 * dequeued on the CAPTURE queue, the driver sends a
-		 * V4L2_EVENT_SOURCE_CHANGE event for source change
-		 * type V4L2_EVENT_SRC_CH_RESOLUTION
-		 */
-		mtk_vdec_queue_res_chg_event(ctx);
+		if ((fourcc == V4L2_PIX_FMT_RV40) || (fourcc == V4L2_PIX_FMT_RV30)) {
+			/*
+			  * For rv30/rv40 stream, encountering a resolution change the current frame
+			  * needs to refer to the previous frame,so driver should not flush decode,
+			  * but the driver should sends a V4L2_EVENT_SOURCE_CHANGE
+			  * event for source change to app.
+			  * app should set new crop to mdp directly.
+			  */
+			mtk_v4l2_debug(0, "RV30/RV40 RPR res_chg:%d\n", res_chg);
+			mtk_vdec_queue_res_chg_event(ctx);
+		} else {
+			mtk_vdec_pic_info_update(ctx);
+			/*
+			 * On encountering a resolution change in the stream.
+			 * The driver must first process and decode all
+			 * remaining buffers from before the resolution change
+			 * point, so call flush decode here
+			 */
+			mtk_vdec_flush_decoder(ctx);
+			/*
+			 * After all buffers containing decoded frames from
+			 * before the resolution change point ready to be
+			 * dequeued on the CAPTURE queue, the driver sends a
+			 * V4L2_EVENT_SOURCE_CHANGE event for source change
+			 * type V4L2_EVENT_SRC_CH_RESOLUTION
+			 */
+			mtk_vdec_queue_res_chg_event(ctx);
+		}
 	}
 	v4l2_m2m_job_finish(dev->m2m_dev_dec, ctx->m2m_ctx);
 }

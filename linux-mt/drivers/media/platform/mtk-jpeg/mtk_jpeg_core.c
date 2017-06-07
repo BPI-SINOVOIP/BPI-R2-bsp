@@ -1122,6 +1122,12 @@ static int mtk_jpeg_probe(struct platform_device *pdev)
 	spin_lock_init(&jpeg->hw_lock);
 	jpeg->dev = &pdev->dev;
 
+	ret = mtk_jpeg_clk_init(jpeg);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to init clk, err %d return EPROBE_DEFER\n", ret);
+		return -EPROBE_DEFER;
+	}
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	jpeg->dec_reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(jpeg->dec_reg_base)) {
@@ -1144,12 +1150,6 @@ static int mtk_jpeg_probe(struct platform_device *pdev)
 			dec_irq, ret);
 		ret = -EINVAL;
 		goto err_req_irq;
-	}
-
-	ret = mtk_jpeg_clk_init(jpeg);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to init clk, err %d\n", ret);
-		goto err_clk_init;
 	}
 
 	ret = v4l2_device_register(&pdev->dev, &jpeg->v4l2_dev);
@@ -1219,7 +1219,7 @@ err_m2m_init:
 
 err_dev_register:
 
-err_clk_init:
+/*err_clk_init:*/
 
 err_req_irq:
 
@@ -1298,6 +1298,10 @@ static const struct of_device_id mtk_jpeg_match[] = {
 	},
 	{
 		.compatible = "mediatek,mt2701-jpgdec",
+		.data       = NULL,
+	},
+	{
+		.compatible = "mediatek,mt2712-jpgdec",
 		.data       = NULL,
 	},
 	{},

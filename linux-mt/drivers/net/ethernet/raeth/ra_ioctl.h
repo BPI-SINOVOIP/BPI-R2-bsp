@@ -52,6 +52,19 @@
 #define SW_IOCTL_GET_PHY_STATUS         0x000F
 #define SW_IOCTL_READ_REG               0x0010
 #define SW_IOCTL_WRITE_REG              0x0011
+#define SW_IOCTL_QOS_EN                 0x0012
+#define SW_IOCTL_QOS_SET_TABLE2TYPE     0x0013
+#define SW_IOCTL_QOS_GET_TABLE2TYPE     0x0014
+#define SW_IOCTL_QOS_SET_PORT2TABLE     0x0015
+#define SW_IOCTL_QOS_GET_PORT2TABLE     0x0016
+#define SW_IOCTL_QOS_SET_PORT2PRI       0x0017
+#define SW_IOCTL_QOS_GET_PORT2PRI       0x0018
+#define SW_IOCTL_QOS_SET_DSCP2PRI       0x0019
+#define SW_IOCTL_QOS_GET_DSCP2PRI       0x001a
+#define SW_IOCTL_QOS_SET_PRI2QUEUE      0x001b
+#define SW_IOCTL_QOS_GET_PRI2QUEUE      0x001c
+#define SW_IOCTL_QOS_SET_QUEUE_WEIGHT   0x001d
+#define SW_IOCTL_QOS_GET_QUEUE_WEIGHT   0x001e
 
 #define REG_ESW_WT_MAC_MFC              0x10
 #define REG_ESW_ISC                     0x18
@@ -123,6 +136,12 @@ struct ra_switch_ioctl_data {
 	unsigned int igmp_query_interval;
 	unsigned int reg_addr;
 	unsigned int reg_val;
+	unsigned int qos_queue_num;
+	unsigned int qos_type;
+	unsigned int qos_pri;
+	unsigned int qos_dscp;
+	unsigned int qos_table_idx;
+	unsigned int qos_weight;
 };
 
 struct esw_rate {

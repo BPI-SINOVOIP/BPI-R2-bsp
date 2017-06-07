@@ -563,9 +563,9 @@ UINT_16 wlanSelectQueue(struct net_device *dev, struct sk_buff *skb,
 /*----------------------------------------------------------------------------*/
 static void glLoadNvram(IN P_GLUE_INFO_T prGlueInfo, OUT P_REG_INFO_T prRegInfo)
 {
-	UINT_32 i, j;
-	UINT_8 aucTmp[2];
+	UINT_32 i;
 	PUINT_8 pucDest;
+	struct device_node *node;
 
 	ASSERT(prGlueInfo);
 	ASSERT(prRegInfo);
@@ -573,113 +573,507 @@ static void glLoadNvram(IN P_GLUE_INFO_T prGlueInfo, OUT P_REG_INFO_T prRegInfo)
 	if ((!prGlueInfo) || (!prRegInfo))
 		return;
 
-	if (kalCfgDataRead16(prGlueInfo, sizeof(WIFI_CFG_PARAM_STRUCT) - sizeof(UINT_16), (PUINT_16) aucTmp) == TRUE) {
+
+	node = of_find_compatible_node(NULL, NULL, "mediatek,connectivity-combo");
+
+	if (node) {
+		const UINT_8 *prop;
 		prGlueInfo->fgNvramAvailable = TRUE;
 
 		/* load MAC Address */
-		for (i = 0; i < PARAM_MAC_ADDR_LEN; i += sizeof(UINT_16)) {
-			kalCfgDataRead16(prGlueInfo,
-					 OFFSET_OF(WIFI_CFG_PARAM_STRUCT, aucMacAddress) + i,
-					 (PUINT_16) (((PUINT_8) prRegInfo->aucMacAddr) + i));
+		prop = of_get_property(node, "aucMacAddress", NULL);
+		if (prop != NULL) {
+			COPY_MAC_ADDR(prRegInfo->aucMacAddr, prop);
+			DBGLOG(INIT, INFO, "DTB MAC address: " MACSTR, prRegInfo->aucMacAddr);
 		}
 
 		/* load country code */
-		kalCfgDataRead16(prGlueInfo, OFFSET_OF(WIFI_CFG_PARAM_STRUCT, aucCountryCode[0]), (PUINT_16) aucTmp);
-
+		prop = of_get_property(node, "aucCountryCode", NULL);
+		if (prop != NULL) {
 		/* cast to wide characters */
-		prRegInfo->au2CountryCode[0] = (UINT_16) aucTmp[0];
-		prRegInfo->au2CountryCode[1] = (UINT_16) aucTmp[1];
+			memcpy(prRegInfo->au2CountryCode, prop, sizeof(UINT_8));
+			memcpy(&prRegInfo->au2CountryCode[1], &prop[1], sizeof(UINT_8));
+			DBGLOG(INIT, INFO, "DTB CountryCode:%02x:%02x\n",
+					prRegInfo->au2CountryCode[0], prRegInfo->au2CountryCode[1]);
+		}
+
 
 		/* load default normal TX power */
-		for (i = 0; i < sizeof(TX_PWR_PARAM_T); i += sizeof(UINT_16)) {
-			kalCfgDataRead16(prGlueInfo,
-					 OFFSET_OF(WIFI_CFG_PARAM_STRUCT, rTxPwr) + i,
-					 (PUINT_16) (((PUINT_8) &(prRegInfo->rTxPwr)) + i));
+		prop = of_get_property(node, "cTxPwr2G4Cck", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4Cck = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4Cck:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4Cck);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4Dsss", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4Dsss = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4Dsss:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4Dsss);
+		}
+
+		prop = of_get_property(node, "acReserved", NULL);
+		if (prop != NULL) {
+			memcpy(prRegInfo->rTxPwr.acReserved, prop, 2*sizeof(INT_8));
+			DBGLOG(INIT, INFO, "DTB acReserved:%02x:%02x\n",
+					prRegInfo->rTxPwr.acReserved[0], prRegInfo->rTxPwr.acReserved[1]);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4OFDM_BPSK", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4OFDM_BPSK = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4OFDM_BPSK:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4OFDM_BPSK);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4OFDM_QPSK", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4OFDM_QPSK = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4OFDM_QPSK:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4OFDM_QPSK);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4OFDM_16QAM", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4OFDM_16QAM = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4OFDM_16QAM:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4OFDM_16QAM);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4OFDM_Reserved", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4OFDM_Reserved = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4OFDM_Reserved:%02x\n",
+					prRegInfo->rTxPwr.cTxPwr2G4OFDM_Reserved);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4OFDM_48Mbps", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4OFDM_48Mbps = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4OFDM_48Mbps:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4OFDM_48Mbps);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4OFDM_54Mbps", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4OFDM_54Mbps = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4OFDM_54Mbps:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4OFDM_54Mbps);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4HT20_BPSK", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4HT20_BPSK = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4HT20_BPSK:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4HT20_BPSK);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4HT20_QPSK", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4HT20_QPSK = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4HT20_QPSK:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4HT20_QPSK);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4HT20_16QAM", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4HT20_16QAM = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4HT20_16QAM:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4HT20_16QAM);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4HT20_MCS5", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4HT20_MCS5 = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4HT20_MCS5:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4HT20_MCS5);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4HT20_MCS6", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4HT20_MCS6 = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4HT20_MCS6:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4HT20_MCS6);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4HT20_MCS7", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4HT20_MCS7 = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4HT20_MCS7:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4HT20_MCS7);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4HT40_BPSK", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4HT40_BPSK = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4HT40_BPSK:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4HT40_BPSK);
+		}
+
+
+		prop = of_get_property(node, "cTxPwr2G4HT40_QPSK", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4HT40_QPSK = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4HT40_QPSK:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4HT40_QPSK);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4HT40_16QAM", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4HT40_16QAM = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4HT40_16QAM:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4HT40_16QAM);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4HT40_MCS5", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4HT40_MCS5 = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4HT40_MCS5:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4HT40_MCS5);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4HT40_MCS6", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4HT40_MCS6 = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4HT40_MCS6:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4HT40_MCS6);
+		}
+
+		prop = of_get_property(node, "cTxPwr2G4HT40_MCS7", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr2G4HT40_MCS7 = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr2G4HT40_MCS7:%02x\n", prRegInfo->rTxPwr.cTxPwr2G4HT40_MCS7);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GOFDM_BPSK", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GOFDM_BPSK = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GOFDM_BPSK:%02x\n", prRegInfo->rTxPwr.cTxPwr5GOFDM_BPSK);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GOFDM_QPSK", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GOFDM_QPSK = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GOFDM_QPSK:%02x\n", prRegInfo->rTxPwr.cTxPwr5GOFDM_QPSK);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GOFDM_16QAM", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GOFDM_16QAM = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GOFDM_16QAM:%02x\n", prRegInfo->rTxPwr.cTxPwr5GOFDM_16QAM);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GOFDM_Reserved", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GOFDM_Reserved = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GOFDM_Reserved:%02x\n", prRegInfo->rTxPwr.cTxPwr5GOFDM_Reserved);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GOFDM_48Mbps", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GOFDM_48Mbps = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GOFDM_48Mbps:%02x\n", prRegInfo->rTxPwr.cTxPwr5GOFDM_48Mbps);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GOFDM_54Mbps", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GOFDM_54Mbps = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GOFDM_54Mbps:%02x\n", prRegInfo->rTxPwr.cTxPwr5GOFDM_54Mbps);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GHT20_BPSK", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GHT20_BPSK = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GHT20_BPSK:%02x\n", prRegInfo->rTxPwr.cTxPwr5GHT20_BPSK);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GHT20_QPSK", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GHT20_QPSK = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GHT20_QPSK:%02x\n", prRegInfo->rTxPwr.cTxPwr5GHT20_QPSK);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GHT20_16QAM", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GHT20_16QAM = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GHT20_16QAM:%02x\n", prRegInfo->rTxPwr.cTxPwr5GHT20_16QAM);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GHT20_MCS5", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GHT20_MCS5 = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GHT20_MCS5:%02x\n", prRegInfo->rTxPwr.cTxPwr5GHT20_MCS5);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GHT20_MCS6", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GHT20_MCS6 = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GHT20_MCS6:%02x\n", prRegInfo->rTxPwr.cTxPwr5GHT20_MCS6);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GHT20_MCS7", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GHT20_MCS7 = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GHT20_MCS7:%02x\n", prRegInfo->rTxPwr.cTxPwr5GHT20_MCS7);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GHT40_BPSK", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GHT40_BPSK = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GHT40_BPSK:%02x\n", prRegInfo->rTxPwr.cTxPwr5GHT40_BPSK);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GHT40_QPSK", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GHT40_QPSK = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GHT40_QPSK:%02x\n", prRegInfo->rTxPwr.cTxPwr5GHT40_QPSK);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GHT40_16QAM", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GHT40_16QAM = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GHT40_16QAM:%02x\n", prRegInfo->rTxPwr.cTxPwr5GHT40_16QAM);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GHT40_MCS5", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GHT40_MCS5 = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GHT40_MCS5:%02x\n", prRegInfo->rTxPwr.cTxPwr5GHT40_MCS5);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GHT40_MCS6", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GHT40_MCS6 = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GHT40_MCS6:%02x\n", prRegInfo->rTxPwr.cTxPwr5GHT40_MCS6);
+		}
+
+		prop = of_get_property(node, "cTxPwr5GHT40_MCS7", NULL);
+		if (prop != NULL) {
+			prRegInfo->rTxPwr.cTxPwr5GHT40_MCS7 = prop[0];
+			DBGLOG(INIT, INFO, "DTB cTxPwr5GHT40_MCS7:%02x\n", prRegInfo->rTxPwr.cTxPwr5GHT40_MCS7);
 		}
 
 		/* load feature flags */
-		kalCfgDataRead16(prGlueInfo, OFFSET_OF(WIFI_CFG_PARAM_STRUCT, ucTxPwrValid), (PUINT_16) aucTmp);
-		prRegInfo->ucTxPwrValid = aucTmp[0];
-		prRegInfo->ucSupport5GBand = aucTmp[1];
+		prop = of_get_property(node, "ucTxPwrValid", NULL);
+		if (prop != NULL) {
+			prRegInfo->ucTxPwrValid = prop[0];
+			DBGLOG(INIT, INFO, "DTB ucTxPwrValid:%02x\n", prRegInfo->ucTxPwrValid);
+		}
 
-		kalCfgDataRead16(prGlueInfo, OFFSET_OF(WIFI_CFG_PARAM_STRUCT, uc2G4BwFixed20M), (PUINT_16) aucTmp);
-		prRegInfo->uc2G4BwFixed20M = aucTmp[0];
-		prRegInfo->uc5GBwFixed20M = aucTmp[1];
+		prop = of_get_property(node, "ucSupport5GBand", NULL);
+		if (prop != NULL) {
+			prRegInfo->ucSupport5GBand = prop[0];
+			DBGLOG(INIT, INFO, "DTB ucSupport5GBand:%02x\n", prRegInfo->ucSupport5GBand);
+		}
 
-		kalCfgDataRead16(prGlueInfo, OFFSET_OF(WIFI_CFG_PARAM_STRUCT, ucEnable5GBand), (PUINT_16) aucTmp);
-		prRegInfo->ucEnable5GBand = aucTmp[0];
-		prRegInfo->ucRxDiversity = aucTmp[1];
+		prop = of_get_property(node, "uc2G4BwFixed20M", NULL);
+		if (prop != NULL) {
+			prRegInfo->uc2G4BwFixed20M = prop[0];
+			DBGLOG(INIT, INFO, "DTB uc2G4BwFixed20M:%02x\n", prRegInfo->uc2G4BwFixed20M);
+		}
 
-		kalCfgDataRead16(prGlueInfo,
-				 OFFSET_OF(WIFI_CFG_PARAM_STRUCT, fgRssiCompensationVaildbit), (PUINT_16) aucTmp);
-		prRegInfo->ucRssiPathCompasationUsed = aucTmp[0];
-		prRegInfo->ucGpsDesense = aucTmp[1];
+		prop = of_get_property(node, "uc5GBwFixed20M", NULL);
+		if (prop != NULL) {
+			prRegInfo->uc5GBwFixed20M = prop[0];
+			DBGLOG(INIT, INFO, "DTB uc5GBwFixed20M:%02x\n", prRegInfo->uc5GBwFixed20M);
+		}
+
+		prop = of_get_property(node, "ucEnable5GBand", NULL);
+		if (prop != NULL) {
+			prRegInfo->ucEnable5GBand = prop[0];
+			DBGLOG(INIT, INFO, "DTB ucEnable5GBand:%02x\n", prRegInfo->ucEnable5GBand);
+		}
+
+		prop = of_get_property(node, "ucRxDiversity", NULL);
+		if (prop != NULL) {
+			prRegInfo->ucRxDiversity = prop[0];
+			DBGLOG(INIT, INFO, "DTB ucRxDiversity:%02x\n", prRegInfo->ucRxDiversity);
+		}
+
+		prop = of_get_property(node, "ucRssiPathCompasationUsed", NULL);
+		if (prop != NULL) {
+			prRegInfo->ucRssiPathCompasationUsed = prop[0];
+			DBGLOG(INIT, INFO, "DTB ucRssiPathCompasationUsed:%02x\n",
+					prRegInfo->ucRssiPathCompasationUsed);
+		}
+
+		prop = of_get_property(node, "ucGpsDesense", NULL);
+		if (prop != NULL) {
+			prRegInfo->ucGpsDesense = prop[0];
+			DBGLOG(INIT, INFO, "DTB ucGpsDesense:%02x\n", prRegInfo->ucGpsDesense);
+		}
 
 #if CFG_SUPPORT_NVRAM_5G
 		/* load EFUSE overriding part */
-		for (i = 0; i < sizeof(prRegInfo->aucEFUSE); i += sizeof(UINT_16)) {
-			kalCfgDataRead16(prGlueInfo,
-					 OFFSET_OF(WIFI_CFG_PARAM_STRUCT, EfuseMapping) + i,
-					 (PUINT_16) (((PUINT_8) &(prRegInfo->aucEFUSE)) + i));
+		prop = of_get_property(node, "aucEFUSE144", NULL);
+		if (prop != NULL) {
+			memcpy(prRegInfo->aucEFUSE, prop, sizeof(prRegInfo->aucEFUSE));
+			for (i = 0; i < sizeof(prRegInfo->aucEFUSE); i += sizeof(UINT_8))
+				DBGLOG(INIT, INFO, "DTB aucEFUSE[%d]:%02x\n", i, prRegInfo->aucEFUSE[i]);
 		}
-
 		prRegInfo->prOldEfuseMapping = (P_NEW_EFUSE_MAPPING2NVRAM_T)&prRegInfo->aucEFUSE;
 #else
-
-/* load EFUSE overriding part */
-		for (i = 0; i < sizeof(prRegInfo->aucEFUSE); i += sizeof(UINT_16)) {
-			kalCfgDataRead16(prGlueInfo,
-					 OFFSET_OF(WIFI_CFG_PARAM_STRUCT, aucEFUSE) + i,
-					 (PUINT_16) (((PUINT_8) &(prRegInfo->aucEFUSE)) + i));
+		/* load EFUSE overriding part */
+		prop = of_get_property(node, "aucEFUSE144", NULL);
+		if (prop != NULL) {
+			memcpy(prRegInfo->aucEFUSE, prop, sizeof(prRegInfo->aucEFUSE));
+			for (i = 0; i < sizeof(prRegInfo->aucEFUSE); i += sizeof(UINT_8))
+				DBGLOG(INIT, INFO, "DTB aucEFUSE[%d]:%02x\n", i, prRegInfo->aucEFUSE[i]);
 		}
 #endif
 
 		/* load band edge tx power control */
-		kalCfgDataRead16(prGlueInfo, OFFSET_OF(WIFI_CFG_PARAM_STRUCT, fg2G4BandEdgePwrUsed), (PUINT_16) aucTmp);
-		prRegInfo->fg2G4BandEdgePwrUsed = (BOOLEAN) aucTmp[0];
-		if (aucTmp[0]) {
-			prRegInfo->cBandEdgeMaxPwrCCK = (INT_8) aucTmp[1];
-
-			kalCfgDataRead16(prGlueInfo,
-					 OFFSET_OF(WIFI_CFG_PARAM_STRUCT, cBandEdgeMaxPwrOFDM20), (PUINT_16) aucTmp);
-			prRegInfo->cBandEdgeMaxPwrOFDM20 = (INT_8) aucTmp[0];
-			prRegInfo->cBandEdgeMaxPwrOFDM40 = (INT_8) aucTmp[1];
+		prop = of_get_property(node, "fg2G4BandEdgePwrUsed", NULL);
+		if (prop != NULL) {
+			prRegInfo->fg2G4BandEdgePwrUsed = (BOOLEAN)prop[0];
+			DBGLOG(INIT, INFO, "DTB fg2G4BandEdgePwrUsed:%02x\n", prRegInfo->fg2G4BandEdgePwrUsed);
 		}
+		if (prRegInfo->fg2G4BandEdgePwrUsed) {
+			prop = of_get_property(node, "cBandEdgeMaxPwrCCK", NULL);
+			if (prop != NULL) {
+				prRegInfo->cBandEdgeMaxPwrCCK = prop[0];
+				DBGLOG(INIT, INFO, "DTB cBandEdgeMaxPwrCCK:%02x\n", prRegInfo->cBandEdgeMaxPwrCCK);
+			}
 
-		/* load regulation subbands */
-		kalCfgDataRead16(prGlueInfo, OFFSET_OF(WIFI_CFG_PARAM_STRUCT, ucRegChannelListMap), (PUINT_16) aucTmp);
-		prRegInfo->eRegChannelListMap = (ENUM_REG_CH_MAP_T) aucTmp[0];
-		prRegInfo->ucRegChannelListIndex = aucTmp[1];
+			prop = of_get_property(node, "cBandEdgeMaxPwrOFDM20", NULL);
+			if (prop != NULL) {
+				prRegInfo->cBandEdgeMaxPwrOFDM20 = prop[0];
+				DBGLOG(INIT, INFO, "DTB cBandEdgeMaxPwrOFDM20:%02x\n",
+				prRegInfo->cBandEdgeMaxPwrOFDM20);
+			}
 
-		if (prRegInfo->eRegChannelListMap == REG_CH_MAP_CUSTOMIZED) {
-			for (i = 0; i < MAX_SUBBAND_NUM; i++) {
-				pucDest = (PUINT_8) &prRegInfo->rDomainInfo.rSubBand[i];
-				for (j = 0; j < 6; j += sizeof(UINT_16)) {
-					kalCfgDataRead16(prGlueInfo, OFFSET_OF(WIFI_CFG_PARAM_STRUCT, aucRegSubbandInfo)
-							 + (i * 6 + j), (PUINT_16) aucTmp);
-
-					*pucDest++ = aucTmp[0];
-					*pucDest++ = aucTmp[1];
-				}
+			prop = of_get_property(node, "cBandEdgeMaxPwrOFDM40", NULL);
+			if (prop != NULL) {
+				prRegInfo->cBandEdgeMaxPwrOFDM40 = prop[0];
+				DBGLOG(INIT, INFO, "DTB cBandEdgeMaxPwrOFDM40:%02x\n",
+				prRegInfo->cBandEdgeMaxPwrOFDM40);
 			}
 		}
 
+		/* load regulation subbands */
+		prop = of_get_property(node, "ucRegChannelListMap", NULL);
+		if (prop != NULL) {
+			prRegInfo->eRegChannelListMap = (ENUM_REG_CH_MAP_T)prop[0];
+			DBGLOG(INIT, INFO, "DTB ucRegChannelListMap:%02x\n", prRegInfo->eRegChannelListMap);
+		}
+
+		prop = of_get_property(node, "ucRegChannelListIndex", NULL);
+		if (prop != NULL) {
+			prRegInfo->ucRegChannelListIndex = prop[0];
+			DBGLOG(INIT, INFO, "DTB ucRegChannelListIndex:%02x\n", prRegInfo->ucRegChannelListIndex);
+		}
+
+		if (prRegInfo->eRegChannelListMap == REG_CH_MAP_CUSTOMIZED) {
+			prop = of_get_property(node, "aucRegSubbandInfo36", NULL);
+			if (prop != NULL) {
+				for (i = 0; i < MAX_SUBBAND_NUM; i++) {
+					pucDest = (PUINT_8) &prRegInfo->rDomainInfo.rSubBand[i];
+					memcpy(pucDest, &prop[i*sizeof(DOMAIN_SUBBAND_INFO)],
+							sizeof(DOMAIN_SUBBAND_INFO));
+					DBGLOG(INIT, INFO, "DTB aucRegSubbandInfo36[%d]:" MACSTR, i, pucDest);
+				}
+			}
+		}
 		/* load rssiPathCompensation */
-		for (i = 0; i < sizeof(RSSI_PATH_COMPASATION_T); i += sizeof(UINT_16)) {
-			kalCfgDataRead16(prGlueInfo,
-					 OFFSET_OF(WIFI_CFG_PARAM_STRUCT,
-						   rRssiPathCompensation) + i,
-					 (PUINT_16) (((PUINT_8) &(prRegInfo->rRssiPathCompasation))
-						     + i));
+		prop = of_get_property(node, "rRssiPathCompensation", NULL);
+		if (prop != NULL) {
+			prRegInfo->rRssiPathCompasation.c2GRssiCompensation = prop[0];
+			prRegInfo->rRssiPathCompasation.c5GRssiCompensation = prop[1];
+			DBGLOG(INIT, INFO, "DTB rRssiPathCompensation:%02x %02x\n",
+					prRegInfo->rRssiPathCompasation.c2GRssiCompensation,
+					prRegInfo->rRssiPathCompasation.c5GRssiCompensation);
 		}
 #if 1
 		/* load full NVRAM */
-		for (i = 0; i < sizeof(WIFI_CFG_PARAM_STRUCT); i += sizeof(UINT_16)) {
-			kalCfgDataRead16(prGlueInfo,
-					 OFFSET_OF(WIFI_CFG_PARAM_STRUCT, u2Part1OwnVersion) + i,
-					 (PUINT_16) (((PUINT_8) &(prRegInfo->aucNvram)) + i));
-		}
 		prRegInfo->prNvramSettings = (P_WIFI_CFG_PARAM_STRUCT)&prRegInfo->aucNvram;
+
+		prop = of_get_property(node, "u2Part1OwnVersion", NULL);
+		if (prop != NULL) {
+			memcpy(&prRegInfo->prNvramSettings->u2Part1OwnVersion, prop, sizeof(UINT_16));
+			DBGLOG(INIT, INFO, "DTB u2Part1OwnVersion: %04x\n",
+					prRegInfo->prNvramSettings->u2Part1OwnVersion);
+		}
+
+		prop = of_get_property(node, "u2Part1PeerVersion", NULL);
+		if (prop != NULL) {
+			memcpy(&prRegInfo->prNvramSettings->u2Part1PeerVersion, prop, sizeof(UINT_16));
+			DBGLOG(INIT, INFO, "DTB u2Part1PeerVersion: %04x\n",
+					prRegInfo->prNvramSettings->u2Part1PeerVersion);
+		}
+
+		COPY_MAC_ADDR(prRegInfo->prNvramSettings->aucMacAddress, prRegInfo->aucMacAddr);
+		prop = of_get_property(node, "aucCountryCode", NULL);
+		if (prop != NULL) {
+			memcpy(prRegInfo->prNvramSettings->aucCountryCode, prop, 2*sizeof(UINT_8));
+			DBGLOG(INIT, INFO, "DTB aucCountryCode:%02x:%02x\n",
+				prRegInfo->prNvramSettings->aucCountryCode[0],
+				prRegInfo->prNvramSettings->aucCountryCode[1]);
+		}
+
+		memcpy(&prRegInfo->prNvramSettings->rTxPwr,
+					&prRegInfo->rTxPwr, sizeof(TX_PWR_PARAM_T));
+
+#if CFG_SUPPORT_NVRAM_5G
+		memcpy(prRegInfo->prNvramSettings->EfuseMapping.aucEFUSE,
+				prRegInfo->aucEFUSE, sizeof(prRegInfo->aucEFUSE));
+#else
+		memcpy(prRegInfo->prNvramSettings->aucEFUSE,
+				prRegInfo->aucEFUSE, sizeof(prRegInfo->aucEFUSE));
+#endif
+		prRegInfo->prNvramSettings->ucTxPwrValid = prRegInfo->ucTxPwrValid;
+		prRegInfo->prNvramSettings->ucSupport5GBand = prRegInfo->ucSupport5GBand;
+		prRegInfo->prNvramSettings->fg2G4BandEdgePwrUsed = prRegInfo->fg2G4BandEdgePwrUsed;
+
+		prop = of_get_property(node, "cBandEdgeMaxPwrCCK", NULL);
+		if (prop != NULL)
+			prRegInfo->prNvramSettings->cBandEdgeMaxPwrCCK = prop[0];
+
+		prop = of_get_property(node, "cBandEdgeMaxPwrOFDM20", NULL);
+		if (prop != NULL)
+			prRegInfo->prNvramSettings->cBandEdgeMaxPwrOFDM20 = prop[0];
+
+		prop = of_get_property(node, "cBandEdgeMaxPwrOFDM40", NULL);
+		if (prop != NULL)
+			prRegInfo->prNvramSettings->cBandEdgeMaxPwrOFDM40 = prop[0];
+
+		prRegInfo->prNvramSettings->ucRegChannelListMap = (UINT_8)(prRegInfo->eRegChannelListMap);
+		prRegInfo->prNvramSettings->ucRegChannelListIndex = prRegInfo->ucRegChannelListIndex;
+
+		prop = of_get_property(node, "aucRegSubbandInfo36", NULL);
+		if (prop != NULL)
+			memcpy(prRegInfo->prNvramSettings->aucRegSubbandInfo, prop,
+				sizeof(prRegInfo->prNvramSettings->aucRegSubbandInfo));
+
+		prop = of_get_property(node, "aucReserved16", NULL);
+		if (prop != NULL)
+			memcpy(prRegInfo->prNvramSettings->aucReserved2, prop,
+					sizeof(prRegInfo->prNvramSettings->aucReserved2));
+
+		prop = of_get_property(node, "u2Part2OwnVersion", NULL);
+		if (prop != NULL) {
+			memcpy(&prRegInfo->prNvramSettings->u2Part2OwnVersion, prop, sizeof(UINT_16));
+			DBGLOG(INIT, INFO, "DTB u2Part2OwnVersion: %04x\n",
+					prRegInfo->prNvramSettings->u2Part2OwnVersion);
+		}
+
+		prop = of_get_property(node, "u2Part2PeerVersion", NULL);
+		if (prop != NULL) {
+			memcpy(&prRegInfo->prNvramSettings->u2Part2PeerVersion, prop, sizeof(UINT_16));
+			DBGLOG(INIT, INFO, "DTB u2Part2PeerVersion: %04x\n",
+					prRegInfo->prNvramSettings->u2Part2PeerVersion);
+		}
+
+		prRegInfo->prNvramSettings->uc2G4BwFixed20M = prRegInfo->uc2G4BwFixed20M;
+		prRegInfo->prNvramSettings->uc5GBwFixed20M = prRegInfo->uc5GBwFixed20M;
+		prRegInfo->prNvramSettings->ucEnable5GBand = prRegInfo->ucEnable5GBand;
+		prRegInfo->prNvramSettings->ucRxDiversity = prRegInfo->ucRxDiversity;
+		memcpy(&prRegInfo->prNvramSettings->rRssiPathCompensation,
+				&prRegInfo->rRssiPathCompasation, sizeof(RSSI_PATH_COMPASATION_T));
+
+		prRegInfo->prNvramSettings->fgRssiCompensationVaildbit = prRegInfo->ucRssiPathCompasationUsed;
+		prRegInfo->prNvramSettings->ucGpsDesense = prRegInfo->ucGpsDesense;
+
+		prop = of_get_property(node, "u2FeatureReserved", NULL);
+		if (prop != NULL) {
+			memcpy(&prRegInfo->prNvramSettings->u2FeatureReserved, prop, sizeof(UINT_16));
+			DBGLOG(INIT, INFO, "DTB u2FeatureReserved: %04x\n",
+					prRegInfo->prNvramSettings->u2FeatureReserved);
+		}
+
+		prop = of_get_property(node, "aucPreTailReserved", NULL);
+		if (prop != NULL) {
+			prRegInfo->prNvramSettings->aucPreTailReserved = prop[0];
+			DBGLOG(INIT, INFO, "DTB aucPreTailReserved: %02x\n",
+					prRegInfo->prNvramSettings->aucPreTailReserved);
+		}
+
+		prop = of_get_property(node, "aucTailReserved241", NULL);
+		if (prop != NULL)
+			memcpy(prRegInfo->prNvramSettings->aucTailReserved, prop,
+					sizeof(prRegInfo->prNvramSettings->aucTailReserved));
 #endif
 	} else {
 		DBGLOG(INIT, INFO, "glLoadNvram fail\n");

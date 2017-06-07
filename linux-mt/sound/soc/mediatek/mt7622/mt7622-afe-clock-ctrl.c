@@ -509,6 +509,7 @@ void mt7622_i2s_mclk_configuration(struct mtk_base_afe *afe, int id, int domain,
 				__func__, aud_clks[aud_src_clk_id],
 				aud_clks[MT7622_AUD_AUD2_SEL], ret);
 	}
+	clk_disable_unprepare(afe_priv->clocks[aud_src_clk_id]);
 
 	/* Set I2S1 MCLK (divider) */
 	ret = clk_prepare_enable(afe_priv->clocks[aud_src_div_id]);
@@ -520,6 +521,7 @@ void mt7622_i2s_mclk_configuration(struct mtk_base_afe *afe, int id, int domain,
 	if (ret)
 		dev_err(afe->dev, "%s clk_set_rate %s-%d fail %d\n", __func__,
 			aud_clks[aud_src_div_id], mclk, ret);
+	clk_disable_unprepare(afe_priv->clocks[aud_src_div_id]);
 }
 
 void mt7622_tdm_mclk_configuration(struct mtk_base_afe *afe, int tdm_id, int fs)
@@ -575,6 +577,7 @@ void mt7622_tdm_mclk_configuration(struct mtk_base_afe *afe, int tdm_id, int fs)
 			dev_err(afe->dev, "%s clk_set_parent %s-%s fail %d\n",
 				__func__, aud_clks[aud_src_clk_id], aud_clks[MT7622_AUD_AUD2_SEL], ret);
 	}
+	clk_disable_unprepare(afe_priv->clocks[aud_src_clk_id]);
 
 	/* Set TDM MCLK (divider) */
 	ret = clk_prepare_enable(afe_priv->clocks[aud_src_div_id]);
@@ -586,6 +589,7 @@ void mt7622_tdm_mclk_configuration(struct mtk_base_afe *afe, int tdm_id, int fs)
 	if (ret)
 		dev_err(afe->dev, "%s clk_set_rate %s-%d fail %d\n",
 			__func__, aud_clks[aud_src_div_id], mclk_rate, ret);
+	clk_disable_unprepare(afe_priv->clocks[aud_src_div_id]);
 }
 
 void mt7622_tdm_clk_configuration(struct mtk_base_afe *afe, int tdm_id,

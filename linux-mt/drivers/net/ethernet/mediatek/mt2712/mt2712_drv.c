@@ -1537,6 +1537,9 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_poll_controller = poll_controller,
 #endif
 	.ndo_do_ioctl = ioctl,
+	.ndo_set_mac_address = eth_mac_addr,
+	.ndo_validate_addr = eth_validate_addr,
+	.ndo_change_mtu = eth_change_mtu,
 };
 
 struct net_device_ops *get_netdev_ops(void)

@@ -386,13 +386,23 @@ static int raeth_poll_full(struct napi_struct *napi, int budget)
 	reg_int_val_tx = sys_reg_read(ei_local->fe_tx_int_status);
 	reg_int_val_rx = sys_reg_read(ei_local->fe_rx_int_status);
 
-	if (reg_int_val_tx & (TX_DLY_INT | TX_DONE_INT0))
+	if (reg_int_val_tx & (TX_DLY_INT | TX_DONE_INT0)) {
+		/* Clear TX interrupt status */
+		sys_reg_write(ei_local->fe_tx_int_status, (TX_DLY_INT | TX_DONE_INT0));
 		tx_done = ei_local->ei_xmit_housekeeping(netdev,
 							 NUM_TX_MAX_PROCESS);
+	}
 
 	if (reg_int_val_rx & (RX_DLY_INT | RX_DONE_INT3 | RX_DONE_INT2 |
-			      RX_DONE_INT1 | RX_DONE_INT0))
+			      RX_DONE_INT1 | RX_DONE_INT0)) {
+		/* Clear RX interrupt status */
+		sys_reg_write(ei_local->fe_rx_int_status, (RX_DLY_INT |
+							   RX_DONE_INT3 |
+							   RX_DONE_INT2 |
+							   RX_DONE_INT1 |
+							   RX_DONE_INT0));
 		rx_done = ei_local->ei_eth_recv(netdev, napi, budget);
+	}
 
 	if (rx_done >= budget)
 		return budget;
@@ -400,14 +410,6 @@ static int raeth_poll_full(struct napi_struct *napi, int budget)
 	napi_complete(napi);
 
 	spin_lock_irqsave(&ei_local->irq_lock, flags);
-
-	/* Clear TX/RX interrupt status */
-	sys_reg_write(ei_local->fe_tx_int_status, (TX_DLY_INT | TX_DONE_INT0));
-	sys_reg_write(ei_local->fe_rx_int_status, (RX_DLY_INT |
-						   RX_DONE_INT3 |
-						   RX_DONE_INT2 |
-						   RX_DONE_INT1 |
-						   RX_DONE_INT0));
 
 	/* Enable TX/RX interrupts */
 	reg_int_mask_tx = sys_reg_read(ei_local->fe_tx_int_enable);
@@ -558,6 +560,9 @@ static int __init ei_init(struct net_device *dev)
 			netif_napi_add(&ei_local->dummy_dev, &ei_local->napi_tx,
 				       raeth_poll_tx, MTK_NAPI_WEIGHT);
 
+		} else if (ei_local->features & FE_INT_NAPI_RX_ONLY) {
+			netif_napi_add(&ei_local->dummy_dev, &ei_local->napi_rx,
+				       raeth_poll_rx, MTK_NAPI_WEIGHT);
 		} else {
 			netif_napi_add(&ei_local->dummy_dev, &ei_local->napi,
 				       raeth_poll_full, MTK_NAPI_WEIGHT);
@@ -1256,14 +1261,13 @@ static irqreturn_t ei_tx_interrupt(int irq, void *dev_id)
 	reg_int_val = sys_reg_read(ei_local->fe_tx_int_status);
 
 	if (likely(reg_int_val & (TX_DLY_INT | TX_DONE_INT0))) {
-		/* Clear TX interrupt status */
-		sys_reg_write(ei_local->fe_tx_int_status, (TX_DLY_INT |
-							   TX_DONE_INT0));
 		/* Disable TX interrupt */
 		reg_int_mask = sys_reg_read(ei_local->fe_tx_int_enable);
 		sys_reg_write(ei_local->fe_tx_int_enable,
 			      reg_int_mask & ~(TX_DLY_INT | TX_DONE_INT0));
-
+		/* Clear TX interrupt status */
+		sys_reg_write(ei_local->fe_tx_int_status, (TX_DLY_INT |
+							   TX_DONE_INT0));
 		ei_local->ei_xmit_housekeeping(netdev, NUM_TX_MAX_PROCESS);
 
 		/* Enable TX interrupt */
@@ -1338,16 +1342,16 @@ static int fe_int_enable(struct net_device *dev)
 	struct mtk_gsw *gsw;
 	unsigned long flags;
 
-	if (ei_local->features & FE_INT_NAPI)
+	if (ei_local->features & FE_INT_NAPI) {
 		if (ei_local->features & FE_INT_NAPI_TX_RX)
 			err0 =
 			    request_irq(ei_local->irq0, ei_interrupt_napi_sep,
 					IRQF_TRIGGER_LOW, dev->name, dev);
-		else
+		else if (!(ei_local->features & FE_INT_NAPI_RX_ONLY))
 			err0 =
 			    request_irq(ei_local->irq0, ei_interrupt_napi,
 					IRQF_TRIGGER_LOW, dev->name, dev);
-	else
+	} else
 		err0 =
 		    request_irq(ei_local->irq0, ei_interrupt, IRQF_TRIGGER_LOW,
 				dev->name, dev);
@@ -1358,6 +1362,18 @@ static int fe_int_enable(struct net_device *dev)
 				err1 =
 				    request_irq(ei_local->irq1,
 						ei_tx_interrupt_napi_sep,
+						IRQF_TRIGGER_LOW,
+						"eth_tx", dev);
+				err2 =
+				    request_irq(ei_local->irq2,
+						ei_rx_interrupt_napi_sep,
+						IRQF_TRIGGER_LOW,
+						"eth_rx", dev);
+			} else if (ei_local->features & FE_INT_NAPI_RX_ONLY) {
+				pr_info("!!!!!!!FE_INT_NAPI_RX_ONLY\n");
+				err1 =
+				    request_irq(ei_local->irq1,
+						ei_tx_interrupt,
 						IRQF_TRIGGER_LOW,
 						"eth_tx", dev);
 				err2 =
@@ -1422,6 +1438,10 @@ static int fe_int_enable(struct net_device *dev)
 		} else {
 			sys_reg_write(QFE_INT_ENABLE, QFE_INT_ALL);
 		}
+		if (ei_local->features & FE_INT_NAPI_RX_ONLY) {
+			sys_reg_write(QDMA_DELAY_INT, DELAY_INT_INIT);
+			sys_reg_write(QFE_INT_ENABLE, QFE_INT_DLY_INIT);
+		}
 	}
 
 	/* IRQ separation settings */
@@ -1447,12 +1467,22 @@ static int fe_int_enable(struct net_device *dev)
 				      RX_DONE_INT0 |
 				      RX_DONE_INT1 |
 				      RX_DONE_INT2 | RX_DONE_INT3);
-			/* QDMA setting */
-			sys_reg_write(QFE_INT_ENABLE, QFE_INT_ALL);
-			sys_reg_write(RALINK_FRAME_ENGINE_BASE + QDMA_RELATED +
-				      0x220, RLS_DONE_INT);
-			sys_reg_write(RALINK_FRAME_ENGINE_BASE + QDMA_RELATED +
-				      0x224, RX_DONE_INT0 | RX_DONE_INT1);
+
+			if (ei_local->features & FE_INT_NAPI_RX_ONLY) {
+				/* QDMA setting */
+				sys_reg_write(RALINK_FRAME_ENGINE_BASE + QDMA_RELATED +
+					      0x220, RLS_DLY_INT);
+				sys_reg_write(RALINK_FRAME_ENGINE_BASE + QDMA_RELATED +
+					      0x224, RX_DLY_INT);
+			} else {
+				/* QDMA setting */
+				sys_reg_write(QFE_INT_ENABLE, QFE_INT_ALL);
+				sys_reg_write(RALINK_FRAME_ENGINE_BASE + QDMA_RELATED +
+					      0x220, RLS_DONE_INT);
+				sys_reg_write(RALINK_FRAME_ENGINE_BASE + QDMA_RELATED +
+					      0x224, RX_DONE_INT0 | RX_DONE_INT1);
+			}
+
 		}
 		sys_reg_write(RALINK_FRAME_ENGINE_BASE + 0x20, 0x21021000);
 	}
@@ -1464,6 +1494,8 @@ static int fe_int_enable(struct net_device *dev)
 	} else {
 		if (ei_local->features & FE_INT_NAPI_TX_RX) {
 			napi_enable(&ei_local->napi_tx);
+			napi_enable(&ei_local->napi_rx);
+		} else if (ei_local->features & FE_INT_NAPI_RX_ONLY) {
 			napi_enable(&ei_local->napi_rx);
 		} else {
 			napi_enable(&ei_local->napi);
@@ -1498,6 +1530,8 @@ static int fe_int_disable(struct net_device *dev)
 	if (ei_local->features & FE_INT_NAPI) {
 		if (ei_local->features & FE_INT_NAPI_TX_RX) {
 			napi_disable(&ei_local->napi_tx);
+			napi_disable(&ei_local->napi_rx);
+		} else if (ei_local->features & FE_INT_NAPI_RX_ONLY) {
 			napi_disable(&ei_local->napi_rx);
 		} else {
 			napi_disable(&ei_local->napi);
@@ -2394,15 +2428,29 @@ void ei_ioc_setting(struct platform_device *pdev, struct END_DEVICE *ei_local)
 		reg_virt = ioremap(0x1B000400, 0x10);
 		reg_virt += 0x8;
 		reg_val = sys_reg_read(reg_virt);
-		reg_val |= IOC_ETH_PDMA | IOC_ETH_QDMA;
+
+		if (ei_local->features & FE_QDMA_FQOS)
+			reg_val |= IOC_ETH_PDMA;
+		else
+			reg_val |= IOC_ETH_PDMA | IOC_ETH_QDMA;
+
 		sys_reg_write(reg_virt, reg_val);
 		reg_virt -= 0x8;
 		iounmap(reg_virt);
 
 		arch_setup_dma_ops(&pdev->dev, 0, 0, NULL, TRUE);
+
+		if (ei_local->features & FE_QDMA_FQOS)
+			arch_setup_dma_ops(&ei_local->qdma_pdev->dev,
+					   0, 0, NULL, FALSE);
+		else
+			arch_setup_dma_ops(&ei_local->qdma_pdev->dev,
+					   0, 0, NULL, TRUE);
 	} else {
 		pr_info("[Raether] HW IO coherent is disabled !\n");
 		arch_setup_dma_ops(&pdev->dev, 0, 0, NULL, FALSE);
+		arch_setup_dma_ops(&ei_local->qdma_pdev->dev,
+				   0, 0, NULL, FALSE);
 	}
 }
 
@@ -2451,6 +2499,24 @@ static int rather_probe(struct platform_device *pdev)
 	fe_architecture_config(ei_local);
 	pr_info("[%s]ei_local->architecture_config = %d\n", __func__,
 		ei_local->architecture);
+
+	if ((ei_local->features & FE_HW_IOCOHERENT) &&
+	    (ei_local->features & FE_QDMA_FQOS)) {
+		ei_local->qdma_pdev =
+			platform_device_alloc("QDMA", PLATFORM_DEVID_AUTO);
+		if (!ei_local->qdma_pdev) {
+			dev_err(&pdev->dev,
+				"QDMA platform device allocate fail!\n");
+			ret = -ENOMEM;
+			goto err_free_dev;
+		}
+
+		ei_local->qdma_pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+		ei_local->qdma_pdev->dev.dma_mask =
+			&ei_local->qdma_pdev->dev.coherent_dma_mask;
+	} else {
+		ei_local->qdma_pdev = pdev;
+	}
 
 	/* iomap registers */
 	node = of_parse_phandle(pdev->dev.of_node, "mediatek,ethsys", 0);
@@ -2556,6 +2622,11 @@ err_free_dev:
 static int raether_remove(struct platform_device *pdev)
 {
 	struct END_DEVICE *ei_local = netdev_priv(dev_raether);
+
+	if (ei_local->features & FE_QDMA_FQOS)
+		if (!ei_local->qdma_pdev)
+			ei_local->qdma_pdev->dev.release
+				(&ei_local->qdma_pdev->dev);
 
 	ei_clock_disable(ei_local);
 

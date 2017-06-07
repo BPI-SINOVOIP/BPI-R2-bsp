@@ -41,11 +41,12 @@ void msdc_fpga_pwr_init(void);
 #endif
 
 /* Names used for device tree lookup */
-#define DT_COMPATIBLE_NAME      "mediatek,mt2701-sdio"
+#define MT2701_DT_COMPATIBLE_NAME      "mediatek,mt2701-sdio"
+#define MT2712_DT_COMPATIBLE_NAME      "mediatek,mt2712-sdio"
 #define MSDC0_CLK_NAME          "MSDC0-CLOCK"
 #define MSDC1_CLK_NAME          "MSDC1-CLOCK"
 #define MSDC2_CLK_NAME          "sdio-clock"
-#define MSDC3_CLK_NAME          "MSDC3-CLOCK"
+#define MSDC3_CLK_NAME          "sdio-clock"
 #define MSDC0_IOCFG_NAME        "mediatek,iocfg_5"
 #define MSDC1_IOCFG_NAME        "mediatek,iocfg_0"
 #define MSDC2_IOCFG_NAME        "mediatek,iocfg_4"

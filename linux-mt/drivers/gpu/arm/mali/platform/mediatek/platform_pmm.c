@@ -431,6 +431,23 @@ static ssize_t set_dvfs_enable(struct device *dev,
 }
 #endif
 
+static ssize_t set_power_down(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t count)
+{
+	unsigned long enable;
+	ssize_t ret;
+
+	ret = kstrtoul(buf, 0, &enable);
+	if (ret)
+		return ret;
+
+	if (enable == 1)
+		pm_runtime_put_sync_autosuspend(dev);
+
+	return count;
+}
+
 DEVICE_ATTR(available_frequencies, S_IRUGO, show_available_frequencies, NULL);
 DEVICE_ATTR(trans_stat, S_IRUGO, show_trans_stat, NULL);
 DEVICE_ATTR(memory_usage, S_IRUGO, show_memory_usage, NULL);
@@ -438,6 +455,7 @@ DEVICE_ATTR(memory_usage, S_IRUGO, show_memory_usage, NULL);
 DEVICE_ATTR(clock, S_IRUGO | S_IWUSR, show_clock, set_clock);
 DEVICE_ATTR(dvfs_enable, S_IRUGO | S_IWUSR, show_dvfs_enable, set_dvfs_enable);
 #endif
+DEVICE_ATTR(power_down, S_IWUSR, NULL, set_power_down);
 
 static struct attribute *mtk_mfg_sysfs_entries[] = {
 	&dev_attr_available_frequencies.attr,
@@ -447,6 +465,7 @@ static struct attribute *mtk_mfg_sysfs_entries[] = {
 	&dev_attr_clock.attr,
 	&dev_attr_dvfs_enable.attr,
 #endif
+	&dev_attr_power_down.attr,
 	NULL,
 };
 
@@ -658,6 +677,7 @@ void mali_platform_power_mode_change(struct device *device,
 		    MALI_PROFILING_EVENT_CHANNEL_GPU |
 		    MALI_PROFILING_EVENT_REASON_SINGLE_GPU_FREQ_VOLT_CHANGE;
 #endif
+
 	switch (power_mode) {
 	case MALI_POWER_MODE_ON:
 		MALI_DEBUG_PRINT(1,

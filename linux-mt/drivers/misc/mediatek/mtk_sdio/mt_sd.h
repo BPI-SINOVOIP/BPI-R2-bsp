@@ -376,6 +376,7 @@ struct msdc_host {
 						 * at DAT1 interrupt case
 						 */
 	int                     clk_gate_count;
+	bool                    clk_on;
 	struct semaphore        sem;
 
 	u32                     blksz;          /* host block size */
@@ -806,6 +807,8 @@ extern int msdc_rsp[];
 #include "msdc_io.h"
 
 /* Function provided by sd.c */
+void msdc_prepare_clk(struct msdc_host *host);
+void msdc_unprepare_clk(struct msdc_host *host);
 int msdc_clk_stable(struct msdc_host *host, u32 mode, u32 div,
 	u32 hs400_src);
 void msdc_clr_fifo(unsigned int id);

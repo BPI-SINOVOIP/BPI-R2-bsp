@@ -22,43 +22,103 @@ static const struct snd_soc_dapm_widget dummy_widgets[] = {
 static const struct snd_soc_dapm_route dummy_routes[] = {
 	 { "dummy-codec-i2s-capture", NULL, "RX" },
 	 { "TX", NULL, "dummy-codec-i2s-playback" },
+	 { "dummy-codec-mod-capture", NULL, "RX" },
+	 { "TX", NULL, "dummy-codec-mod-playback" },
+	 { "dummy-codec-tdm-capture", NULL, "RX" },
+	 { "TX", NULL, "dummy-codec-tdm-playback" },
 };
 
 static struct snd_soc_codec_driver dummy_codec_driver = {
 	.component_driver = {
-		 .dapm_widgets           = dummy_widgets,
-		 .num_dapm_widgets       = ARRAY_SIZE(dummy_widgets),
-		 .dapm_routes            = dummy_routes,
-		 .num_dapm_routes        = ARRAY_SIZE(dummy_routes),
-	 },
+		.dapm_widgets           = dummy_widgets,
+		.num_dapm_widgets       = ARRAY_SIZE(dummy_widgets),
+		.dapm_routes            = dummy_routes,
+		.num_dapm_routes        = ARRAY_SIZE(dummy_routes),
+	},
 };
 
-static struct snd_soc_dai_driver dummy_codec_dai_driver = {
-	.name = "dummy-codec-i2s",
-	.playback = {
-		     .stream_name = "dummy-codec-i2s-playback",
-		     .channels_min = 1,
-		     .channels_max = 10,
-		     .rates = SNDRV_PCM_RATE_8000_192000,
-		     .formats = (SNDRV_PCM_FMTBIT_S16_LE |
-				 SNDRV_PCM_FMTBIT_S24_LE |
-				 SNDRV_PCM_FMTBIT_S24_3LE |
-				 SNDRV_PCM_FMTBIT_S32_LE |
-				 SNDRV_PCM_FMTBIT_DSD_U8 |
-				 SNDRV_PCM_FMTBIT_DSD_U16_LE),
-		     },
-	.capture = {
-		    .stream_name = "dummy-codec-i2s-capture",
-		    .channels_min = 1,
-		    .channels_max = 10,
-		    .rates = SNDRV_PCM_RATE_8000_192000,
-		    .formats = (SNDRV_PCM_FMTBIT_S16_LE	|
-				SNDRV_PCM_FMTBIT_S32_LE |
-				SNDRV_PCM_FMTBIT_S24_LE	|
-				SNDRV_PCM_FMTBIT_S24_3LE |
-				SNDRV_PCM_FMTBIT_DSD_U8 |
-				SNDRV_PCM_FMTBIT_DSD_U16_LE),
-		    },
+static struct snd_soc_dai_driver dummy_codec_dai_driver[] = {
+	{
+		.name = "dummy-codec-i2s",
+		.playback = {
+			.stream_name = "dummy-codec-i2s-playback",
+			.channels_min = 1,
+			.channels_max = 10,
+			.rates = SNDRV_PCM_RATE_8000_384000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
+					 SNDRV_PCM_FMTBIT_S24_LE |
+					 SNDRV_PCM_FMTBIT_S24_3LE |
+					 SNDRV_PCM_FMTBIT_S32_LE |
+					 SNDRV_PCM_FMTBIT_DSD_U8 |
+					 SNDRV_PCM_FMTBIT_DSD_U16_LE),
+		},
+		.capture = {
+			.stream_name = "dummy-codec-i2s-capture",
+			.channels_min = 1,
+			.channels_max = 10,
+			.rates = SNDRV_PCM_RATE_8000_384000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE	|
+					 SNDRV_PCM_FMTBIT_S32_LE |
+					 SNDRV_PCM_FMTBIT_S24_LE	|
+					 SNDRV_PCM_FMTBIT_S24_3LE |
+					 SNDRV_PCM_FMTBIT_DSD_U8 |
+					 SNDRV_PCM_FMTBIT_DSD_U16_LE),
+		},
+	},
+	{
+		.name = "dummy-codec-mod",
+		.playback = {
+			.stream_name = "dummy-codec-mod-playback",
+			.channels_min = 1,
+			.channels_max = 10,
+			.rates = SNDRV_PCM_RATE_8000_192000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
+					 SNDRV_PCM_FMTBIT_S24_LE |
+					 SNDRV_PCM_FMTBIT_S24_3LE |
+					 SNDRV_PCM_FMTBIT_S32_LE |
+					 SNDRV_PCM_FMTBIT_DSD_U8 |
+					 SNDRV_PCM_FMTBIT_DSD_U16_LE),
+		},
+		.capture = {
+			.stream_name = "dummy-codec-mod-capture",
+			.channels_min = 1,
+			.channels_max = 10,
+			.rates = SNDRV_PCM_RATE_8000_192000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE	|
+					 SNDRV_PCM_FMTBIT_S32_LE |
+					 SNDRV_PCM_FMTBIT_S24_LE	|
+					 SNDRV_PCM_FMTBIT_S24_3LE |
+					 SNDRV_PCM_FMTBIT_DSD_U8 |
+					 SNDRV_PCM_FMTBIT_DSD_U16_LE),
+		},
+	},
+	{
+		.name = "dummy-codec-tdm",
+		.playback = {
+			.stream_name = "dummy-codec-tdm-playback",
+			.channels_min = 1,
+			.channels_max = 10,
+			.rates = SNDRV_PCM_RATE_8000_192000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
+					 SNDRV_PCM_FMTBIT_S24_LE |
+					 SNDRV_PCM_FMTBIT_S24_3LE |
+					 SNDRV_PCM_FMTBIT_S32_LE |
+					 SNDRV_PCM_FMTBIT_DSD_U8 |
+					 SNDRV_PCM_FMTBIT_DSD_U16_LE),
+		},
+		.capture = {
+			.stream_name = "dummy-codec-tdm-capture",
+			.channels_min = 1,
+			.channels_max = 10,
+			.rates = SNDRV_PCM_RATE_8000_192000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE	|
+					 SNDRV_PCM_FMTBIT_S32_LE |
+					 SNDRV_PCM_FMTBIT_S24_LE	|
+					 SNDRV_PCM_FMTBIT_S24_3LE |
+					 SNDRV_PCM_FMTBIT_DSD_U8 |
+					 SNDRV_PCM_FMTBIT_DSD_U16_LE),
+		},
+	},
 };
 
 static int dummy_codec_probe(struct platform_device *pdev)
@@ -73,7 +133,7 @@ static int dummy_codec_probe(struct platform_device *pdev)
 		}
 	#endif
 	return snd_soc_register_codec(&pdev->dev, &dummy_codec_driver,
-				      &dummy_codec_dai_driver, 1);
+				 dummy_codec_dai_driver, 3);
 }
 
 static int dummy_codec_remove(struct platform_device *pdev)
@@ -91,12 +151,12 @@ static const struct of_device_id dummy_codec_dt_match[] = {
 
 static struct platform_driver dummy_codec = {
 	.driver = {
-		   .name = "dummy-codec",
-		   .owner = THIS_MODULE,
-		   #ifdef CONFIG_OF
-		   .of_match_table = dummy_codec_dt_match,
-		    #endif
-		   },
+		.name = "dummy-codec",
+		.owner = THIS_MODULE,
+		#ifdef CONFIG_OF
+		.of_match_table = dummy_codec_dt_match,
+		#endif
+	},
 	.probe = dummy_codec_probe,
 	.remove = dummy_codec_remove
 };

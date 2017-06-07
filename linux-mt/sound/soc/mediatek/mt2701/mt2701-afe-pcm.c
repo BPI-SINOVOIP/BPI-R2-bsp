@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2016 MediaTek Inc.
  * Author: Garlic Tseng <garlic.tseng@mediatek.com>
- *             Ir Lian <ir.lian@mediatek.com>
+ *	     Ir Lian <ir.lian@mediatek.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -22,6 +22,8 @@
 #include <linux/pm_runtime.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
+#include <linux/of_device.h>
+#include <linux/dma-mapping.h>
 
 #include "mt2701-afe-common.h"
 
@@ -35,7 +37,7 @@ static const struct snd_pcm_hardware mt2701_afe_hardware = {
 	.info = SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED
 		| SNDRV_PCM_INFO_RESUME | SNDRV_PCM_INFO_MMAP_VALID,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE
-		   | SNDRV_PCM_FMTBIT_S32_LE,
+		| SNDRV_PCM_FMTBIT_S32_LE,
 	.period_bytes_min = 16,
 	.period_bytes_max = 1024 * 256,
 	.periods_min = 2,
@@ -93,32 +95,6 @@ static int mt2701_afe_i2s_fs(unsigned int sample_rate)
 	return -EINVAL;
 }
 
-static int mt2701_afe_i2s_startup(struct snd_pcm_substream *substream,
-				  struct snd_soc_dai *dai)
-{
-#ifndef EARLY_PORTING
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
-	struct mt2701_afe_private *afe_priv = afe->platform_priv;
-	int i2s_num = mt2701_dai_num_to_i2s(afe, dai->id);
-	int clk_num = MT2701_AUD_AUD_I2S1_MCLK + i2s_num;
-	int ret = 0;
-
-	if (i2s_num < 0)
-		return i2s_num;
-
-	/* enable mclk */
-	ret = clk_prepare_enable(afe_priv->clocks[clk_num]);
-	if (ret)
-		dev_err(afe->dev, "Failed to enable mclk for I2S: %d\n",
-			i2s_num);
-	return ret;
-#else
-	return 0;
-#endif
-
-}
-
 static int mt2701_afe_i2s_path_shutdown(struct snd_pcm_substream *substream,
 					struct snd_soc_dai *dai,
 					int dir_invert)
@@ -170,7 +146,6 @@ static void mt2701_afe_i2s_shutdown(struct snd_pcm_substream *substream,
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 	int i2s_num = mt2701_dai_num_to_i2s(afe, dai->id);
 	struct mt2701_i2s_path *i2s_path;
-	int clk_num = MT2701_AUD_AUD_I2S1_MCLK + i2s_num;
 
 	if (i2s_num < 0)
 		return;
@@ -192,7 +167,12 @@ static void mt2701_afe_i2s_shutdown(struct snd_pcm_substream *substream,
 
 I2S_UNSTART:
 	/* disable mclk */
-	clk_disable_unprepare(afe_priv->clocks[clk_num]);
+	if (of_device_is_compatible(afe->dev->of_node, "mediatek,mt2712-audio")
+		&& substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		afe_priv->clk_ctrl->disable_mclk(afe, i2s_num + MCLK_I2SIN_OFFSET);
+	} else {
+		afe_priv->clk_ctrl->disable_mclk(afe, i2s_num);
+	}
 }
 
 static int mt2701_i2s_path_prepare_enable(struct snd_pcm_substream *substream,
@@ -206,7 +186,8 @@ static int mt2701_i2s_path_prepare_enable(struct snd_pcm_substream *substream,
 	struct mt2701_i2s_path *i2s_path;
 	const struct mt2701_i2s_data *i2s_data;
 	struct snd_pcm_runtime * const runtime = substream->runtime;
-	int reg, fs, w_len = 1; /* now we support bck 64bits only */
+	int reg, fs;
+	int w_len = (runtime->sample_bits == 16 ? 0 : 1);
 	int stream_dir = substream->stream;
 	unsigned int mask = 0, val = 0;
 
@@ -283,6 +264,7 @@ static int mt2701_afe_i2s_prepare(struct snd_pcm_substream *substream,
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 	int i2s_num = mt2701_dai_num_to_i2s(afe, dai->id);
 	struct mt2701_i2s_path *i2s_path;
+	struct clock_ctrl *clk_ctrl = afe_priv->clk_ctrl;
 	int mclk_rate;
 
 	if (i2s_num < 0)
@@ -295,18 +277,23 @@ static int mt2701_afe_i2s_prepare(struct snd_pcm_substream *substream,
 		return -EBUSY;
 	i2s_path->occupied[substream->stream] = 1;
 
-	if (MT2701_PLL_DOMAIN_0_RATE % mclk_rate == 0) {
+	if (clk_ctrl->apll0_rate % mclk_rate == 0) {
 		clk_domain = 0;
-	} else if (MT2701_PLL_DOMAIN_1_RATE % mclk_rate == 0) {
+	} else if (clk_ctrl->apll1_rate % mclk_rate == 0) {
 		clk_domain = 1;
 	} else {
 		dev_err(dai->dev, "%s() bad mclk rate %d\n",
 			__func__, mclk_rate);
 		return -EINVAL;
 	}
-#ifndef EARLY_PORTING
-	mt2701_mclk_configuration(afe, i2s_num, clk_domain, mclk_rate);
-#endif
+
+	if (of_device_is_compatible(afe->dev->of_node, "mediatek,mt2712-audio")
+		&& substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		clk_ctrl->mclk_configuration(afe, i2s_num + MCLK_I2SIN_OFFSET, clk_domain, mclk_rate);
+	} else {
+		clk_ctrl->mclk_configuration(afe, i2s_num, clk_domain, mclk_rate);
+	}
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		mt2701_i2s_path_prepare_enable(substream, dai, 0);
 	} else {
@@ -320,30 +307,93 @@ static int mt2701_afe_i2s_prepare(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-#ifdef EARLY_PORTING
-static int mt2701_afe_i2s_hw_params(struct snd_pcm_substream *substream,
-				  struct snd_pcm_hw_params *params,
-				  struct snd_soc_dai *dai)
+static int mt2701_afe_i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
-	int stream_fs = params_rate(params);
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
+	int i2s_num = mt2701_dai_num_to_i2s(afe, dai->id);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+	struct mt2701_i2s_data *i2s_data =
+		(struct mt2701_i2s_data *)afe_priv->i2s_path[i2s_num].i2s_data;
 
-	regmap_update_bits(afe->regmap, FPGA_CFG0, 0 << XCLK_DIVIDER_POS, XCLK_DIVIDER_MASK);
+	int read1, read2, ret1, ret2;
 
-	if (stream_fs == 192000 || stream_fs == 176400)
-		regmap_update_bits(afe->regmap, FPGA_CFG0, 1 << XCLK_DIVIDER_POS, XCLK_DIVIDER_MASK);
-	else if (stream_fs == 384000 || stream_fs == 352800)
-		regmap_update_bits(afe->regmap, FPGA_CFG0, 3 << XCLK_DIVIDER_POS, XCLK_DIVIDER_MASK);
+	dev_err(afe->dev, "%s, dai->id=%d, fmt=%d, i2s_num=%d, MT2701_IO_I2S=%d\n",
+		__func__, dai->id, fmt, i2s_num, MT2701_IO_I2S);
+	ret1 = regmap_read(afe->regmap, i2s_data[0].i2s_ctrl_reg, &read1);
+	ret2 = regmap_read(afe->regmap, i2s_data[1].i2s_ctrl_reg, &read2);
+	dev_err(afe->dev, "%s , reg[OUT] 0x%x = 0x%x (%d) | reg[IN] 0x%x = 0x%x (%d)\n",
+		__func__, i2s_data[0].i2s_ctrl_reg, read1, ret1,
+		i2s_data[1].i2s_ctrl_reg, read2, ret2);
 
-	if (mt2701_afe_i2s_fs(stream_fs) < 9)
-		regmap_update_bits(afe->regmap, FPGA_CFG0, DAC_2CH_MCLK_CLK_DOMAIN_48, DAC_2CH_MCLK_CLK_DOMAIN_MASK);
-	else
-		regmap_update_bits(afe->regmap, FPGA_CFG0, DAC_2CH_MCLK_CLK_DOMAIN_44, DAC_2CH_MCLK_CLK_DOMAIN_MASK);
+
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_I2S:	/* I2S */
+	case SND_SOC_DAIFMT_DSP_A:
+		ret1 = regmap_update_bits(afe->regmap, i2s_data->i2s_ctrl_reg,
+			ASYS_I2S_CON_I2S_MODE, ASYS_I2S_CON_I2S_MODE_SET(1));
+		break;
+	case SND_SOC_DAIFMT_RIGHT_J:
+		ret1 = regmap_update_bits(afe->regmap, i2s_data->i2s_ctrl_reg,
+			ASYS_I2S_CON_RIGHT_J, ASYS_I2S_CON_RIGHT_J_SET(1));
+		break;
+	case SND_SOC_DAIFMT_LEFT_J:
+		ret1 = regmap_update_bits(afe->regmap, i2s_data->i2s_ctrl_reg,
+			ASYS_I2S_CON_RIGHT_J, ASYS_I2S_CON_RIGHT_J_SET(0));
+		break;
+	case SND_SOC_DAIFMT_DSP_B:	/* EIAJ */
+		ret1 = regmap_update_bits(afe->regmap, i2s_data->i2s_ctrl_reg,
+			ASYS_I2S_CON_I2S_MODE, ASYS_I2S_CON_I2S_MODE_SET(0));
+		break;
+	default:
+		ret1 = regmap_update_bits(afe->regmap, i2s_data->i2s_ctrl_reg,
+			ASYS_I2S_CON_I2S_MODE, ASYS_I2S_CON_I2S_MODE_SET(1));
+		break;
+	}
+	dev_err(afe->dev, "%s , I2S MODE update ret: %d\n", __func__, ret1);
+
+	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+	case SND_SOC_DAIFMT_NB_NF:
+		ret1 = regmap_update_bits(afe->regmap, i2s_data->i2s_ctrl_reg,
+			ASYS_I2S_CON_INV_BCK, ASYS_I2S_CON_INV_BCK_SET(0));
+		ret2 = regmap_update_bits(afe->regmap, i2s_data->i2s_ctrl_reg,
+			ASYS_I2S_CON_INV_LRCK, ASYS_I2S_CON_INV_LRCK_SET(0));
+		break;
+	case SND_SOC_DAIFMT_NB_IF:
+		ret1 = regmap_update_bits(afe->regmap, i2s_data->i2s_ctrl_reg,
+			ASYS_I2S_CON_INV_BCK, ASYS_I2S_CON_INV_BCK_SET(0));
+		ret2 = regmap_update_bits(afe->regmap, i2s_data->i2s_ctrl_reg,
+			ASYS_I2S_CON_INV_LRCK, ASYS_I2S_CON_INV_LRCK_SET(1));
+		break;
+	case SND_SOC_DAIFMT_IB_NF:
+		ret1 = regmap_update_bits(afe->regmap, i2s_data->i2s_ctrl_reg,
+			ASYS_I2S_CON_INV_BCK, ASYS_I2S_CON_INV_BCK_SET(1));
+		ret2 = regmap_update_bits(afe->regmap, i2s_data->i2s_ctrl_reg,
+			ASYS_I2S_CON_INV_LRCK, ASYS_I2S_CON_INV_LRCK_SET(0));
+		break;
+	case SND_SOC_DAIFMT_IB_IF:
+		ret1 = regmap_update_bits(afe->regmap, i2s_data->i2s_ctrl_reg,
+			ASYS_I2S_CON_INV_BCK, ASYS_I2S_CON_INV_BCK_SET(1));
+		ret2 = regmap_update_bits(afe->regmap, i2s_data->i2s_ctrl_reg,
+			ASYS_I2S_CON_INV_LRCK, ASYS_I2S_CON_INV_LRCK_SET(1));
+		break;
+	default:
+		ret1 = regmap_update_bits(afe->regmap, i2s_data->i2s_ctrl_reg,
+			ASYS_I2S_CON_INV_BCK, ASYS_I2S_CON_INV_BCK_SET(0));
+		ret2 = regmap_update_bits(afe->regmap, i2s_data->i2s_ctrl_reg,
+			ASYS_I2S_CON_INV_LRCK, ASYS_I2S_CON_INV_LRCK_SET(0));
+		break;
+	}
+	dev_err(afe->dev, "%s , CLK INV update ret: %d | %d\n", __func__, ret1, ret2);
+
+
+	ret1 = regmap_read(afe->regmap, i2s_data[0].i2s_ctrl_reg, &read1);
+	ret2 = regmap_read(afe->regmap, i2s_data[1].i2s_ctrl_reg, &read2);
+	dev_err(afe->dev, "%s , reg[OUT] 0x%x = 0x%x (%d) | reg[IN] 0x%x = 0x%x (%d)\n",
+		__func__, i2s_data[0].i2s_ctrl_reg, read1, ret1,
+		i2s_data[1].i2s_ctrl_reg, read2, ret2);
 
 	return 0;
 }
-#endif
 
 static int mt2701_afe_i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 				     unsigned int freq, int dir)
@@ -446,6 +496,310 @@ static void mt2701_btmrg_shutdown(struct snd_pcm_substream *substream,
 	afe_priv->mrg_enable[substream->stream] = 0;
 }
 
+static int pcmi_palette(int fs)
+{
+	switch (fs) {
+	case 8000:
+		return 0x050000;
+	case 16000:
+		return 0x0A0000;
+	case 32000:
+		return 0x140000;
+	case 48000:
+		return 0x1E0000;
+	default:
+		return 0;
+	}
+}
+
+static int pcmo_palette(int fs)
+{
+	switch (fs) {
+	case 8000:
+		return 0x060000;
+	case 16000:
+		return 0x030000;
+	case 32000:
+		return 0x018000;
+	case 48000:
+		return 0x010000;
+	default:
+		return 0;
+	}
+}
+
+static int auto_rst_th_lo(int fs)
+{
+	switch (fs) {
+	case 8000:
+		return 0x05A000;
+	case 16000:
+		return 0x02d000;
+	case 32000:
+		return 0x016000;
+	case 48000:
+		return 0x00f000;
+	default:
+		return 0x0;
+	}
+}
+
+static int auto_rst_th_hi(int fs)
+{
+	switch (fs) {
+	case 8000:
+		return 0x066000;
+	case 16000:
+		return 0x033000;
+	case 32000:
+		return 0x01a000;
+	case 48000:
+		return 0x011000;
+	default:
+		return 0x0;
+	}
+}
+
+static int mt2701_modpcm_startup(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+
+	regmap_update_bits(afe->regmap, AUDIO_TOP_CON4,
+			   AUDIO_TOP_CON4_PDN_PCM, 0);
+
+	afe_priv->pcm_enable[substream->stream] = 1;
+	return 0;
+}
+
+static int mt2701_modpcm_hw_params(struct snd_pcm_substream *substream,
+				  struct snd_pcm_hw_params *params,
+				  struct snd_soc_dai *dai) {
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+	int stream_fs, bit_width, channel;
+
+	stream_fs = params_rate(params);
+	bit_width = params_width(params);
+	channel = params_channels(params);
+
+	switch (stream_fs) {
+	case 8000:
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+		   AFE_PCM_MODE,
+		   AFE_PCM_MODE_SET(0));
+		break;
+	case 16000:
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+		   AFE_PCM_MODE,
+		   AFE_PCM_MODE_SET(1));
+		break;
+	case 32000:
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+		   AFE_PCM_MODE,
+		   AFE_PCM_MODE_SET(2));
+		break;
+	case 48000:
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+		   AFE_PCM_MODE,
+		   AFE_PCM_MODE_SET(3));
+		break;
+	default:
+		dev_err(afe->dev, "%s() btmgr not supprt this stream_fs %d\n",
+					__func__, stream_fs);
+		return -EINVAL;
+	}
+
+	if (bit_width == 16) {
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+			   AFE_PCM_WLEN,
+			   AFE_PCM_WLEN_SET(0));
+
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+			   AFE_PCM_24BIT,
+			   AFE_PCM_24BIT_SET(0));
+	} else {
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+			   AFE_PCM_WLEN,
+			   AFE_PCM_WLEN_SET(1));
+
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+			   AFE_PCM_24BIT,
+			   AFE_PCM_24BIT_SET(1));
+	}
+
+	regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+			   AFE_PCM_EX_MODEM, AFE_PCM_EX_MODEM_SET(1));
+	regmap_update_bits(afe->regmap, AFE_SGEN_CON0,
+			   0xffffffff, 0xf8000000);
+
+	if (afe_priv->pcm_slave) {
+		/* set ASRC */
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			/* set Tx ASRC */
+			if (bit_width == 16)
+				regmap_update_bits(afe->regmap, AFE_ASRC_PCMO_CON0,
+						AFE_PCM_ASRC_O16BIT, AFE_PCM_ASRC_O16BIT_SET(1));
+			else
+				regmap_update_bits(afe->regmap, AFE_ASRC_PCMO_CON0,
+						AFE_PCM_ASRC_O16BIT, AFE_PCM_ASRC_O16BIT_SET(0));
+			if (channel == 1)
+				regmap_update_bits(afe->regmap, AFE_ASRC_PCMO_CON0,
+						AFE_PCM_ASRC_MONO, AFE_PCM_ASRC_MONO_SET(1));
+			else
+				regmap_update_bits(afe->regmap, AFE_ASRC_PCMO_CON0,
+						AFE_PCM_ASRC_MONO, AFE_PCM_ASRC_MONO_SET(0));
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMO_CON0,
+					AFE_PCM_ASRC_OFS, AFE_PCM_ASRC_OFS_SET(0));
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMO_CON0,
+					AFE_PCM_ASRC_IFS, AFE_PCM_ASRC_IFS_SET(3));
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMO_CON0,
+					AFE_PCM_ASRC_IIR, AFE_PCM_ASRC_IIR_SET(0));
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMO_CON4,
+					AFE_PCM_ASRC_PALETTE, AFE_PCM_ASRC_PALETTE_SET(pcmo_palette(stream_fs)));
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMO_CON1,
+					AFE_PCM_ASRC_PALETTE, AFE_PCM_ASRC_PALETTE_SET(pcmo_palette(stream_fs)));
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMO_CON6, 0xffffffff, 0x003f988f);
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMO_CON7, 0xffffffff, 0x00003c00);
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMO_CON13,
+					AFE_PCM_ASRC_TH, AFE_PCM_ASRC_TH_SET(auto_rst_th_hi(stream_fs)));
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMO_CON14,
+					AFE_PCM_ASRC_TH, AFE_PCM_ASRC_TH_SET(auto_rst_th_lo(stream_fs)));
+
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMO_CON0,
+					AFE_PCM_ASRC_CLR, AFE_PCM_ASRC_CLR);
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMO_CON0,
+					AFE_PCM_ASRC_CLR | AFE_PCM_ASRC_EN, AFE_PCM_ASRC_CLR | AFE_PCM_ASRC_EN_SET(1));
+		} else {
+			/* set Rx ASRC */
+			if (bit_width == 16)
+				regmap_update_bits(afe->regmap, AFE_ASRC_PCMI_CON0,
+						   AFE_PCM_ASRC_O16BIT, AFE_PCM_ASRC_O16BIT_SET(1));
+			else
+				regmap_update_bits(afe->regmap, AFE_ASRC_PCMI_CON0,
+						   AFE_PCM_ASRC_O16BIT, AFE_PCM_ASRC_O16BIT_SET(0));
+			if (channel == 1)
+				regmap_update_bits(afe->regmap, AFE_ASRC_PCMI_CON0,
+						   AFE_PCM_ASRC_MONO, AFE_PCM_ASRC_MONO_SET(1));
+			else
+				regmap_update_bits(afe->regmap, AFE_ASRC_PCMI_CON0,
+						   AFE_PCM_ASRC_MONO, AFE_PCM_ASRC_MONO_SET(0));
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMI_CON0,
+						   AFE_PCM_ASRC_OFS, AFE_PCM_ASRC_OFS_SET(1));
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMI_CON0,
+						   AFE_PCM_ASRC_IFS, AFE_PCM_ASRC_IFS_SET(2));
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMI_CON0,
+						   AFE_PCM_ASRC_IIR, AFE_PCM_ASRC_IIR_SET(0));
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMI_CON3, AFE_PCM_ASRC_PALETTE,
+						   AFE_PCM_ASRC_PALETTE_SET(pcmi_palette(stream_fs)));
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMI_CON2,
+						   AFE_PCM_ASRC_PALETTE,
+						   AFE_PCM_ASRC_PALETTE_SET(pcmi_palette(stream_fs)));
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMI_CON6, 0xffffffff, 0x003f988f);
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMI_CON7, 0xffffffff, 0x00003c00);
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMI_CON13,
+						   AFE_PCM_ASRC_TH, AFE_PCM_ASRC_TH_SET(auto_rst_th_hi(stream_fs)));
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMI_CON14,
+						   AFE_PCM_ASRC_TH, AFE_PCM_ASRC_TH_SET(auto_rst_th_lo(stream_fs)));
+
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMI_CON0,
+						   AFE_PCM_ASRC_CLR, AFE_PCM_ASRC_CLR);
+			regmap_update_bits(afe->regmap, AFE_ASRC_PCMI_CON0,
+						   AFE_PCM_ASRC_CLR | AFE_PCM_ASRC_EN,
+						   AFE_PCM_ASRC_CLR | AFE_PCM_ASRC_EN_SET(1));
+		}
+	}
+
+	regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+				   AFE_PCM_EN, 1);
+	return 0;
+}
+
+static int mt2701_modpcm_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
+{
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_I2S:
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+		   AFE_PCM_FMT,
+		   AFE_PCM_FMT_SET(0));
+		break;
+	case SND_SOC_DAIFMT_LEFT_J:
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+		   AFE_PCM_FMT,
+		   AFE_PCM_FMT_SET(1));
+		break;
+	case SND_SOC_DAIFMT_DSP_A:
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+		   AFE_PCM_FMT,
+		   AFE_PCM_FMT_SET(2));
+		break;
+	case SND_SOC_DAIFMT_DSP_B:
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+		   AFE_PCM_FMT,
+		   AFE_PCM_FMT_SET(3));
+		break;
+	default:
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+		   AFE_PCM_FMT,
+		   AFE_PCM_FMT_SET(0));
+		break;
+	}
+
+	/* master/slave */
+	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) == SND_SOC_DAIFMT_CBS_CFS) {
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+			   AFE_PCM_SLAVE,
+			   AFE_PCM_SLAVE_SET(0));
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+			   AFE_PCM_BYP_ASRC,
+			   AFE_PCM_BYP_ASRC_SET(1));
+		afe_priv->pcm_slave = 0;
+	} else {
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+			   AFE_PCM_SLAVE,
+			   AFE_PCM_SLAVE_SET(1));
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+			   AFE_PCM_BYP_ASRC,
+			   AFE_PCM_BYP_ASRC_SET(0));
+
+		afe_priv->pcm_slave = 1;
+	}
+	return 0;
+}
+
+
+static void mt2701_modpcm_shutdown(struct snd_pcm_substream *substream,
+				  struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+
+	/* if the other direction stream is not occupied */
+	if (!afe_priv->pcm_enable[!substream->stream]) {
+		regmap_update_bits(afe->regmap, AFE_PCM_INTF_CON1,
+				   AFE_PCM_EN, 0);
+		regmap_update_bits(afe->regmap, AUDIO_TOP_CON4,
+				   AUDIO_TOP_CON4_PDN_PCM,
+				   AUDIO_TOP_CON4_PDN_PCM);
+	}
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		regmap_update_bits(afe->regmap, AFE_ASRC_PCMO_CON0,
+			     AFE_PCM_ASRC_CLR | AFE_PCM_ASRC_EN, AFE_PCM_ASRC_CLR | AFE_PCM_ASRC_EN_SET(0));
+	else
+		regmap_update_bits(afe->regmap, AFE_ASRC_PCMI_CON0,
+			     AFE_PCM_ASRC_CLR | AFE_PCM_ASRC_EN, AFE_PCM_ASRC_CLR | AFE_PCM_ASRC_EN_SET(0));
+
+	afe_priv->pcm_enable[substream->stream] = 0;
+}
+
+
 static int mt2701_simple_fe_startup(struct snd_pcm_substream *substream,
 				    struct snd_soc_dai *dai)
 {
@@ -455,15 +809,20 @@ static int mt2701_simple_fe_startup(struct snd_pcm_substream *substream,
 	int memif_num = rtd->cpu_dai->id;
 	struct mtk_base_afe_memif *memif_tmp;
 
-	/* can't run single DL & DLM at the same time */
-	if (stream_dir == SNDRV_PCM_STREAM_PLAYBACK) {
-		memif_tmp = &afe->memif[MT2701_MEMIF_DLM];
-		if (memif_tmp->substream) {
-			dev_warn(afe->dev, "%s memif is not available, stream_dir %d, memif_num %d\n",
-				 __func__, stream_dir, memif_num);
-			return -EBUSY;
+	if (of_device_is_compatible(afe->dev->of_node, "mediatek,mt2701-audio")) {
+		dev_warn(afe->dev, "%s, can't run single DL & DLM at the same time.\n", __func__);
+
+		/* can't run single DL & DLM at the same time */
+		if (stream_dir == SNDRV_PCM_STREAM_PLAYBACK) {
+			memif_tmp = &afe->memif[MT2701_MEMIF_DLM];
+			if (memif_tmp->substream) {
+				dev_warn(afe->dev, "%s memif is not available, stream_dir %d, memif_num %d\n",
+					 __func__, stream_dir, memif_num);
+				return -EBUSY;
+			}
 		}
 	}
+
 	return mtk_afe_fe_startup(substream, dai);
 }
 
@@ -494,10 +853,14 @@ static int mt2701_dlm_fe_startup(struct snd_pcm_substream *substream,
 	const struct mtk_base_memif_data *memif_data;
 	int i;
 
-	for (i = MT2701_MEMIF_DL1; i < MT2701_MEMIF_DL_SINGLE_NUM; ++i) {
-		memif_tmp = &afe->memif[i];
-		if (memif_tmp->substream)
-			return -EBUSY;
+	if (of_device_is_compatible(afe->dev->of_node, "mediatek,mt2701-audio")) {
+		dev_warn(afe->dev, "%s, can't run single DL & DLM at the same time.\n", __func__);
+
+		for (i = MT2701_MEMIF_DL1; i < MT2701_MEMIF_DL_SINGLE_NUM; ++i) {
+			memif_tmp = &afe->memif[i];
+			if (memif_tmp->substream)
+				return -EBUSY;
+		}
 	}
 
 	/* enable agent for all signal DL (due to hw design) */
@@ -520,13 +883,18 @@ static void mt2701_dlm_fe_shutdown(struct snd_pcm_substream *substream,
 	const struct mtk_base_memif_data *memif_data;
 	int i;
 
-	for (i = MT2701_MEMIF_DL1; i < MT2701_MEMIF_DL_SINGLE_NUM; ++i) {
-		memif_data = afe->memif[i].data;
-		regmap_update_bits(afe->regmap,
-				   memif_data->agent_disable_reg,
-				   1 << memif_data->agent_disable_shift,
-				   1 << memif_data->agent_disable_shift);
+	if (of_device_is_compatible(afe->dev->of_node, "mediatek,mt2701-audio")) {
+		dev_warn(afe->dev, "%s, can't run single DL & DLM at the same time.\n", __func__);
+
+		for (i = MT2701_MEMIF_DL1; i < MT2701_MEMIF_DL_SINGLE_NUM; ++i) {
+			memif_data = afe->memif[i].data;
+			regmap_update_bits(afe->regmap,
+					   memif_data->agent_disable_reg,
+					   1 << memif_data->agent_disable_shift,
+					   1 << memif_data->agent_disable_shift);
+		}
 	}
+
 	return mtk_afe_fe_shutdown(substream, dai);
 }
 
@@ -585,7 +953,12 @@ static int mt2701_dlm_fe_trigger(struct snd_pcm_substream *substream,
 
 static int mt2701_dai_num_to_tdm(struct mtk_base_afe *afe, int num)
 {
-	int val = num - MT2701_MEMIF_DLTDM1;
+	int val;
+
+	if (num > MT2701_MEMIF_NUM)
+		val = num - MT2701_IO_TDMO1;
+	else
+		val = num - MT2701_MEMIF_DLTDM1;
 
 	if (val < 0 || val >= MT2701_TDM_NUM) {
 		dev_err(afe->dev, "%s, num not available, num %d, val %d\n",
@@ -632,38 +1005,64 @@ int afe_tdm_in_mask_configurate(int channel)
 	return reg_val_to_write;
 }
 
-void mt2701_tdm_format_configuration(struct mtk_base_afe *afe, int tdm_num,
-						struct snd_pcm_hw_params *params)
+void mt2701_tdm_configuration(struct mtk_base_afe *afe, int tdm_id, struct snd_pcm_hw_params *params)
 {
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
-	int ret;
-	struct mt2701_tdm_data *tdm_data = (struct mt2701_tdm_data *) afe_priv->tdm_path[tdm_num].tdm_data;
+	struct mt2701_tdm_data *tdm_data = (struct mt2701_tdm_data *)afe_priv->tdm_path[tdm_id].tdm_data;
 	int channels = params_channels(params);
 	int bit_width = params_width(params);
-
-	regmap_update_bits(afe->regmap, AFE_DAC_CON0, 1 << tdm_data->tdm_on_shift, 1 << tdm_data->tdm_on_shift);
-
 	/* TDM config */
 	if (bit_width == 32) {
 		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg, AFE_TDM_CON_WLEN, AFE_TDM_CON_WLEN_SET(3));
 		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg, 3 << tdm_data->tdm_lrck_cycle_shift,
-				   2 << tdm_data->tdm_lrck_cycle_shift);
+			2 << tdm_data->tdm_lrck_cycle_shift);
 	} else if (bit_width == 16) {
 		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg, AFE_TDM_CON_WLEN, AFE_TDM_CON_WLEN_SET(1));
 		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg, 3 << tdm_data->tdm_lrck_cycle_shift,
-				   0 << tdm_data->tdm_lrck_cycle_shift);
+			0 << tdm_data->tdm_lrck_cycle_shift);
 	} else if (bit_width == 24) {
 		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg, AFE_TDM_CON_WLEN, AFE_TDM_CON_WLEN_SET(2));
 		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg, 3 << tdm_data->tdm_lrck_cycle_shift,
-				   2 << tdm_data->tdm_lrck_cycle_shift);
+			2 << tdm_data->tdm_lrck_cycle_shift);
 	}
-	regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg, AFE_TDM_CON_CH,
-			   AFE_TDM_CON_CH_SET(mt2701_tdm_map_channel(channels)));
-	regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg, AFE_TDM_CON_LRCK_WIDTH,
-			   AFE_TDM_CON_LRCK_WIDTH_SET(bit_width - 1));
-	regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg, AFE_TDM_CON_DELAY, AFE_TDM_CON_DELAY_SET(1));
 
-	if (tdm_num < MT2701_MEMIF_ULTDM) {
+	regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg, AFE_TDM_CON_CH,
+			AFE_TDM_CON_CH_SET(mt2701_tdm_map_channel(channels)));
+	regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg, AFE_TDM_CON_LRCK_WIDTH,
+			AFE_TDM_CON_LRCK_WIDTH_SET(bit_width - 1));
+
+	if (tdm_id == MT2701_TDMI) {
+		regmap_update_bits(afe->regmap, AFE_TDM_IN_CON1, AFE_TDM_CON_LRCK_DELAY,
+				AFE_TDM_CON_LRCK_DELAY_SET(afe_priv->tdm_in_lrck.delay_half_T));
+		if (afe_priv->tdm_in_lrck.width)
+			regmap_update_bits(afe->regmap, AFE_TDM_IN_CON1, AFE_TDM_CON_LRCK_WIDTH,
+					AFE_TDM_CON_LRCK_WIDTH_SET((channels * bit_width)-2));
+
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_2nd_reg, 0xffff,
+			afe_tdm_in_mask_configurate(channels));
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg, 1<<21, 1<<21);
+	} else {
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_2nd_reg, 0xffffffff, 0);
+	}
+
+}
+
+
+static int mt2701_tdm_fe_hw_params(struct snd_pcm_substream *substream,
+				    struct snd_pcm_hw_params *params,
+				    struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+	int tdm_num = mt2701_dai_num_to_tdm(afe, dai->id);
+	struct mt2701_tdm_data *tdm_data = (struct mt2701_tdm_data *)afe_priv->tdm_path[tdm_num].tdm_data;
+	int channels = params_channels(params);
+	int bit_width = params_width(params);
+
+	mtk_afe_fe_hw_params(substream, params, dai);
+
+	if (tdm_num < MT2701_TDMI) {
 		if (bit_width != 16)
 			regmap_update_bits(afe->regmap, tdm_data->tdm_agent_reg,
 					   1 << tdm_data->tdm_agent_bit_width_shift,
@@ -675,50 +1074,258 @@ void mt2701_tdm_format_configuration(struct mtk_base_afe *afe, int tdm_num,
 
 		regmap_update_bits(afe->regmap, tdm_data->tdm_agent_reg, 0x1f << tdm_data->tdm_agent_ch_num_shift,
 				   channels << tdm_data->tdm_agent_ch_num_shift);
-		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_2nd_reg, 0xffffffff, 0);
-		regmap_read(afe->regmap, tdm_data->tdm_ctrl_2nd_reg, &ret);
-	} else {
-		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_2nd_reg, 0xffff,
-				   afe_tdm_in_mask_configurate(channels));
-		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg, 1<<21, 1<<21);
 	}
+
+	return 0;
 }
 
-static int mt2701_afe_tdm_hw_params(struct snd_pcm_substream *substream,
-				    struct snd_pcm_hw_params *params,
-				    struct snd_soc_dai *dai)
+static int mt2701_afe_tdmio_set_sysclk(struct snd_soc_dai *dai, int clk_id,
+				     unsigned int freq, int dir)
+{
+	struct mtk_base_afe *afe = dev_get_drvdata(dai->dev);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+	int tdm_num = mt2701_dai_num_to_tdm(afe, dai->id);
+
+	if (tdm_num < 0)
+		return tdm_num;
+
+	/* mclk */
+	afe_priv->tdm_path[tdm_num].mclk_rate = freq;
+	return 0;
+}
+
+static int mt2701_tdmio_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
+{
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
+	int tdm_num = mt2701_dai_num_to_tdm(afe, dai->id);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+	struct mt2701_tdm_data *tdm_data = (struct mt2701_tdm_data *)afe_priv->tdm_path[tdm_num].tdm_data;
+
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_DSP_A:
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg, AFE_TDM_CON_DELAY,
+				 AFE_TDM_CON_DELAY_SET(1));
+		break;
+
+	case SND_SOC_DAIFMT_DSP_B:
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg, AFE_TDM_CON_DELAY,
+				 AFE_TDM_CON_DELAY_SET(0));
+		break;
+
+	default:
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg, AFE_TDM_CON_DELAY,
+				 AFE_TDM_CON_DELAY_SET(1));
+		break;
+
+	}
+
+	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+	case SND_SOC_DAIFMT_NB_NF:
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_BCK, AFE_TDM_CON_INV_BCK_SET(0));
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_LRCK, AFE_TDM_CON_INV_LRCK_SET(0));
+		break;
+	case SND_SOC_DAIFMT_NB_IF:
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_BCK, AFE_TDM_CON_INV_BCK_SET(0));
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_LRCK, AFE_TDM_CON_INV_LRCK_SET(1));
+		break;
+	case SND_SOC_DAIFMT_IB_NF:
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_BCK, AFE_TDM_CON_INV_BCK_SET(1));
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_LRCK, AFE_TDM_CON_INV_LRCK_SET(0));
+		break;
+	case SND_SOC_DAIFMT_IB_IF:
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_BCK, AFE_TDM_CON_INV_BCK_SET(1));
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_LRCK, AFE_TDM_CON_INV_LRCK_SET(1));
+		break;
+	default:
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_BCK, AFE_TDM_CON_INV_BCK_SET(0));
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_LRCK, AFE_TDM_CON_INV_LRCK_SET(0));
+		break;
+	}
+	return 0;
+
+}
+
+
+static int mt2701_tdmio_hw_params(struct snd_pcm_substream *substream,
+				  struct snd_pcm_hw_params *params,
+				  struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
 	int tdm_num = mt2701_dai_num_to_tdm(afe, dai->id);
-	struct mtk_base_afe_memif *memif = &afe->memif[rtd->cpu_dai->id];
-	int hd_audio = 0;
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+	struct mt2701_tdm_data *tdm_data = (struct mt2701_tdm_data *)afe_priv->tdm_path[tdm_num].tdm_data;
 
-	mt2701_tdm_clk_configuration(afe, tdm_num, params);
-	mtk_afe_fe_hw_params(substream, params, dai);
+	regmap_update_bits(afe->regmap, AFE_TDM_IN_CON1, 0x3<<21, 0);
 
-	/* set hd mode */
-	switch (params->msbits) {
-	case 16:
-		hd_audio = 0;
-		break;
-	case 24:
-	case 32:
-		hd_audio = 1;
-		break;
-	default:
-		dev_err(afe->dev, "%s() error: unsupported format %d\n",
-			__func__, params->msbits);
-		break;
-	}
+	mt2701_tdm_clk_configuration(afe, tdm_num, params, false);
 
-	regmap_update_bits(afe->regmap, memif->data->hd_reg,
-			   1 << memif->data->hd_shift,
-			   hd_audio << memif->data->hd_shift);
+	regmap_update_bits(afe->regmap, tdm_data->tdm_bck_reg,
+			1<<tdm_data->tdm_bck_on_shift, 1<<tdm_data->tdm_bck_on_shift);
 
-	mt2701_tdm_format_configuration(afe, tdm_num, params);
+	mt2701_tdm_configuration(afe, tdm_num, params);
+
+	regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+			1<<tdm_data->tdm_on_shift, 1<<tdm_data->tdm_on_shift);
+
 	return 0;
 }
+
+static void mt2701_tdmio_shutdown(struct snd_pcm_substream *substream,
+				  struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	int tdm_num = mt2701_dai_num_to_tdm(afe, dai->id);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+	struct mt2701_tdm_data *tdm_data = (struct mt2701_tdm_data *)afe_priv->tdm_path[tdm_num].tdm_data;
+
+	regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+			 1<<tdm_data->tdm_on_shift, 0<<tdm_data->tdm_on_shift);
+	regmap_update_bits(afe->regmap, tdm_data->tdm_bck_reg,
+			 1<<tdm_data->tdm_bck_on_shift, 0<<tdm_data->tdm_bck_on_shift);
+	afe_priv->clk_ctrl->disable_mclk(afe, MCLK_TDM_OFFSET + tdm_num);
+}
+
+static int mt2701_tdmio_coclk_hw_params(struct snd_pcm_substream *substream,
+				  struct snd_pcm_hw_params *params,
+				  struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+	int tdm_num = afe_priv->tdm_coclk_info.src;
+	int tdm_num_in = MT2701_TDMI;
+	struct mt2701_tdm_data *tdm_data = (struct mt2701_tdm_data *)afe_priv->tdm_path[tdm_num].tdm_data;
+	struct mt2701_tdm_data *tdm_data_in = (struct mt2701_tdm_data *)afe_priv->tdm_path[tdm_num_in].tdm_data;
+	int ret = 0;
+
+	regmap_update_bits(afe->regmap, AFE_TDM_IN_CON1, 0x3<<21, 0);
+
+	if (afe_priv->tdm_coclk_info.on == 0) {
+		regmap_update_bits(afe->regmap, AFE_TDM_IN_CON1, AFE_TDM_CON_IN_BCK, AFE_TDM_CON_IN_BCK_SET(tdm_num));
+		regmap_update_bits(afe->regmap, AFE_TDM_IN_CON1, AFE_TDM_CON_INOUT_SYNC, AFE_TDM_CON_INOUT_SYNC_SET(1));
+
+		mt2701_tdm_clk_configuration(afe, tdm_num, params, true);
+
+		regmap_update_bits(afe->regmap, tdm_data->tdm_bck_reg, 1<<tdm_data->tdm_bck_on_shift,
+				 1<<tdm_data->tdm_bck_on_shift);
+
+		mt2701_tdm_configuration(afe, tdm_num, params);
+		mt2701_tdm_configuration(afe, tdm_num_in, params);
+
+		regmap_update_bits(afe->regmap, tdm_data_in->tdm_ctrl_reg, 1<<tdm_data_in->tdm_on_shift,
+				 1<<tdm_data_in->tdm_on_shift);
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg, 1<<tdm_data->tdm_on_shift,
+				 1<<tdm_data->tdm_on_shift);
+
+		afe_priv->tdm_coclk_info.sample_rate = params_rate(params);
+		afe_priv->tdm_coclk_info.channels = params_channels(params);
+		afe_priv->tdm_coclk_info.bit_width = params_width(params);
+	} else {
+		if (params_rate(params) != afe_priv->tdm_coclk_info.sample_rate
+			|| params_channels(params) != afe_priv->tdm_coclk_info.channels
+			|| params_width(params) != afe_priv->tdm_coclk_info.bit_width)
+			ret = -EINVAL;
+	}
+	afe_priv->tdm_coclk_info.on++;
+	return ret;
+}
+
+static int mt2701_tdmio_coclk_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
+{
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+	int tdm_num = afe_priv->tdm_coclk_info.gpio_src;
+	struct mt2701_tdm_data *tdm_data = (struct mt2701_tdm_data *)afe_priv->tdm_path[tdm_num].tdm_data;
+
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_DSP_A:
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_DELAY, AFE_TDM_CON_DELAY_SET(1));
+		break;
+
+	case SND_SOC_DAIFMT_DSP_B:
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_DELAY, AFE_TDM_CON_DELAY_SET(0));
+		break;
+
+	default:
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_DELAY, AFE_TDM_CON_DELAY_SET(1));
+		break;
+
+	}
+
+	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+	case SND_SOC_DAIFMT_NB_NF:
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_BCK, AFE_TDM_CON_INV_BCK_SET(0));
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_LRCK, AFE_TDM_CON_INV_LRCK_SET(0));
+		break;
+	case SND_SOC_DAIFMT_NB_IF:
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_BCK, AFE_TDM_CON_INV_BCK_SET(0));
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_LRCK, AFE_TDM_CON_INV_LRCK_SET(1));
+		break;
+	case SND_SOC_DAIFMT_IB_NF:
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_BCK, AFE_TDM_CON_INV_BCK_SET(1));
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_LRCK, AFE_TDM_CON_INV_LRCK_SET(0));
+		break;
+	case SND_SOC_DAIFMT_IB_IF:
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_BCK, AFE_TDM_CON_INV_BCK_SET(1));
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_LRCK, AFE_TDM_CON_INV_LRCK_SET(1));
+		break;
+	default:
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_BCK, AFE_TDM_CON_INV_BCK_SET(0));
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				AFE_TDM_CON_INV_LRCK, AFE_TDM_CON_INV_LRCK_SET(0));
+		break;
+	}
+	return 0;
+
+}
+
+static void mt2701_tdmio_coclk_shutdown(struct snd_pcm_substream *substream,
+				  struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct mtk_base_afe *afe = snd_soc_platform_get_drvdata(rtd->platform);
+	int tdm_num = mt2701_dai_num_to_tdm(afe, dai->id);
+	int tdm_num_in = MT2701_TDMI;
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+	struct mt2701_tdm_data *tdm_data = (struct mt2701_tdm_data *)afe_priv->tdm_path[tdm_num].tdm_data;
+	struct mt2701_tdm_data *tdm_data_in = (struct mt2701_tdm_data *)afe_priv->tdm_path[tdm_num_in].tdm_data;
+
+	if (afe_priv->tdm_coclk_info.on == 1) {
+		regmap_update_bits(afe->regmap, tdm_data_in->tdm_ctrl_reg,
+				1<<tdm_data_in->tdm_on_shift, 0<<tdm_data_in->tdm_on_shift);
+		regmap_update_bits(afe->regmap, tdm_data->tdm_ctrl_reg,
+				1<<tdm_data->tdm_on_shift, 0<<tdm_data->tdm_on_shift);
+		regmap_update_bits(afe->regmap, tdm_data->tdm_bck_reg,
+				1<<tdm_data->tdm_bck_on_shift, 0<<tdm_data->tdm_bck_on_shift);
+	}
+	afe_priv->tdm_coclk_info.on--;
+}
+
+
 
 static int mt2701_memif_fs(struct snd_pcm_substream *substream,
 			   unsigned int rate)
@@ -758,15 +1365,22 @@ static const struct snd_soc_dai_ops mt2701_dlm_memif_dai_ops = {
 	.trigger	= mt2701_dlm_fe_trigger,
 };
 
+/* TDM FE DAIs */
+static const struct snd_soc_dai_ops mt2701_tdm_memif_ops = {
+	.startup	= mtk_afe_fe_startup,
+	.shutdown	= mtk_afe_fe_shutdown,
+	.hw_params	= mt2701_tdm_fe_hw_params,
+	.hw_free	= mtk_afe_fe_hw_free,
+	.prepare	= mtk_afe_fe_prepare,
+	.trigger	= mtk_afe_fe_trigger,
+};
+
 /* I2S BE DAIs */
 static const struct snd_soc_dai_ops mt2701_afe_i2s_ops = {
-	.startup	= mt2701_afe_i2s_startup,
 	.shutdown	= mt2701_afe_i2s_shutdown,
-#ifdef EARLY_PORTING
-	.hw_params  = mt2701_afe_i2s_hw_params,
-#endif
 	.prepare	= mt2701_afe_i2s_prepare,
 	.set_sysclk	= mt2701_afe_i2s_set_sysclk,
+	.set_fmt	= mt2701_afe_i2s_set_fmt,
 };
 
 /* MRG BE DAIs */
@@ -776,14 +1390,30 @@ static struct snd_soc_dai_ops mt2701_btmrg_ops = {
 	.hw_params = mt2701_btmrg_hw_params,
 };
 
-/* TDM DAIs */
-static const struct snd_soc_dai_ops mt2701_afe_tdm_ops = {
-	.startup    = mtk_afe_fe_startup,
-	.shutdown   = mtk_afe_fe_shutdown,
-	.hw_params  = mt2701_afe_tdm_hw_params,
-	.hw_free    = mtk_afe_fe_hw_free,
-	.trigger    = mtk_afe_fe_trigger,
+
+static struct snd_soc_dai_ops mt2701_modpcm_ops = {
+	.startup = mt2701_modpcm_startup,
+	.shutdown = mt2701_modpcm_shutdown,
+	.hw_params = mt2701_modpcm_hw_params,
+	.set_fmt = mt2701_modpcm_set_fmt
 };
+
+
+/* TDM BE DAIs */
+static const struct snd_soc_dai_ops mt2701_tdmio_ops = {
+	.hw_params      = mt2701_tdmio_hw_params,
+	.set_fmt	= mt2701_tdmio_set_fmt,
+	.set_sysclk	= mt2701_afe_tdmio_set_sysclk,
+	.shutdown	= mt2701_tdmio_shutdown,
+};
+
+static const struct snd_soc_dai_ops mt2701_tdmio_coclk_ops = {
+	.hw_params      = mt2701_tdmio_coclk_hw_params,
+	.shutdown	= mt2701_tdmio_coclk_shutdown,
+	.set_fmt	= mt2701_tdmio_coclk_set_fmt,
+};
+
+
 
 static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 	/* FE DAIs: memory intefaces to CPU */
@@ -923,6 +1553,23 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 		.ops = &mt2701_dlm_memif_dai_ops,
 	},
 	{
+		.name = "PCM_AWB2",
+		.id = MT2701_MEMIF_AWB2,
+		.suspend = mtk_afe_dai_suspend,
+		.resume = mtk_afe_dai_resume,
+		.capture = {
+			.stream_name = "ULAWB2",
+			.channels_min = 1,
+			.channels_max = 2,
+			.rates = SNDRV_PCM_RATE_8000_384000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE
+				| SNDRV_PCM_FMTBIT_S24_LE
+				| SNDRV_PCM_FMTBIT_S32_LE)
+
+		},
+		.ops = &mtk_afe_fe_ops,
+	},
+	{
 		.name = "PCM_BT_DL",
 		.id = MT2701_MEMIF_DLBT,
 		.suspend = mtk_afe_dai_suspend,
@@ -948,9 +1595,91 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 			.channels_max = 1,
 			.rates = (SNDRV_PCM_RATE_8000
 				| SNDRV_PCM_RATE_16000),
-			.formats = SNDRV_PCM_FMTBIT_S16_LE,
+			.formats = SNDRV_PCM_FMTBIT_S16_LE
 		},
 		.ops = &mt2701_single_memif_dai_ops,
+	},
+	{
+		.name = "PCM_MOD_DL",
+		.id = MT2701_MEMIF_DLMOD,
+		.suspend = mtk_afe_dai_suspend,
+		.resume = mtk_afe_dai_resume,
+		.playback = {
+			.stream_name = "DLMOD",
+			.channels_min = 1,
+			.channels_max = 2,
+			.rates = (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000
+				| SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000),
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE
+				| SNDRV_PCM_FMTBIT_S24_LE
+				| SNDRV_PCM_FMTBIT_S32_LE)
+		},
+		.ops = &mtk_afe_fe_ops,
+	},
+	{
+		.name = "PCM_MOD_UL",
+		.id = MT2701_MEMIF_ULMOD,
+		.suspend = mtk_afe_dai_suspend,
+		.resume = mtk_afe_dai_resume,
+		.capture = {
+			.stream_name = "ULMOD",
+			.channels_min = 1,
+			.channels_max = 2,
+			.rates = (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000
+				| SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000),
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE
+				| SNDRV_PCM_FMTBIT_S24_LE
+				| SNDRV_PCM_FMTBIT_S32_LE)
+		},
+		.ops = &mtk_afe_fe_ops,
+	},
+	{
+		.name = "PCM_TDMO0",
+		.id = MT2701_MEMIF_DLTDM1,
+		.suspend = mtk_afe_dai_suspend,
+		.resume = mtk_afe_dai_resume,
+		.playback = {
+			.stream_name = "DLTDM0",
+			.channels_min = 1,
+			.channels_max = 16,
+			.rates = SNDRV_PCM_RATE_8000_192000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE
+				| SNDRV_PCM_FMTBIT_S24_LE
+				| SNDRV_PCM_FMTBIT_S32_LE)
+		},
+		.ops = &mt2701_tdm_memif_ops,
+	},
+	{
+		.name = "PCM_TDMO1",
+		.id = MT2701_MEMIF_DLTDM2,
+		.suspend = mtk_afe_dai_suspend,
+		.resume = mtk_afe_dai_resume,
+		.playback = {
+			.stream_name = "DLTDM1",
+			.channels_min = 1,
+			.channels_max = 16,
+			.rates = SNDRV_PCM_RATE_8000_192000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE
+				| SNDRV_PCM_FMTBIT_S24_LE
+				| SNDRV_PCM_FMTBIT_S32_LE)
+		},
+		.ops = &mt2701_tdm_memif_ops,
+	},
+	{
+		.name = "PCM_TDMIN",
+		.id = MT2701_MEMIF_ULTDM,
+		.suspend = mtk_afe_dai_suspend,
+		.resume = mtk_afe_dai_resume,
+		.capture = {
+			.stream_name = "ULTDM",
+			.channels_min = 1,
+			.channels_max = 16,
+			.rates = SNDRV_PCM_RATE_8000_192000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE
+				| SNDRV_PCM_FMTBIT_S24_LE
+				| SNDRV_PCM_FMTBIT_S32_LE)
+		},
+		.ops = &mt2701_tdm_memif_ops,
 	},
 	/* BE DAIs */
 	{
@@ -1052,6 +1781,20 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 		.symmetric_rates = 1,
 	},
 	{
+		.name = "AADC",
+		.id = MT2701_IO_AADC,
+		.capture = {
+			.stream_name = "AADC Capture",
+			.channels_min = 1,
+			.channels_max = 2,
+			.rates = SNDRV_PCM_RATE_8000_384000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE
+				| SNDRV_PCM_FMTBIT_S24_LE
+				| SNDRV_PCM_FMTBIT_S32_LE)
+			},
+		.symmetric_rates = 1,
+	},
+	{
 		.name = "MRG BT",
 		.id = MT2701_IO_MRG,
 		.playback = {
@@ -1073,16 +1816,35 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 		.ops = &mt2701_btmrg_ops,
 		.symmetric_rates = 1,
 	},
-	/***
-	* TDM DAI : TDM is not follow FE/BE DAI structure,
-	* because it is isolate agent which can't
-	* connect to other module by interconnection.
-	***/
 	{
-		.name = "TDM_OUT0",
-		.id = MT2701_MEMIF_DLTDM1,
-		.suspend = mtk_afe_dai_suspend,
-		.resume = mtk_afe_dai_resume,
+		.name = "MOD PCM",
+		.id = MT2701_IO_MOD,
+		.playback = {
+			.stream_name = "MOD Playback",
+			.channels_min = 1,
+			.channels_max = 2,
+			.rates = (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000
+				| SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000),
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE
+				| SNDRV_PCM_FMTBIT_S24_LE
+				| SNDRV_PCM_FMTBIT_S32_LE)
+		},
+		.capture = {
+			.stream_name = "MOD Capture",
+			.channels_min = 1,
+			.channels_max = 2,
+			.rates = (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000
+				| SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000),
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE
+				| SNDRV_PCM_FMTBIT_S24_LE
+				| SNDRV_PCM_FMTBIT_S32_LE)
+		},
+		.ops = &mt2701_modpcm_ops,
+		.symmetric_rates = 1,
+	},
+	{
+		.name = "TDMO0",
+		.id = MT2701_IO_TDMO1,
 		.playback = {
 			.stream_name = "TDM0 Playback",
 			.channels_min = 1,
@@ -1092,13 +1854,12 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 				| SNDRV_PCM_FMTBIT_S24_LE
 				| SNDRV_PCM_FMTBIT_S32_LE)
 		},
-		.ops = &mt2701_afe_tdm_ops,
+		.ops = &mt2701_tdmio_ops,
+		.symmetric_rates = 1,
 	},
 	{
-		.name = "TDM_OUT1",
-		.id = MT2701_MEMIF_DLTDM2,
-		.suspend = mtk_afe_dai_suspend,
-		.resume = mtk_afe_dai_resume,
+		.name = "TDMO1",
+		.id = MT2701_IO_TDMO2,
 		.playback = {
 			.stream_name = "TDM1 Playback",
 			.channels_min = 1,
@@ -1108,13 +1869,12 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 				| SNDRV_PCM_FMTBIT_S24_LE
 				| SNDRV_PCM_FMTBIT_S32_LE)
 		},
-		.ops = &mt2701_afe_tdm_ops,
+		.ops = &mt2701_tdmio_ops,
+		.symmetric_rates = 1,
 	},
 	{
-		.name = "TDM_IN",
-		.id = MT2701_MEMIF_ULTDM,
-		.suspend = mtk_afe_dai_suspend,
-		.resume = mtk_afe_dai_resume,
+		.name = "TDMIN",
+		.id = MT2701_IO_TDMI,
 		.capture = {
 			.stream_name = "TDM Capture",
 			.channels_min = 1,
@@ -1124,7 +1884,8 @@ static struct snd_soc_dai_driver mt2701_afe_pcm_dais[] = {
 				| SNDRV_PCM_FMTBIT_S24_LE
 				| SNDRV_PCM_FMTBIT_S32_LE)
 		},
-		.ops = &mt2701_afe_tdm_ops,
+		.ops = &mt2701_tdmio_ops,
+		.symmetric_rates = 1,
 	},
 };
 
@@ -1151,6 +1912,15 @@ static const struct snd_kcontrol_new mt2701_afe_o04_mix[] = {
 static const struct snd_kcontrol_new mt2701_afe_o05_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("I05 Switch", AFE_CONN5, 5, 1, 0),
 };
+
+static const struct snd_kcontrol_new mt2701_afe_o10_mix[] = {
+	SOC_DAPM_SINGLE_AUTODISABLE("I08 Switch", AFE_CONN10, 8, 1, 0),
+};
+
+static const struct snd_kcontrol_new mt2701_afe_o11_mix[] = {
+	SOC_DAPM_SINGLE_AUTODISABLE("I09 Switch", AFE_CONN11, 9, 1, 0),
+};
+
 
 static const struct snd_kcontrol_new mt2701_afe_o14_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("I26 Switch", AFE_CONN14, 26, 1, 0),
@@ -1208,9 +1978,27 @@ static const struct snd_kcontrol_new mt2701_afe_o24_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("I21 Switch", AFE_CONN24, 21, 1, 0),
 };
 
+static const struct snd_kcontrol_new mt2701_afe_o25_mix[] = {
+	SOC_DAPM_SINGLE_AUTODISABLE("I22 Switch", AFE_CONN25, 22, 1, 0),
+};
+
+static const struct snd_kcontrol_new mt2701_afe_o26_mix[] = {
+	SOC_DAPM_SINGLE_AUTODISABLE("I23 Switch", AFE_CONN26, 23, 1, 0),
+};
+
+
 static const struct snd_kcontrol_new mt2701_afe_o31_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("I35 Switch", AFE_CONN41, 9, 1, 0),
 };
+
+static const struct snd_kcontrol_new mt2701_afe_o32_mix[] = {
+	SOC_DAPM_SINGLE_AUTODISABLE("I31 Switch", AFE_CONN32, 31, 1, 0),
+};
+
+static const struct snd_kcontrol_new mt2701_afe_o33_mix[] = {
+	SOC_DAPM_SINGLE_AUTODISABLE("I32 Switch", AFE_CONN41, 18, 1, 0),
+};
+
 
 static const struct snd_kcontrol_new mt2701_afe_i02_mix[] = {
 	SOC_DAPM_SINGLE("I2S0 Switch", SND_SOC_NOPM, 0, 1, 0),
@@ -1277,12 +2065,11 @@ static const struct snd_kcontrol_new mt2701_afe_multi_ch_out_asrc4[] = {
 static const struct snd_kcontrol_new mt2701_soc_controls[] = {
 	SOC_SINGLE("TDM Loopback Switch", AFE_TDM_IN_CON1, 20, 1, 0),
 	SOC_SINGLE("TDM Out Loopback Select", AFE_TDM_IN_CON1, 15, 1, 1),
-	SOC_SINGLE("TDM in/out Clock Sync", AFE_TDM_IN_CON1, 18, 1, 0),
-	SOC_SINGLE("TDM in/out Clock Sync Select", AFE_TDM_IN_CON1, 19, 1, 0),
 	SOC_SINGLE("I2SO0_I2SI0 Loopback Switch", ASYS_I2SIN1_CON, 21, 1, 0),
 	SOC_SINGLE("I2SO1_I2SI1 Loopback Switch", ASYS_I2SIN2_CON, 21, 1, 0),
 	SOC_SINGLE("I2SO2_I2SI2 Loopback Switch", ASYS_I2SIN3_CON, 21, 1, 0),
 	SOC_SINGLE("I2SO3_I2SI2 Loopback Switch", ASYS_I2SIN3_CON, 20, 1, 0),
+	SOC_SINGLE("MODPCM Loopback Switch", AFE_PCM_INTF_CON2, 10, 1, 0),
 };
 
 static const struct snd_soc_dapm_widget mt2701_afe_pcm_widgets[] = {
@@ -1294,6 +2081,8 @@ static const struct snd_soc_dapm_widget mt2701_afe_pcm_widgets[] = {
 	SND_SOC_DAPM_MIXER("I03", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("I04", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("I05", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I08", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I09", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("I12", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("I13", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("I14", SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -1302,7 +2091,11 @@ static const struct snd_soc_dapm_widget mt2701_afe_pcm_widgets[] = {
 	SND_SOC_DAPM_MIXER("I17", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("I18", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("I19", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I22", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I23", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("I26", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I31", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("I32", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("I35", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_MIXER("O00", SND_SOC_NOPM, 0, 0, mt2701_afe_o00_mix,
@@ -1317,6 +2110,10 @@ static const struct snd_soc_dapm_widget mt2701_afe_pcm_widgets[] = {
 			   ARRAY_SIZE(mt2701_afe_o04_mix)),
 	SND_SOC_DAPM_MIXER("O05", SND_SOC_NOPM, 0, 0, mt2701_afe_o05_mix,
 			   ARRAY_SIZE(mt2701_afe_o05_mix)),
+	SND_SOC_DAPM_MIXER("O10", SND_SOC_NOPM, 0, 0, mt2701_afe_o10_mix,
+			   ARRAY_SIZE(mt2701_afe_o10_mix)),
+	SND_SOC_DAPM_MIXER("O11", SND_SOC_NOPM, 0, 0, mt2701_afe_o11_mix,
+			   ARRAY_SIZE(mt2701_afe_o11_mix)),
 	SND_SOC_DAPM_MIXER("O14", SND_SOC_NOPM, 0, 0, mt2701_afe_o14_mix,
 			   ARRAY_SIZE(mt2701_afe_o14_mix)),
 	SND_SOC_DAPM_MIXER("O15", SND_SOC_NOPM, 0, 0, mt2701_afe_o15_mix,
@@ -1335,8 +2132,16 @@ static const struct snd_soc_dapm_widget mt2701_afe_pcm_widgets[] = {
 			   ARRAY_SIZE(mt2701_afe_o21_mix)),
 	SND_SOC_DAPM_MIXER("O22", SND_SOC_NOPM, 0, 0, mt2701_afe_o22_mix,
 			   ARRAY_SIZE(mt2701_afe_o22_mix)),
+	SND_SOC_DAPM_MIXER("O25", SND_SOC_NOPM, 0, 0, mt2701_afe_o25_mix,
+			   ARRAY_SIZE(mt2701_afe_o25_mix)),
+	SND_SOC_DAPM_MIXER("O26", SND_SOC_NOPM, 0, 0, mt2701_afe_o26_mix,
+			   ARRAY_SIZE(mt2701_afe_o26_mix)),
 	SND_SOC_DAPM_MIXER("O31", SND_SOC_NOPM, 0, 0, mt2701_afe_o31_mix,
 			   ARRAY_SIZE(mt2701_afe_o31_mix)),
+	SND_SOC_DAPM_MIXER("O32", SND_SOC_NOPM, 0, 0, mt2701_afe_o32_mix,
+			   ARRAY_SIZE(mt2701_afe_o32_mix)),
+	SND_SOC_DAPM_MIXER("O33", SND_SOC_NOPM, 0, 0, mt2701_afe_o33_mix,
+			   ARRAY_SIZE(mt2701_afe_o33_mix)),
 
 	SND_SOC_DAPM_MIXER("I12I13", SND_SOC_NOPM, 0, 0,
 			   mt2701_afe_multi_ch_out_i2s0,
@@ -1380,6 +2185,8 @@ static const struct snd_soc_dapm_route mt2701_afe_pcm_routes[] = {
 	{"I2S3 Playback", NULL, "O21"},
 	{"I2S3 Playback", NULL, "O22"},
 	{"BT Playback", NULL, "O31"},
+	{"MOD Playback", NULL, "O25"},
+	{"MOD Playback", NULL, "O26"},
 
 	{"UL1", NULL, "O00"},
 	{"UL1", NULL, "O01"},
@@ -1388,6 +2195,10 @@ static const struct snd_soc_dapm_route mt2701_afe_pcm_routes[] = {
 	{"UL3", NULL, "O04"},
 	{"UL3", NULL, "O05"},
 	{"ULBT", NULL, "O14"},
+	{"ULMOD", NULL, "O10"},
+	{"ULMOD", NULL, "O11"},
+	{"ULAWB2", NULL, "O32"},
+	{"ULAWB2", NULL, "O33"},
 
 	{"I00", NULL, "I2S0 Capture"},
 	{"I01", NULL, "I2S0 Capture"},
@@ -1400,6 +2211,11 @@ static const struct snd_soc_dapm_route mt2701_afe_pcm_routes[] = {
 	{"I05", NULL, "I2S2 Capture"},
 
 	{"I26", NULL, "BT Capture"},
+
+	{"I08", NULL, "MOD Capture"},
+	{"I09", NULL, "MOD Capture"},
+	{"I31", NULL, "AADC Capture"},
+	{"I32", NULL, "AADC Capture"},
 
 	{"ASRC_O0", "Asrc0 out Switch", "DLM"},
 	{"ASRC_O1", "Asrc1 out Switch", "DLM"},
@@ -1420,6 +2236,8 @@ static const struct snd_soc_dapm_route mt2701_afe_pcm_routes[] = {
 	{"I14I15", NULL, "DL2"},
 	{"I16I17", NULL, "DL3"},
 	{"I18I19", NULL, "DL4"},
+	{"I22", NULL, "DLMOD"},
+	{"I23", NULL, "DLMOD"},
 
 	{ "I12", NULL, "I12I13" },
 	{ "I13", NULL, "I12I13" },
@@ -1458,6 +2276,16 @@ static const struct snd_soc_dapm_route mt2701_afe_pcm_routes[] = {
 	{ "O22", "I17 Switch", "I17" },
 	{ "O22", "I19 Switch", "I19" },
 	{ "O31", "I35 Switch", "I35" },
+	{ "O25", "I22 Switch", "I22" },
+	{ "O26", "I23 Switch", "I23" },
+	{ "O10", "I08 Switch", "I08" },
+	{ "O11", "I09 Switch", "I09" },
+	{ "O32", "I31 Switch", "I31" },
+	{ "O33", "I32 Switch", "I32" },
+
+	{"TDM0 Playback", NULL, "DLTDM0"},
+	{"TDM1 Playback", NULL, "DLTDM1"},
+	{"ULTDM", NULL, "TDM Capture"},
 
 };
 
@@ -1488,10 +2316,10 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.hd_shift = 0,
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 6,
-		.msb_reg = -1,
-		.msb_shift = -1,
-		.msb2_reg = -1,
-		.msb2_shift = -1,
+		.msb_reg = AFE_MEMIF_BASE_MSB,
+		.msb_shift = 16,
+		.msb2_reg = AFE_MEMIF_END_MSB,
+		.msb2_shift = 16,
 	},
 	[MT2701_MEMIF_DL2] = {
 		.name = "DL2",
@@ -1509,10 +2337,10 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.hd_shift = 2,
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 7,
-		.msb_reg = -1,
-		.msb_shift = -1,
-		.msb2_reg = -1,
-		.msb2_shift = -1,
+		.msb_reg = AFE_MEMIF_BASE_MSB,
+		.msb_shift = 17,
+		.msb2_reg = AFE_MEMIF_END_MSB,
+		.msb2_shift = 17,
 	},
 	[MT2701_MEMIF_DL3] = {
 		.name = "DL3",
@@ -1530,10 +2358,10 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.hd_shift = 4,
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 8,
-		.msb_reg = -1,
-		.msb_shift = -1,
-		.msb2_reg = -1,
-		.msb2_shift = -1,
+		.msb_reg = AFE_MEMIF_BASE_MSB,
+		.msb_shift = 21,
+		.msb2_reg = AFE_MEMIF_END_MSB,
+		.msb2_shift = 21,
 	},
 	[MT2701_MEMIF_DL4] = {
 		.name = "DL4",
@@ -1551,10 +2379,10 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.hd_shift = 6,
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 9,
-		.msb_reg = -1,
-		.msb_shift = -1,
-		.msb2_reg = -1,
-		.msb2_shift = -1,
+		.msb_reg = AFE_MEMIF_BASE_MSB,
+		.msb_shift = 22,
+		.msb2_reg = AFE_MEMIF_END_MSB,
+		.msb2_shift = 22,
 	},
 	[MT2701_MEMIF_DL5] = {
 		.name = "DL5",
@@ -1593,10 +2421,10 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.hd_shift = 28,
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 12,
-		.msb_reg = -1,
-		.msb_shift = -1,
-		.msb2_reg = -1,
-		.msb2_shift = -1,
+		.msb_reg = AFE_MEMIF_BASE_MSB,
+		.msb_shift = 25,
+		.msb2_reg = AFE_MEMIF_END_MSB,
+		.msb2_shift = 25,
 	},
 	[MT2701_MEMIF_UL1] = {
 		.name = "UL1",
@@ -1614,10 +2442,10 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.hd_shift = 0,
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 0,
-		.msb_reg = -1,
-		.msb_shift = -1,
-		.msb2_reg = -1,
-		.msb2_shift = -1,
+		.msb_reg = AFE_MEMIF_BASE_MSB,
+		.msb_shift = 1,
+		.msb2_reg = AFE_MEMIF_END_MSB,
+		.msb2_shift = 1,
 	},
 	[MT2701_MEMIF_UL2] = {
 		.name = "UL2",
@@ -1635,10 +2463,10 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.hd_shift = 2,
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 1,
-		.msb_reg = -1,
-		.msb_shift = -1,
-		.msb2_reg = -1,
-		.msb2_shift = -1,
+		.msb_reg = AFE_MEMIF_BASE_MSB,
+		.msb_shift = 4,
+		.msb2_reg = AFE_MEMIF_END_MSB,
+		.msb2_shift = 4,
 	},
 	[MT2701_MEMIF_UL3] = {
 		.name = "UL3",
@@ -1656,10 +2484,10 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.hd_shift = 0,
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 2,
-		.msb_reg = -1,
-		.msb_shift = -1,
-		.msb2_reg = -1,
-		.msb2_shift = -1,
+		.msb_reg = AFE_MEMIF_BASE_MSB,
+		.msb_shift = 5,
+		.msb2_reg = AFE_MEMIF_END_MSB,
+		.msb2_shift = 5,
 	},
 	[MT2701_MEMIF_UL4] = {
 		.name = "UL4",
@@ -1703,6 +2531,27 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.msb2_reg = -1,
 		.msb2_shift = -1,
 	},
+	[MT2701_MEMIF_AWB2] = {
+		.name = "ULAWB2",
+		.id = MT2701_MEMIF_AWB2,
+		.reg_ofs_base = AFE_AWB2_BASE,
+		.reg_ofs_cur = AFE_AWB2_CUR,
+		.fs_reg = AFE_DAC_CON3,
+		.fs_shift = 5,
+		.mono_reg = AFE_DAC_CON4,
+		.mono_shift = 18,
+		.fs_maskbit = 0x1f,
+		.enable_reg = AFE_DAC_CON0,
+		.enable_shift = 21,
+		.hd_reg = AFE_MEMIF_HD_CON1,
+		.hd_shift = 16,
+		.agent_disable_reg = AUDIO_TOP_CON5,
+		.agent_disable_shift = 15,
+		.msb_reg = AFE_MEMIF_BASE_MSB,
+		.msb_shift = 10,
+		.msb2_reg = AFE_MEMIF_END_MSB,
+		.msb2_shift = 10,
+	},
 	[MT2701_MEMIF_DLBT] = {
 		.name = "DLBT",
 		.id = MT2701_MEMIF_DLBT,
@@ -1719,10 +2568,10 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.hd_shift = 14,
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 13,
-		.msb_reg = -1,
-		.msb_shift = -1,
-		.msb2_reg = -1,
-		.msb2_shift = -1,
+		.msb_reg = AFE_MEMIF_BASE_MSB,
+		.msb_shift = 26,
+		.msb2_reg = AFE_MEMIF_END_MSB,
+		.msb2_shift = 26,
 	},
 	[MT2701_MEMIF_ULBT] = {
 		.name = "ULBT",
@@ -1740,10 +2589,52 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.hd_shift = 20,
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 16,
-		.msb_reg = -1,
-		.msb_shift = -1,
-		.msb2_reg = -1,
-		.msb2_shift = -1,
+		.msb_reg = AFE_MEMIF_BASE_MSB,
+		.msb_shift = 3,
+		.msb2_reg = AFE_MEMIF_END_MSB,
+		.msb2_shift = 3,
+	},
+	[MT2701_MEMIF_DLMOD] = {
+		.name = "DLMOD",
+		.id = MT2701_MEMIF_DLMOD,
+		.reg_ofs_base = AFE_PCMO_BASE,
+		.reg_ofs_cur = AFE_PCMO_CUR,
+		.fs_reg = -1,
+		.fs_shift = -1,
+		.fs_maskbit = 0x1,
+		.mono_reg = AFE_DAC_CON3,
+		.mono_shift = 23,
+		.enable_reg = AFE_DAC_CON0,
+		.enable_shift = 9,
+		.hd_reg = AFE_MEMIF_HD_CON0,
+		.hd_shift = 16,
+		.agent_disable_reg = -1,
+		.agent_disable_shift = -1,
+		.msb_reg = AFE_MEMIF_BASE_MSB,
+		.msb_shift = 20,
+		.msb2_reg = AFE_MEMIF_END_MSB,
+		.msb2_shift = 20,
+	},
+	[MT2701_MEMIF_ULMOD] = {
+		.name = "ULMOD",
+		.id = MT2701_MEMIF_ULMOD,
+		.reg_ofs_base = AFE_PCMI_BASE,
+		.reg_ofs_cur = AFE_PCMI_CUR,
+		.fs_reg = -1,
+		.fs_shift = -1,
+		.fs_maskbit = 0x1f,
+		.mono_reg = AFE_DAC_CON4,
+		.mono_shift = 6,
+		.enable_reg = AFE_DAC_CON0,
+		.enable_shift = 13,
+		.hd_reg = AFE_MEMIF_HD_CON1,
+		.hd_shift = 6,
+		.agent_disable_reg = -1,
+		.agent_disable_shift = -1,
+		.msb_reg = AFE_MEMIF_BASE_MSB,
+		.msb_shift = 2,
+		.msb2_reg = AFE_MEMIF_END_MSB,
+		.msb2_shift = 2,
 	},
 	[MT2701_MEMIF_DLTDM1] = {
 		.name = "DLTDM1",
@@ -1755,8 +2646,8 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.fs_maskbit = 0x0,
 		.mono_reg = -1,
 		.mono_shift = -1,
-		.enable_reg = AFE_TDM_G1_CON1,
-		.enable_shift = 0,
+		.enable_reg = AFE_DAC_CON0,
+		.enable_shift = 5,
 		.hd_reg = AFE_MEMIF_HD_CON0,
 		.hd_shift = 8,
 		.agent_disable_reg = -1,
@@ -1776,8 +2667,8 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.fs_maskbit = 0x0,
 		.mono_reg = -1,
 		.mono_shift = -1,
-		.enable_reg = AFE_TDM_G2_CON1,
-		.enable_shift = 0,
+		.enable_reg = AFE_DAC_CON0,
+		.enable_shift = 6,
 		.hd_reg = AFE_MEMIF_HD_CON0,
 		.hd_shift = 10,
 		.agent_disable_reg = -1,
@@ -1797,8 +2688,8 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.fs_maskbit = 0x0,
 		.mono_reg = -1,
 		.mono_shift = -1,
-		.enable_reg = AFE_TDM_IN_CON1,
-		.enable_shift = 0,
+		.enable_reg = AFE_DAC_CON0,
+		.enable_shift = 16,
 		.hd_reg = AFE_MEMIF_HD_CON1,
 		.hd_shift = 12,
 		.agent_disable_reg = -1,
@@ -1960,39 +2851,63 @@ static const struct mt2701_i2s_data mt2701_i2s_data[MT2701_I2S_NUM][2] = {
 
 static const struct mt2701_tdm_data mt2701_tdm_data[MT2701_TDM_NUM] = {
 	{
+		.tdm_bck_reg = AUDIO_TOP_CON2,
+		.tdm_plldiv_shift = 8,
+		.tdm_pll_sel_shift = 0,
+		.tdm_bck_on_shift = 1,
 		.tdm_ctrl_reg = AFE_TDNO1_CON1,
 		.tdm_ctrl_2nd_reg = AFE_TDMO1_CON2,
 		.tdm_conn_reg = AFE_TDMO1_CONN_CON0,
 		.tdm_conn_2nd_reg = AFE_TDMO1_CONN_CON0,
 		.tdm_lrck_cycle_shift = 10,
-		.tdm_on_shift = 5,
+		.tdm_on_shift = 0,
 		.tdm_agent_reg = AFE_TDM_AGENT_CFG,
 		.tdm_agent_bit_width_shift = 5,
 		.tdm_agent_ch_num_shift = 0,
 	},
 	{
+		.tdm_bck_reg = AUDIO_TOP_CON2,
+		.tdm_plldiv_shift = 24,
+		.tdm_pll_sel_shift = 16,
+		.tdm_bck_on_shift = 17,
 		.tdm_ctrl_reg = AFE_TDNO2_CON1,
 		.tdm_ctrl_2nd_reg = AFE_TDMO2_CON2,
 		.tdm_conn_reg = AFE_TDMO2_CONN_CON0,
 		.tdm_conn_2nd_reg = AFE_TDMO2_CONN_CON0,
 		.tdm_lrck_cycle_shift = 10,
-		.tdm_on_shift = 6,
+		.tdm_on_shift = 0,
 		.tdm_agent_reg = AFE_TDM_AGENT_CFG,
 		.tdm_agent_bit_width_shift = 21,
 		.tdm_agent_ch_num_shift = 16,
 	},
 	{
+		.tdm_bck_reg = AUDIO_TOP_CON1,
+		.tdm_plldiv_shift = 24,
+		.tdm_pll_sel_shift = 16,
+		.tdm_bck_on_shift = 17,
 		.tdm_ctrl_reg = AFE_TDNIN_CON1,
 		.tdm_ctrl_2nd_reg = AFE_TDMIN_CON2,
 		.tdm_conn_reg = -1,
 		.tdm_conn_2nd_reg = -1,
 		.tdm_lrck_cycle_shift = 16,
-		.tdm_on_shift = 16,
+		.tdm_on_shift = 0,
 		.tdm_agent_reg = -1,
 		.tdm_agent_bit_width_shift = -1,
 		.tdm_agent_ch_num_shift = -1,
 	},
 };
+
+struct snd_soc_dai_driver *find_dai_driver_by_id(struct snd_soc_dai_driver *dai_list, int array_size, int id)
+{
+	int i;
+
+	for (i = 0; i < array_size; i++) {
+		if (dai_list[i].id == id)
+			return dai_list+i;
+	}
+	return 0;
+}
+
 
 static const struct regmap_config mt2701_afe_regmap_config = {
 	.reg_bits = 32,
@@ -2001,6 +2916,34 @@ static const struct regmap_config mt2701_afe_regmap_config = {
 	.max_register = AFE_END_ADDR,
 	.cache_type = REGCACHE_NONE,
 };
+
+struct clock_ctrl mt2701_clk_ctrl = {
+	.init_clock = mt2701_init_clock,
+	.afe_enable_clock = mt2701_afe_enable_clock,
+	.afe_disable_clock = mt2701_afe_disable_clock,
+	.mclk_configuration = mt2701_mclk_configuration,
+	.disable_mclk = mt2701_turn_off_mclk,
+	.apll0_rate = MT2701_PLL_DOMAIN_0_RATE,
+	.apll1_rate = MT2701_PLL_DOMAIN_1_RATE,
+};
+
+struct clock_ctrl mt2712_clk_ctrl = {
+	.init_clock = mt2712_init_clock,
+	.afe_enable_clock = mt2712_afe_enable_clock,
+	.afe_disable_clock = mt2712_afe_disable_clock,
+	.mclk_configuration = mt2712_mclk_configuration,
+	.disable_mclk = mt2712_turn_off_mclk,
+	.apll0_rate = MT2712_PLL_DOMAIN_0_RATE,
+	.apll1_rate = MT2712_PLL_DOMAIN_1_RATE,
+};
+
+
+static const struct of_device_id mt2701_afe_pcm_dt_match[] = {
+	{ .compatible = "mediatek,mt2701-audio", .data = &mt2701_clk_ctrl},
+	{ .compatible = "mediatek,mt2712-audio", .data = &mt2712_clk_ctrl},
+	{},
+};
+MODULE_DEVICE_TABLE(of, mt2701_afe_pcm_dt_match);
 
 static irqreturn_t mt2701_asys_isr(int irq_id, void *dev)
 {
@@ -2027,16 +2970,20 @@ static irqreturn_t mt2701_asys_isr(int irq_id, void *dev)
 static int mt2701_afe_runtime_suspend(struct device *dev)
 {
 	struct mtk_base_afe *afe = dev_get_drvdata(dev);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 
-	mt2701_afe_disable_clock(afe);
+	afe_priv->clk_ctrl->afe_disable_clock(afe);
 	return 0;
 }
 
 static int mt2701_afe_runtime_resume(struct device *dev)
 {
 	struct mtk_base_afe *afe = dev_get_drvdata(dev);
+	struct mt2701_afe_private *afe_priv = afe->platform_priv;
+	int ret;
 
-	return mt2701_afe_enable_clock(afe);
+	ret = afe_priv->clk_ctrl->afe_enable_clock(afe);
+	return ret;
 }
 
 static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
@@ -2047,6 +2994,8 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 	struct mt2701_afe_private *afe_priv;
 	struct resource *res;
 	struct device *dev;
+	const struct of_device_id *of_id;
+	int tdm_mode = TDM_MODE_SEPCLK;
 
 	ret = 0;
 	afe = devm_kzalloc(&pdev->dev, sizeof(*afe), GFP_KERNEL);
@@ -2127,6 +3076,43 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 			= &mt2701_tdm_data[i];
 	}
 
+	of_property_read_s32(afe->dev->of_node, "tdm-mode", &tdm_mode);
+
+	switch (tdm_mode) {
+	case TDM_MODE_COCLK_O1_GPIO_O1:
+		afe_priv->tdm_coclk_info.src = MT2701_TDMO_1;
+		afe_priv->tdm_coclk_info.gpio_src = MT2701_TDMO_1;
+		break;
+	case TDM_MODE_COCLK_O1_GPIO_IN:
+		afe_priv->tdm_coclk_info.src = MT2701_TDMO_1;
+		afe_priv->tdm_coclk_info.gpio_src = MT2701_TDMI;
+		break;
+	case TDM_MODE_COCLK_O2_GPIO_O2:
+		afe_priv->tdm_coclk_info.src = MT2701_TDMO_2;
+		afe_priv->tdm_coclk_info.gpio_src = MT2701_TDMO_2;
+		break;
+	case TDM_MODE_COCLK_O2_GPIO_IN:
+		afe_priv->tdm_coclk_info.src = MT2701_TDMO_2;
+		afe_priv->tdm_coclk_info.gpio_src = MT2701_TDMI;
+		break;
+	}
+
+	if (tdm_mode != TDM_MODE_SEPCLK) {
+		struct snd_soc_dai_driver *dai_driver;
+
+		dai_driver = find_dai_driver_by_id(mt2701_afe_pcm_dais, ARRAY_SIZE(mt2701_afe_pcm_dais),
+				afe_priv->tdm_coclk_info.src+MT2701_IO_TDMO1);
+		if (dai_driver != 0)
+			dai_driver->ops = &mt2701_tdmio_coclk_ops;
+		dai_driver = find_dai_driver_by_id(mt2701_afe_pcm_dais, ARRAY_SIZE(mt2701_afe_pcm_dais),
+				 MT2701_IO_TDMI);
+		if (dai_driver != 0)
+			dai_driver->ops = &mt2701_tdmio_coclk_ops;
+	}
+	afe_priv->tdm_coclk_info.on = 0;
+
+	of_property_read_u32_array(afe->dev->of_node, "tdm-in-lrck-setting", (unsigned int *)&afe_priv->tdm_in_lrck, 2);
+
 	afe->mtk_afe_hardware = &mt2701_afe_hardware;
 	afe->memif_fs = mt2701_memif_fs;
 	afe->irq_fs = mt2701_irq_fs;
@@ -2137,7 +3123,15 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 	afe->runtime_suspend = mt2701_afe_runtime_suspend;
 
 	/* initial audio related clock */
-	ret = mt2701_init_clock(afe);
+	of_id = of_match_device(mt2701_afe_pcm_dt_match, dev);
+	if (of_id)
+		afe_priv->clk_ctrl = (struct clock_ctrl *)of_id->data;
+	else{
+		dev_err(dev, "init clock ctrl error\n");
+		return -ENXIO;
+	}
+
+	ret = afe_priv->clk_ctrl->init_clock(afe);
 	if (ret) {
 		dev_err(dev, "init clock error\n");
 		return ret;
@@ -2148,6 +3142,9 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 	if (!pm_runtime_enabled(&pdev->dev))
 		goto err_pm_disable;
 	pm_runtime_get_sync(&pdev->dev);
+
+	/* set 4GB dma mask */
+	/*dma_set_mask(dev, DMA_BIT_MASK(33));*/
 
 	ret = snd_soc_register_platform(&pdev->dev, &mtk_afe_pcm_platform);
 	if (ret) {
@@ -2195,13 +3192,6 @@ static int mt2701_afe_pcm_dev_remove(struct platform_device *pdev)
 	mt2701_afe_disable_clock(afe);
 	return 0;
 }
-
-static const struct of_device_id mt2701_afe_pcm_dt_match[] = {
-	{ .compatible = "mediatek,mt2701-audio", },
-	{ .compatible = "mediatek,mt2712-audio", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, mt2701_afe_pcm_dt_match);
 
 static const struct dev_pm_ops mt2701_afe_pm_ops = {
 	SET_RUNTIME_PM_OPS(mt2701_afe_runtime_suspend,

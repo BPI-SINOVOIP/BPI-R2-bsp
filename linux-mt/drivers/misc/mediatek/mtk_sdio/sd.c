@@ -626,6 +626,24 @@ void msdc_ungate_clock(struct msdc_host *host)
 		cpu_relax();
 }
 
+void msdc_prepare_clk(struct msdc_host *host)
+{
+	if (!host->clk_on) {
+		if (host->clock_control)
+			clk_prepare_enable(host->clock_control);
+		host->clk_on = true;
+	}
+}
+
+void msdc_unprepare_clk(struct msdc_host *host)
+{
+	if (host->clk_on) {
+		if (host->clock_control)
+			clk_disable_unprepare(host->clock_control);
+		host->clk_on = false;
+	}
+}
+
 #if 0
 static void msdc_dump_card_status(struct msdc_host *host, u32 status)
 {
@@ -812,9 +830,8 @@ void msdc_set_mclk(struct msdc_host *host, unsigned char timing, u32 hz)
 		}
 	}
 
-	msdc_ungate_clock(host);
 	MSDC_SET_FIELD(MSDC_CFG, MSDC_CFG_CKMOD | MSDC_CFG_CKDIV, (mode << 12) | (div & 0xfff));
-	MSDC_SET_BIT32(MSDC_CFG, MSDC_CFG_CKPDN);
+	MSDC_CLR_BIT32(MSDC_CFG, MSDC_CFG_CKPDN);
 	while (!(MSDC_READ32(MSDC_CFG) & MSDC_CFG_CKSTB))
 		cpu_relax();
 
@@ -1089,8 +1106,6 @@ static void msdc_pm(pm_message_t state, void *data)
 
 	int evt = state.event;
 
-	msdc_ungate_clock(host);
-
 	if (evt == PM_EVENT_SUSPEND || evt == PM_EVENT_USER_SUSPEND) {
 		if (host->suspend)
 			goto end;
@@ -1101,16 +1116,18 @@ static void msdc_pm(pm_message_t state, void *data)
 		pr_err("msdc%d -> %s Suspend\n", host->id,
 			evt == PM_EVENT_SUSPEND ? "PM" : "USR");
 		if (host->hw->flags & MSDC_SYS_SUSPEND) {
+			msdc_ungate_clock(host);
 			if (host->hw->host_function == MSDC_EMMC) {
 				msdc_save_timing_setting(host, 1);
 				msdc_set_power_mode(host, MMC_POWER_OFF);
 			}
 
 			msdc_set_tdsel(host, 1, 0);
-
+			msdc_gate_clock(host);
 		} else {
 			host->mmc->pm_flags |= MMC_PM_IGNORE_PM_NOTIFY;
 			mmc_remove_host(host->mmc);
+			msdc_unprepare_clk(host);
 		}
 
 		host->power_cycle = 0;
@@ -1132,11 +1149,13 @@ static void msdc_pm(pm_message_t state, void *data)
 			evt == PM_EVENT_RESUME ? "PM" : "USR");
 
 		if (!(host->hw->flags & MSDC_SYS_SUSPEND)) {
+			msdc_prepare_clk(host);
 			host->mmc->pm_flags |= MMC_PM_IGNORE_PM_NOTIFY;
 			mmc_add_host(host->mmc);
 			goto end;
 		}
 
+		msdc_ungate_clock(host);
 		/* Begin for host->hw->flags & MSDC_SYS_SUSPEND*/
 		msdc_set_tdsel(host, 1, 0);
 
@@ -1155,6 +1174,7 @@ static void msdc_pm(pm_message_t state, void *data)
 				mmc_set_clock(host->mmc, 260000);
 			}
 		}
+		msdc_gate_clock(host);
 	}
 
 end:
@@ -1168,9 +1188,6 @@ end:
 			pr_err("msdc%d -> MSDC Device Request Suspend\n",
 				host->id);
 		}
-		msdc_gate_clock(host);
-	} else {
-		msdc_gate_clock(host);
 	}
 
 	if (host->hw->host_function == MSDC_SDIO) {
@@ -1848,7 +1865,6 @@ unsigned int msdc_do_command(struct msdc_host *host,
 		goto end;
 
  end:
-	pr_debug("        return<%d> resp<0x%.8x>", cmd->error, cmd->resp[0]);
 	return cmd->error;
 }
 
@@ -2705,6 +2721,11 @@ void msdc_sdio_restore_after_resume(struct msdc_host *host)
 				host->saved_para.hz);
 			host->saved_para.suspend_flag = 0;
 			msdc_restore_timing_setting(host);
+			if (host->is_autok_done) {
+				ERR_MSG("msdc restore autok parameters\n");
+				autok_init_sdr104(host);
+				autok_tuning_parameter_init(host, sdio_autok_res[AUTOK_VCORE_HIGH]);
+			}
 		}
 	}
 }
@@ -3185,6 +3206,8 @@ done:
 				 *		count, host->id);
 				 * }
 				 */
+				dir = data->flags & MMC_DATA_READ ?
+					DMA_FROM_DEVICE : DMA_TO_DEVICE;
 				dma_unmap_sg(mmc_dev(mmc), data->sg,
 					data->sg_len, dir);
 			}
@@ -3811,8 +3834,8 @@ done:
 	if (mrq->done)
 		mrq->done(mrq);
 
-	msdc_gate_clock(host);
 	spin_unlock(&host->lock);
+	msdc_gate_clock(host);
 	return host->error;
 }
 
@@ -4132,6 +4155,8 @@ static void msdc_ops_request_legacy(struct mmc_host *mmc,
 		return;
 	}
 
+	msdc_ungate_clock(host);  /* set sw flag */
+
 	/* start to process */
 	spin_lock(&host->lock);
 	host->power_cycle_enable = 1;
@@ -4145,8 +4170,6 @@ static void msdc_ops_request_legacy(struct mmc_host *mmc,
 	if (data)
 		sbc = mrq->sbc;
 #endif
-
-	msdc_ungate_clock(host);  /* set sw flag */
 
 	if (sdio_pro_enable) {
 		/* === for sdio profile === */
@@ -4260,8 +4283,8 @@ static void msdc_ops_request_legacy(struct mmc_host *mmc,
 		}
 	}
 
-	msdc_gate_clock(host);       /* clear flag. */
 	spin_unlock(&host->lock);
+	msdc_gate_clock(host);       /* clear flag. */
 
 	mmc_request_done(mmc, mrq);
 }
@@ -4325,10 +4348,11 @@ static void msdc_tune_async_request(struct mmc_host *mmc,
 		sbc = mrq->sbc;
 #endif
 
+	msdc_ungate_clock(host);        /* set sw flag */
+
 	/* start to process */
 	spin_lock(&host->lock);
 
-	msdc_ungate_clock(host);        /* set sw flag */
 	/*#if defined(MSDC_AUTOK_ON_ERROR)*/
 	host->async_tuning_in_progress = true;
 	/*#endif*/
@@ -4342,11 +4366,11 @@ static void msdc_tune_async_request(struct mmc_host *mmc,
 		host->sd_30_busy = 0;
 	msdc_reset_crc_tune_counter(host, all_counter);
 	host->mrq = NULL;
-	msdc_gate_clock(host);       /* clear flag. */
 	/*#if defined(MSDC_AUTOK_ON_ERROR)*/
 	host->async_tuning_in_progress = false;
 	/*#endif*/
 	spin_unlock(&host->lock);
+	msdc_gate_clock(host);       /* clear flag. */
 
 done:
 	host->mrq_tune = NULL;
@@ -4603,9 +4627,9 @@ static void msdc_ops_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct msdc_host *host = mmc_priv(mmc);
 	struct msdc_hw *hw = host->hw;
 
-	spin_lock(&host->lock);
-
 	msdc_ungate_clock(host);
+
+	spin_lock(&host->lock);
 
 	if (host->power_mode != ios->power_mode) {
 		switch (ios->power_mode) {
@@ -4647,8 +4671,8 @@ static void msdc_ops_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		host->timing = ios->timing;
 	}
 
-	msdc_gate_clock(host);
 	spin_unlock(&host->lock);
+	msdc_gate_clock(host);
 }
 
 /* ops.get_ro */
@@ -4659,12 +4683,12 @@ static int msdc_ops_get_ro(struct mmc_host *mmc)
 	unsigned long flags;
 	int ro = 0;
 
-	spin_lock_irqsave(&host->lock, flags);
 	msdc_ungate_clock(host);
+	spin_lock_irqsave(&host->lock, flags);
 	if (host->hw->flags & MSDC_WP_PIN_EN)
 		ro = (MSDC_READ32(MSDC_PS) >> 31);
-	msdc_gate_clock(host);
 	spin_unlock_irqrestore(&host->lock, flags);
+	msdc_gate_clock(host);
 	return ro;
 }
 
@@ -4842,11 +4866,8 @@ static int msdc_card_busy(struct mmc_host *mmc)
 	void __iomem *base = host->base;
 	u32 status = MSDC_READ32(MSDC_PS);
 
-	/* check if any pin between dat[0:3] is low */
-	if (((status >> 16) & 0xf) != 0xf)
-		return 1;
-
-	return 0;
+	/* check if data0 is low */
+	return !(status & BIT(16));
 }
 
 /* Add this function to check if no interrupt back after write.
@@ -5032,7 +5053,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 		spin_lock(&host->sdio_irq_lock);
 
 	if (host->core_clkon == 0) {
-		msdc_clk_enable(host);
+		/* msdc_gate_clock(host); */
 		host->core_clkon = 1;
 		MSDC_SET_FIELD(MSDC_CFG, MSDC_CFG_MODE, MSDC_SDMMC);
 	}
@@ -5749,9 +5770,7 @@ static int msdc_drv_remove(struct platform_device *pdev)
 	ERR_MSG("msdc_drv_remove");
 #ifndef FPGA_PLATFORM
 	/* clock unprepare */
-	if (host->clock_control)
-		clk_unprepare(host->clock_control);
-
+	msdc_unprepare_clk(host);
 #endif
 	platform_set_drvdata(pdev, NULL);
 	mmc_remove_host(host->mmc);
@@ -5801,7 +5820,7 @@ static int msdc_drv_suspend(struct platform_device *pdev, pm_message_t state)
 			msdc_pm(state, (void *)host);
 		} else {
 			/* WIFI slot should be off when enter suspend */
-			msdc_gate_clock(host);
+			/* msdc_gate_clock(host); */
 			if (host->error == -EBUSY) {
 				ret = host->error;
 				host->error = 0;
@@ -5809,6 +5828,7 @@ static int msdc_drv_suspend(struct platform_device *pdev, pm_message_t state)
 		}
 	}
 
+	msdc_prepare_clk(host);
 	if (is_card_sdio(host) || (host->hw->flags & MSDC_SDIO_IRQ)) {
 		if (host->clk_gate_count > 0) {
 			host->error = 0;
@@ -5827,11 +5847,14 @@ static int msdc_drv_suspend(struct platform_device *pdev, pm_message_t state)
 					host->error = 0;
 				}
 			}
+			msdc_ungate_clock(host);
 			ERR_MSG("msdc suspend cur_cfg=%x, save_cfg=%x, cur_hz=%d",
 				MSDC_READ32(MSDC_CFG),
 				host->saved_para.msdc_cfg, host->mclk);
+			msdc_gate_clock(host);
 		}
 	}
+	msdc_unprepare_clk(host);
 	return ret;
 }
 
@@ -5841,6 +5864,7 @@ static int msdc_drv_resume(struct platform_device *pdev)
 	struct msdc_host *host = mmc_priv(mmc);
 	struct pm_message state;
 
+	msdc_prepare_clk(host);
 	if (host->hw->flags & MSDC_SDIO_IRQ)
 		pr_err("msdc msdc_drv_resume\n");
 	state.event = PM_EVENT_RESUME;

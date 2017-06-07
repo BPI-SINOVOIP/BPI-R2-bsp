@@ -54,7 +54,7 @@ static int pcm_master_data_rate_hw_params(struct snd_pcm_substream *substream,
 }
 
 static int hdmi_tx_hw_params(struct snd_pcm_substream *substream,
-					  struct snd_pcm_hw_params *params)
+			     struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
@@ -76,30 +76,12 @@ static struct snd_soc_ops stream_hdmi_tx_master_ops = {
 
 static struct snd_soc_dai_link mt7623_wm8960_dai_links[] = {
 	{
-		.name = "demo-audio-tx-rx",
-		.stream_name = "audio-tx-rx",
-		.platform_name = "mt8521p-audio",
-		.cpu_dai_name = "mt8521p-i2s1",
-		.codec_dai_name = "wm8960-hifi",
-		.codec_name = "wm8960.1-001a",
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_GATED,
-		.ops = &stream_pcm_master_data_rate_ops
-	},
-	{
-		.name = "demo-spdif-out",
-		.stream_name = "spdif-out",
-		.platform_name = "mt8521p-audio",
-		.cpu_dai_name = "mt8521p-spdif-out",
-		.codec_dai_name = "dummy-codec-i2s",
-		.codec_name = "dummy-codec",
-	},
-	{
 		.name = "demo-hdmi-8ch-i2s-out",
 		.stream_name = "hdmi-pcm-out",
 		.platform_name = "mt8521p-audio",
 		.cpu_dai_name = "mt8521p-hdmi-pcm-out",
-			.codec_dai_name = "i2s-hifi",
-			.codec_name = "hdmi-audio-codec",
+		.codec_dai_name = "i2s-hifi",
+		.codec_name = "hdmi-audio-codec",
 		.ops = &stream_hdmi_tx_master_ops
 	},
 	{
@@ -110,6 +92,16 @@ static struct snd_soc_dai_link mt7623_wm8960_dai_links[] = {
 		.codec_dai_name = "spdif-hifi",
 		.codec_name = "hdmi-audio-codec",
 		.ops = &stream_hdmi_tx_master_ops
+	},
+	{
+		.name = "demo-audio-tx-rx",
+		.stream_name = "audio-tx-rx",
+		.platform_name = "mt8521p-audio",
+		.cpu_dai_name = "mt8521p-i2s1",
+		.codec_dai_name = "wm8960-hifi",
+		.codec_name = "wm8960.2-001a",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_GATED,
+		.ops = &stream_pcm_master_data_rate_ops
 	},
 };
 

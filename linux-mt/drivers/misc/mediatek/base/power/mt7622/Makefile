@@ -13,6 +13,7 @@
 
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/base/power/hps_v1/
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/include/
+ccflags-y += -I$(srctree)/drivers/misc/mediatek/include/mt-plat/mt7622/include
 
 obj-y += mt7622-cpufreq.o
 obj-y += mtk_static_power.o
@@ -30,3 +31,4 @@ obj-y += mtk_spm_fs.o
 obj-y += mtk_cpuidle.o
 obj-y += cpu_dormant.o
 obj-y += pmic_mt6380.o
+obj-y += mtk_svs.o

@@ -22,7 +22,7 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n1 root=/dev/ram \
-			initrd=0x44000000,0x615E36 loglevel=8 androidboot.hardware=mt7622";
+			initrd=0x44000000,0x615E36 loglevel=8 androidboot.hardware=mt7622 swiotlb=8192";
 	};
 
 	dummy_codec:dummy_codec {
@@ -386,6 +386,10 @@
 				 <MT7622_PIN_14_I2C_SDA__FUNC_PCIE0_PAD_WAKE_N>;
 		};
 	};
+};
+
+&svs {
+	vproc-supply = <&mt6380_vcpu_reg>;
 };
 
 &usb1 {

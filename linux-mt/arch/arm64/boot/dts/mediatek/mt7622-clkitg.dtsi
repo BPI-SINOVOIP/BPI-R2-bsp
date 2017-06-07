@@ -7,8 +7,8 @@
 			<&apmixedsys CLK_APMIXED_UNIV2PLL>,
 			<&clk25m>,
 			<&clk25m>,
-			<&apmixedsys CLK_APMIXED_AUD1PLL>,
-			<&apmixedsys CLK_APMIXED_AUD2PLL>,
+			<&clk25m>,
+			<&clk25m>,
 			<&clk25m>,
 			<&clk25m>,
 			<&clk25m>,
@@ -44,7 +44,6 @@
 			<&pericfg CLK_PERI_SNFI_PD>,
 			<&pericfg CLK_PERI_NFI_PD>,
 			<&pericfg CLK_PERI_NFIECC_PD>,
-			<&pericfg CLK_PERI_FLASH_PD>,
 			<&clk25m>,
 			<&clk25m>,
 			<&clk25m>,
@@ -102,12 +101,13 @@
 			<&clk25m>,
 			<&clk25m>,
 			<&clk25m>,
-			<&ssusbsys CLK_SSUSB_U2_PHY_1P_EN>,
-			<&ssusbsys CLK_SSUSB_U2_PHY_EN>,
-			<&ssusbsys CLK_SSUSB_REF_EN>,
-			<&ssusbsys CLK_SSUSB_SYS_EN>,
-			<&ssusbsys CLK_SSUSB_MCU_EN>,
-			<&ssusbsys CLK_SSUSB_DMA_EN>,
+			<&clk25m>,
+			<&clk25m>,
+			<&clk25m>,
+			<&clk25m>,
+			<&clk25m>,
+			<&clk25m>,
+			<&clk25m>,
 			<&clk25m>,
 			<&clk25m>,
 			<&clk25m>,
@@ -146,10 +146,5 @@
 		"96", "97", "98", "99", "100", "101", "102", "103", "104", "105", "106",
 		"107", "108", "109", "110", "111", "112", "113", "114", "115", "116", "117",
 		"118", "119", "120", "121", "122", "123", "124", "125";
-	};
-
-	bring-up-pd-hif1 {
-			compatible = "mediatek,scpsys-bring-up";
-			power-domains = <&scpsys MT7622_POWER_DOMAIN_HIF1>;
 	};
 };

@@ -1130,13 +1130,6 @@ static int mtk_hdmi_output_set_display_mode(struct mtk_hdmi *hdmi,
 
 	phy_power_on(hdmi->phy);
 	mtk_hdmi_aud_output_config(hdmi, mode);
-
-	mtk_hdmi_setup_audio_infoframe(hdmi);
-	mtk_hdmi_setup_avi_infoframe(hdmi, mode);
-	mtk_hdmi_setup_spd_infoframe(hdmi, "mediatek", "On-chip HDMI");
-	if (mode->flags & DRM_MODE_FLAG_3D_MASK)
-		mtk_hdmi_setup_vendor_specific_infoframe(hdmi, mode);
-
 	mtk_hdmi_hw_vid_black(hdmi, false);
 	mtk_hdmi_hw_aud_unmute(hdmi);
 	mtk_hdmi_hw_send_av_unmute(hdmi);
@@ -1451,6 +1444,16 @@ static void mtk_hdmi_bridge_pre_enable(struct drm_bridge *bridge)
 	hdmi->powered = true;
 }
 
+static void mtk_hdmi_send_infoframe(struct mtk_hdmi *hdmi,
+				    struct drm_display_mode *mode)
+{
+	mtk_hdmi_setup_audio_infoframe(hdmi);
+	mtk_hdmi_setup_avi_infoframe(hdmi, mode);
+	mtk_hdmi_setup_spd_infoframe(hdmi, "mediatek", "On-chip HDMI");
+	if (mode->flags & DRM_MODE_FLAG_3D_MASK)
+		mtk_hdmi_setup_vendor_specific_infoframe(hdmi, mode);
+}
+
 static void mtk_hdmi_bridge_enable(struct drm_bridge *bridge)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
@@ -1459,6 +1462,7 @@ static void mtk_hdmi_bridge_enable(struct drm_bridge *bridge)
 	clk_prepare_enable(hdmi->clk[MTK_HDMI_CLK_HDMI_PLL]);
 	clk_prepare_enable(hdmi->clk[MTK_HDMI_CLK_HDMI_PIXEL]);
 	phy_power_on(hdmi->phy);
+	mtk_hdmi_send_infoframe(hdmi, &hdmi->mode);
 
 	hdmi->enabled = true;
 }
@@ -1591,15 +1595,15 @@ find_ddc_adpt:
  */
 
 static int mtk_hdmi_audio_hw_params(struct device *dev, void *data,
-				    struct hdmi_codec_daifmt *fmt,
-				    struct hdmi_codec_params *hparams)
+		 struct hdmi_codec_daifmt *fmt,
+		 struct hdmi_codec_params *hparms)
 {
 	struct mtk_hdmi *hdmi = dev_get_drvdata(dev);
 	struct hdmi_audio_param hdmi_params;
-	unsigned int chan = hparams->cea.channels;
+	unsigned int chan = hparms->cea.channels;
 
 	dev_dbg(hdmi->dev, "%s: %u Hz, %d bit, %d channels, fmt=%d\n", __func__,
-		hparams->sample_rate, hparams->sample_width, chan, fmt->fmt);
+		hparms->sample_rate, hparms->sample_width, chan, fmt->fmt);
 
 	if (!hdmi->bridge.encoder)
 		return -ENODEV;
@@ -1622,7 +1626,7 @@ static int mtk_hdmi_audio_hw_params(struct device *dev, void *data,
 		return -EINVAL;
 	}
 
-	switch (hparams->sample_rate) {
+	switch (hparms->sample_rate) {
 	case 32000:
 	case 44100:
 	case 48000:
@@ -1633,7 +1637,7 @@ static int mtk_hdmi_audio_hw_params(struct device *dev, void *data,
 		break;
 	default:
 		dev_err(hdmi->dev, "rate[%d] not supported!\n",
-			hparams->sample_rate);
+			hparms->sample_rate);
 		return -EINVAL;
 	}
 
@@ -1656,7 +1660,7 @@ static int mtk_hdmi_audio_hw_params(struct device *dev, void *data,
 		return -EINVAL;
 	}
 
-	memcpy(&hdmi_params.codec_params, hparams,
+	memcpy(&hdmi_params.codec_params, hparms,
 	       sizeof(hdmi_params.codec_params));
 
 	mtk_hdmi_audio_set_param(hdmi, &hdmi_params);

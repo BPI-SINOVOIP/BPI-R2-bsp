@@ -26,24 +26,26 @@
 		serial3 = &uart3;
 	};
 
-	alsps_eint: alsps_eint {
-		compatible = "mediatek, als-eint";
-		interrupt-parent = <&pio>;
-		interrupts = <212 IRQ_TYPE_LEVEL_LOW>;
-		debounce = <212 32>;
-		status = "okay";
-	};
 
 	alsps:als_ps@0 {
 		compatible = "mediatek,als_ps";
-		pinctrl-names = "default";
-		pinctrl-0 = <&alsps_intpin_default>;
 		status = "okay";
 	};
 
-	backlight_lcd: backlight_lcd {
+	backlight_lcd0: backlight_lcd0 {
 		compatible = "pwm-backlight";
 		pwms = <&pwm0 0 1000000>;
+		brightness-levels = <
+			128 136 144 152 160 168 176 184
+			192 200 208 216 224 232 240 248
+			255
+		>;
+		default-brightness-level = <9>;
+	};
+
+	backlight_lcd1: backlight_lcd1 {
+		compatible = "pwm-backlight";
+		pwms = <&pwm1 0 1000000>;
 		brightness-levels = <
 			128 136 144 152 160 168 176 184
 			192 200 208 216 224 232 240 248
@@ -64,9 +66,27 @@
 		compatible = "linux,bt-sco";
 	};
 
-	cust_alsps@0 {
-		compatible = "mediatek,CM36686";
+	cust_alsps_1 {
+		compatible = "mediatek,CM36686_1";
 		i2c_num = <5>;
+		i2c_addr = <0x60 0x00 0x00 0x00>;
+		polling_mode_ps = <0>;
+		polling_mode_als = <1>;
+		power_id = <0xffff>;
+		power_vol = <0>;
+		als_level = <5 10 25 50 100 150 200 400 1000 \
+				1500 2000 3000 5000 8000 10000>;
+		als_value = <10 50 100 150 200 250 280 280 \
+				1600 1600 1600 6000 6000 9000 10240 10240>;
+		ps_threshold_high = <120>;
+		ps_threshold_low = <60>;
+		is_batch_supported_ps = <0>;
+		is_batch_supported_als = <0>;
+	};
+
+	cust_alsps_2 {
+		compatible = "mediatek,CM36686_2";
+		i2c_num = <3>;
 		i2c_addr = <0x60 0x00 0x00 0x00>;
 		polling_mode_ps = <0>;
 		polling_mode_als = <1>;
@@ -122,7 +142,7 @@
 		compatible = "mediatek,m_mag_pl";
 	};
 
-	mediatek,connectivity-combo {
+	combo:connectivity-combo@0 {
 		compatible = "mediatek,connectivity-combo";
 		gpio_combo_pmu_en_pin = <&pio 149 0>;
 		gpio_combo_rst_pin = <&pio 148 0>;
@@ -165,8 +185,129 @@
 		pinctrl-13 = <&pcfg_combo_urxd_gpio_in_pull_dis_cfgs>;
 		pinctrl-14 = <&pcfg_combo_utxd_uart_pull_dis_cfgs>;
 		interrupt-parent = <&pio>;
-		interrupts = <151 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <156 IRQ_TYPE_LEVEL_LOW>;
 		status = "okay";
+
+		u2Part1OwnVersion = [06 01];
+		u2Part1PeerVersion = [00 00];
+		aucMacAddress = [00 00 00 00 00 00];
+		aucCountryCode = [00 00];
+
+		cTxPwr2G4Cck = [2C];
+		cTxPwr2G4Dsss = [2C];
+		acReserved = [00 00];
+
+		cTxPwr2G4OFDM_BPSK = [28];
+		cTxPwr2G4OFDM_QPSK = [28];
+		cTxPwr2G4OFDM_16QAM = [28];
+		cTxPwr2G4OFDM_Reserved = [28];
+		cTxPwr2G4OFDM_48Mbps = [28];
+		cTxPwr2G4OFDM_54Mbps = [28];
+
+		cTxPwr2G4HT20_BPSK = [25];
+		cTxPwr2G4HT20_QPSK = [25];
+		cTxPwr2G4HT20_16QAM = [25];
+		cTxPwr2G4HT20_MCS5 = [25];
+		cTxPwr2G4HT20_MCS6 = [25];
+		cTxPwr2G4HT20_MCS7 = [25];
+
+		cTxPwr2G4HT40_BPSK = [23];
+		cTxPwr2G4HT40_QPSK = [23];
+		cTxPwr2G4HT40_16QAM = [23];
+		cTxPwr2G4HT40_MCS5 = [23];
+		cTxPwr2G4HT40_MCS6 = [23];
+		cTxPwr2G4HT40_MCS7 = [23];
+
+		cTxPwr5GOFDM_BPSK = [25];
+		cTxPwr5GOFDM_QPSK = [25];
+		cTxPwr5GOFDM_16QAM = [25];
+		cTxPwr5GOFDM_Reserved = [25];
+		cTxPwr5GOFDM_48Mbps = [25];
+		cTxPwr5GOFDM_54Mbps = [25];
+
+		cTxPwr5GHT20_BPSK = [23];
+		cTxPwr5GHT20_QPSK = [23];
+		cTxPwr5GHT20_16QAM = [23];
+		cTxPwr5GHT20_MCS5 = [23];
+		cTxPwr5GHT20_MCS6 = [23];
+		cTxPwr5GHT20_MCS7 = [23];
+
+		cTxPwr5GHT40_BPSK = [23];
+		cTxPwr5GHT40_QPSK = [23];
+		cTxPwr5GHT40_16QAM = [23];
+		cTxPwr5GHT40_MCS5 = [23];
+		cTxPwr5GHT40_MCS6 = [23];
+		cTxPwr5GHT40_MCS7 = [23];
+
+		aucEFUSE144 = [00 00 00 00 00 00 00 00
+					   00 00
+					   00 20 22 00
+					   00 00 00 00 00 00 00 00 00 00 00 00 00 00
+					   60 60 60
+					   00
+					   00
+					   00 00 00 00 00 00 00 00 00 00 00
+					   00 30 00 00 00 00 00 10
+					   00
+					   00 00 00 00 00 00 00
+					   23 23 23 23 23 20 1E 00 00 00 00
+					   01
+					   00 00 00 00 00 00 00 00
+					   00 00 00 00 00 00 00 00
+					   00 00 00 00 00 00 00 00
+					   00 00 00 00 00 00 00 00
+					   00 00 00 00 00 00 00 00
+					   00 00 00 00 00 00 00 00
+					   00 00 00 00 00 00 00 00
+					   00 00 00 00 00 00 00 00
+					   00 00 00 00 00 00 00 00];
+
+		ucTxPwrValid = [01];
+		ucSupport5GBand = [01];
+		fg2G4BandEdgePwrUsed = [00];
+		cBandEdgeMaxPwrCCK = [26];
+		cBandEdgeMaxPwrOFDM20 = [1E];
+		cBandEdgeMaxPwrOFDM40 = [1A];
+
+		ucRegChannelListMap = [00];
+		ucRegChannelListIndex = [00];
+
+		aucRegSubbandInfo36 = [00 00 00 00 00 00
+							  00 00 00 00 00 00
+							  00 00 00 00 00 00
+							  00 00 00 00 00 00
+							  00 00 00 00 00 00
+							  00 00 00 00 00 00];
+		aucReserved16 = [00 00 00 00 00 00 00 00
+					      00 00 00 00 00 00 00 00];
+		u2Part2OwnVersion = [01 00];
+		u2Part2PeerVersion = [00 00];
+		uc2G4BwFixed20M = [00];
+		uc5GBwFixed20M = [00];
+		ucEnable5GBand = [01];
+		ucRxDiversity = [00];
+
+		rRssiPathCompensation = [00 00];
+		fgRssiCompensationVaildbit = [00];
+		ucGpsDesense = [00];
+		u2FeatureReserved = [00 01];
+		aucPreTailReserved = [00];
+		aucTailReserved241 = [00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+						      00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+						      00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+						      00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+						      00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+						      00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+						      00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+						      00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+						      00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+						      00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+						      00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+						      00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+						      00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+						      00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+						      00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+						      00];
 	};
 
 	memory@40000000 {
@@ -266,6 +407,7 @@
 		regulator-max-microvolt = <5000000>;
 		gpio = <&pio 17 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+		regulator-always-on;
 	};
 
 	panel: panel {
@@ -279,10 +421,29 @@
 	};
 
 	sound: sound {
-		compatible = "mediatek,mt2701-dummy-machine";
+		compatible = "mediatek,mt2712-d1v1-machine";
 		mediatek,platform = <&afe>;
+		/* CS42448 Machine name */
+		audio-routing =
+		"Line Out Jack", "AOUT1L",
+		"Line Out Jack", "AOUT1R",
+		"Line Out Jack", "AOUT2L",
+		"Line Out Jack", "AOUT2R",
+		"Line Out Jack", "AOUT3L",
+		"Line Out Jack", "AOUT3R",
+		"Line Out Jack", "AOUT4L",
+		"Line Out Jack", "AOUT4R",
+		"AIN1L", "AMIC",
+		"AIN1R", "AMIC",
+		"AIN2L", "Tuner In",
+		"AIN2R", "Tuner In",
+		"AIN3L", "Satellite Tuner In",
+		"AIN3R", "Satellite Tuner In",
+		"AIN3L", "AUX In",
+		"AIN3R", "AUX In";
 		mediatek,audio-codec = <&dummy_codec>;
 		mediatek,audio-codec-bt-mrg = <&bt_sco_codec>;
+		mediatek,audio-codec-tdmo = <&cs42448>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&aud_pins_default>;
 		status = "okay";
@@ -334,20 +495,31 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3_pins>;
 	status = "okay";
+	alsps_2@60 {
+		compatible = "mediatek,alsps_2";
+		reg = <0x60>;
+	};
 };
 
 &i2c4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4_pins>;
 	status = "okay";
+
+	cs42448: cs42448@48 {
+		compatible = "cirrus,cs42448";
+		reg = <0x48>;
+		clocks = <&topckgen CLK_TOP_APLL_DIV_PDN3>;
+		clock-names = "mclk";
+	};
 };
 
 &i2c5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c5_pins>;
 	status = "okay";
-	alsps@60 {
-		compatible = "mediatek,alsps";
+	alsps_1@60 {
+		compatible = "mediatek,alsps_1";
 		reg = <0x60>;
 	};
 };
@@ -449,6 +621,15 @@
 	assigned-clock-parents = <&topckgen CLK_TOP_MSDCPLL_D2>;
 };
 
+&mmc3 {
+	status = "okay";
+	bus-width = <4>;
+	max-frequency = <200000000>;
+	cap-sd-highspeed;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+};
+
 &nor_flash {
 	pinctrl-names = "default";
 	pinctrl-0 = <&nor_pins_default>;
@@ -459,7 +640,7 @@
 	};
 };
 
-&pcie0 {
+&pcie {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_pinctl0>;
 };
@@ -470,15 +651,13 @@
 	status = "okay";
 };
 
-&pio {
-	alsps_intpin_default: alspspincfg {
-		pins_alsps_int {
-			pinmux = <MT2712_PIN_207_PERSTB_P1__FUNC_GPIO207>;
-			input-enable;
-			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
-		};
-	};
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&disp_pwm1_pins>;
+	status = "okay";
+};
 
+&pio {
 	aud_pins_default: audiodefault {
 		pins_cmd_dat {
 			pinmux = <MT2712_PIN_196_TDMO1_MCLK__FUNC_TDMO1_MCLK>,
@@ -493,10 +672,6 @@
 				 <MT2712_PIN_170_I2SI0_LRCK__FUNC_TDMIN_LRCK>,
 				 <MT2712_PIN_171_I2SI0_MCLK__FUNC_TDMIN_MCLK>,
 				 <MT2712_PIN_172_I2SI0_BCK__FUNC_TDMIN_BCK>,
-				 <MT2712_PIN_26_PCM_TX__FUNC_MRG_TX>,
-				 <MT2712_PIN_27_PCM_CLK__FUNC_MRG_CLK>,
-				 <MT2712_PIN_28_PCM_RX__FUNC_MRG_RX>,
-				 <MT2712_PIN_29_PCM_SYNC__FUNC_MRG_SYNC>,
 				 <MT2712_PIN_181_I2SO1_DATA0__FUNC_I2SO1_DO>,
 				 <MT2712_PIN_182_I2SO1_BCK__FUNC_I2SO1_BCK>,
 				 <MT2712_PIN_183_I2SO1_LRCK__FUNC_I2SO1_WS>,
@@ -530,6 +705,17 @@
 
 		pins2 {
 			pinmux = <MT2712_PIN_6_PWM2__FUNC_GPIO6>;
+			output-high;
+		};
+	};
+
+	disp_pwm1_pins: disp_pwm1_pins {
+		pins1 {
+			pinmux = <MT2712_PIN_5_PWM1__FUNC_DISP1_PWM>;
+		};
+
+		pins2 {
+			pinmux = <MT2712_PIN_7_PWM3__FUNC_GPIO7>;
 			output-high;
 		};
 	};
@@ -1038,37 +1224,19 @@
 &spi0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi_pins_0>;
-	status = "okay";
-
-	spidev0: spi@0 {
-		compatible = "linux,spidev";
-		reg = <0>;
-		spi-max-frequency = <1000000>;
-	};
+	status = "disabled";
 };
 
 &spi2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi_pins_2>;
-	status = "okay";
-
-	spidev2: spi@0 {
-		compatible = "linux,spidev";
-		reg = <0>;
-		spi-max-frequency = <1000000>;
-	};
+	status = "disabled";
 };
 
 &spi3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi_pins_3>;
-	status = "okay";
-
-	spidev3: spi@0 {
-		compatible = "linux,spidev";
-		reg = <0>;
-		spi-max-frequency = <1000000>;
-	};
+	status = "disabled";
 };
 
 &spi4 {
@@ -1091,13 +1259,7 @@
 &spi5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi_pins_5>;
-	status = "okay";
-
-	spidev5: spi@0 {
-		compatible = "linux,spidev";
-		reg = <0>;
-		spi-max-frequency = <1000000>;
-	};
+	status = "disabled";
 };
 
 &ssusb {

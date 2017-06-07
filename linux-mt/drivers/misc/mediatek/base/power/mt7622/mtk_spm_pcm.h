@@ -15,5 +15,6 @@
 #define _MT_SPM_PCM_
 
 extern struct pcm_desc suspend_pcm;
+extern struct pcm_desc dpidle_pcm;
 
 #endif

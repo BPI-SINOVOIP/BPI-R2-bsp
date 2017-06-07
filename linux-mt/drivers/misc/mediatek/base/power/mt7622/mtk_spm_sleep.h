@@ -19,6 +19,7 @@
 #include <linux/irqchip/mtk-gic-extend.h>
 #include <linux/kernel.h>
 #include "mtk_spm.h"
+
 /*
  * for suspend
  */

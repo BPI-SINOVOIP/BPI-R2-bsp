@@ -303,9 +303,9 @@ struct mtk_nand_type {
 	int parity_bit;
 	int max_sector;
 	int max_sector_spare;
+	int max_ecc_size;
 	void (*mark_swap)(struct mtd_info *mtd, u8 *buf, int raw);
 	void (*adjust_spare_fmt)(struct mtd_info *mtd, u32 *fmt);
-	void (*nfc_adjust_ecc)(struct mtd_info *mtd);
 	/* NFI_PAGEFMT register special bit define */
 	int PAGEFMT_SPARE_61;
 	int PAGEFMT_SPARE_63;
@@ -782,37 +782,6 @@ static void mt2701_adjust_spare_fmt(struct mtd_info *mtd, u32 *fmt)
 		chip->ecc.strength = 24;
 		*fmt |= (PAGEFMT_SPARE_26 << PAGEFMT_SPARE_SHIFT);
 	}
-}
-
-static void mt7622_adjust_spare_fmt(struct mtd_info *mtd, u32 *fmt)
-{
-	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct mtk_nfc_nand_chip *mtk_nand = to_mtk_nand(chip);
-	struct mtk_nfc *nfc = nand_get_controller_data(chip);
-	u32 spare;
-	int PAGEFMT_SPARE_SHIFT = nfc->chip_data->PAGEFMT_SPARE_SHIFT;
-
-	spare = mtk_nand->spare_per_sector;
-	*fmt &= ~(0xf << PAGEFMT_SPARE_SHIFT);
-	if (spare == 16)
-		*fmt |= (PAGEFMT_SPARE_16 << PAGEFMT_SPARE_SHIFT);
-	else
-		*fmt |= (PAGEFMT_SPARE_28 << PAGEFMT_SPARE_SHIFT);
-}
-
-static void mt7622_nfc_adjust_ecc(struct mtd_info *mtd)
-{
-	struct nand_chip *nand = mtd_to_nand(mtd);
-	u32 spare;
-
-	nand->ecc.size = 512;
-	if (mtd->oobsize >= 112)
-		mtd->oobsize = 112;
-	spare = mtd->oobsize * nand->ecc.size / mtd->writesize;
-	if (spare == 16)
-		nand->ecc.strength = 4;
-	else
-		nand->ecc.strength = 12;
 }
 
 static void mtk_nfc_no_bad_mark_swap(struct mtd_info *a, u8 *b, int c)
@@ -1438,6 +1407,8 @@ static void mtk_nfc_set_spare_per_sector(u32 *sps, struct mtd_info *mtd)
 			break;
 		}
 	}
+	if (i == max_sector_spare)
+		*sps = spare[i - 1];
 
 	if (i >= ARRAY_SIZE(spare))
 		*sps = spare[ARRAY_SIZE(spare) - 1];
@@ -1470,7 +1441,7 @@ static int mtk_nfc_ecc_init(struct device *dev, struct mtd_info *mtd)
 		 * this controller only supports 512 and 1024 sizes
 		 */
 		if (nand->ecc.size < 1024) {
-			if (mtd->writesize > 512) {
+			if ((mtd->writesize > 512) && (nfc->chip_data->max_ecc_size > 512)) {
 				nand->ecc.size = 1024;
 				nand->ecc.strength <<= 1;
 			} else {
@@ -1498,8 +1469,6 @@ static int mtk_nfc_ecc_init(struct device *dev, struct mtd_info *mtd)
 			nand->ecc.strength = (spare << 3) / nfc->chip_data->parity_bit;
 		}
 	}
-	if (nfc->chip_data->nfc_adjust_ecc)
-		nfc->chip_data->nfc_adjust_ecc(mtd);
 
 	mtk_ecc_adjust_strength(&nand->ecc.strength);
 
@@ -1667,6 +1636,7 @@ static const struct mtk_nand_type nfc_mt2701 = {
 	.parity_bit = 14,
 	.max_sector = 16,
 	.max_sector_spare = 16,
+	.max_ecc_size = 1024,
 	.mark_swap = mtk_nfc_no_bad_mark_swap,
 	.adjust_spare_fmt = mt2701_adjust_spare_fmt,
 	.PAGEFMT_SPARE_63 = 0xe,
@@ -1681,10 +1651,9 @@ static const struct mtk_nand_type nfc_mt7622 = {
 	.parity_bit = 13,
 	.max_sector = 8,
 	.max_sector_spare = 4,
+	.max_ecc_size = 512,
 	.mark_swap = mtk_nfc_bad_mark_swap,
-	.adjust_spare_fmt = mt7622_adjust_spare_fmt,
 	.PAGEFMT_SPARE_SHIFT = 4,
-	.nfc_adjust_ecc = mt7622_nfc_adjust_ecc,
 };
 
 static const struct mtk_nand_type nfc_mt2712 = {
@@ -1694,6 +1663,7 @@ static const struct mtk_nand_type nfc_mt2712 = {
 	.parity_bit = 14,
 	.max_sector = 16,
 	.max_sector_spare = 16,
+	.max_ecc_size = 1024,
 	.PAGEFMT_SPARE_61 = 0xe,
 	.PAGEFMT_SPARE_63 = 0xf,
 	.PAGEFMT_SPARE_64 = 0x10,

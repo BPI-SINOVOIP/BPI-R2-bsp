@@ -20,6 +20,7 @@
 #include <dt-bindings/reset/mt2701-resets.h>
 #include <dt-bindings/pinctrl/mt7623-pinfunc.h>
 #include <dt-bindings/memory/mt2701-larb-port.h>
+#include <dt-bindings/thermal/thermal.h>
 #include "skeleton64.dtsi"
 
 / {
@@ -31,30 +32,93 @@
 		rdma1 = &disp_rdma1;
 	};
 
+	cpu_opp_table: opp_table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp@98000000 {
+			opp-hz = /bits/ 64 <98000000>;
+			opp-microvolt = <1050000>;
+			clock-latency-ns = <244144>; /* 8 32k periods */
+		};
+
+		opp@198000000 {
+			opp-hz = /bits/ 64 <198000000>;
+			opp-microvolt = <1050000>;
+			clock-latency-ns = <244144>; /* 8 32k periods */
+		};
+
+		opp@398000000 {
+			opp-hz = /bits/ 64 <398000000>;
+			opp-microvolt = <1050000>;
+			clock-latency-ns = <244144>; /* 8 32k periods */
+		};
+
+		opp@598000000 {
+			opp-hz = /bits/ 64 <598000000>;
+			opp-microvolt = <1050000>;
+			clock-latency-ns = <244144>; /* 8 32k periods */
+		};
+
+		opp@747500000 {
+			opp-hz = /bits/ 64 <747500000>;
+			opp-microvolt = <1050000>;
+			clock-latency-ns = <244144>; /* 8 32k periods */
+		};
+
+		opp@1040000000 {
+			opp-hz = /bits/ 64 <1040000000>;
+			opp-microvolt = <1150000>;
+			clock-latency-ns = <244144>; /* 8 32k periods */
+		};
+
+		opp@1196000000 {
+			opp-hz = /bits/ 64 <1196000000>;
+			opp-microvolt = <1200000>;
+			clock-latency-ns = <244144>; /* 8 32k periods */
+		};
+
+		opp@1300000000 {
+			opp-hz = /bits/ 64 <1300000000>;
+			opp-microvolt = <1300000>;
+			clock-latency-ns = <244144>; /* 8 32k periods */
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		enable-method = "mediatek,mt6589-smp";
 
-		cpu@0 {
+		cpu0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x0>;
+			clocks = <&infracfg CLK_INFRA_CPUSEL>,
+				 <&apmixedsys CLK_APMIXED_MAINPLL>;
+			clock-names = "cpu", "intermediate";
+			operating-points-v2 = <&cpu_opp_table>;
+			#cooling-cells = <2>;
+			cooling-min-level = <0>;
+			cooling-max-level = <7>;
 		};
 		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x1>;
+			operating-points-v2 = <&cpu_opp_table>;
 		};
 		cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x2>;
+			operating-points-v2 = <&cpu_opp_table>;
 		};
 		cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x3>;
+			operating-points-v2 = <&cpu_opp_table>;
 		};
 	};
 
@@ -237,6 +301,17 @@
 		#iommu-cells = <1>;
 	};
 
+	efuse: efuse@10206000 {
+		compatible = "mediatek,mt7623-efuse",
+			     "mediatek,mt8173-efuse";
+		reg = <0 0x10206000 0 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		thermal_calibration_data: calib@424 {
+			reg = <0x424 0xc>;
+		};
+	};
+
 	apmixedsys: syscon@10209000 {
 		compatible = "mediatek,mt2701-apmixedsys", "syscon";
 		reg = <0 0x10209000 0 0x1000>;
@@ -269,6 +344,15 @@
 		      <0 0x10216000 0 0x2000>;
 	};
 
+	auxadc: adc@11001000 {
+		compatible = "mediatek,mt7623-auxadc",
+			     "mediatek,mt2701-auxadc";
+		reg = <0 0x11001000 0 0x1000>;
+		clocks = <&pericfg CLK_PERI_AUXADC>;
+		clock-names = "main";
+		#io-channel-cells = <1>;
+	};
+
 	uart2: serial@11004000 {
 		compatible = "mediatek,mt7623-uart",
 			     "mediatek,mt6577-uart";
@@ -278,8 +362,8 @@
 		clock-names = "baud", "bus";
 		status = "disabled";
 	};
-
-	pwm: pwm@11006000 {
+	
+       pwm: pwm@11006000 {
 		compatible = "mediatek,mt7623-pwm";
 		reg = <0 0x11006000 0 0x1000>;
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_LOW>;
@@ -370,6 +454,72 @@
 		reg = <0 0x11013000 0 0x1C>;
 		clocks = <&pericfg CLK_PERI_I2C3>;
 		clock-names = "ddc-i2c";
+	};
+
+	thermal: thermal@1100b000 {
+		#thermal-sensor-cells = <1>;
+		compatible = "mediatek,mt7623-thermal",
+			     "mediatek,mt2701-thermal";
+		reg = <0 0x1100b000 0 0x1000>;
+		interrupts = <0 70 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&pericfg CLK_PERI_THERM>, <&pericfg CLK_PERI_AUXADC>;
+		clock-names = "therm", "auxadc";
+		resets = <&pericfg MT2701_PERI_THERM_SW_RST>;
+		reset-names = "therm";
+		mediatek,auxadc = <&auxadc>;
+		mediatek,apmixedsys = <&apmixedsys>;
+		nvmem-cells = <&thermal_calibration_data>;
+		nvmem-cell-names = "calibration-data";
+	};
+
+	thermal-zones {
+			cpu_thermal: cpu_thermal {
+				polling-delay-passive = <1000>; /* milliseconds */
+				polling-delay = <1000>; /* milliseconds */
+
+				thermal-sensors = <&thermal 0>;
+
+				trips {
+					cpu_passive: cpu_passive {
+						temperature = <47000>; /* millicelsius */
+						hysteresis = <2000>; /* millicelsius */
+						type = "passive";
+					};
+
+					cpu_active: cpu_active {
+						temperature = <67000>; /* millicelsius */
+						hysteresis = <2000>; /* millicelsius */
+						type = "active";
+					};
+
+					cpu_hot: cpu_hot {
+						temperature = <87000>; /* millicelsius */
+						hysteresis = <2000>; /* millicelsius */
+						type = "hot";
+					};
+
+					cpu_crit {
+						temperature = <107000>; /* millicelsius */
+						hysteresis = <2000>; /* millicelsius */
+						type = "critical";
+					};
+				};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_passive>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+				map1 {
+					trip = <&cpu_active>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+				map2 {
+					trip = <&cpu_hot>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
 	};
 
 	usb0: usb@11200000 {
@@ -843,12 +993,12 @@
 			#phy-cells = <1>;
 			status = "okay";
 		};
+
 		u3port0: usb-phy@1a1c4900 {
 			reg = <0 0x1a1c4900 0 0x0700>;
 			#phy-cells = <1>;
 			status = "okay";
 		};
-
 	};
 
 	usb2: usb@1a240000 {
@@ -880,12 +1030,12 @@
 			#phy-cells = <1>;
 			status = "okay";
 		};
+
 		u3port1: usb-phy@1a244900 {
 			reg = <0 0x1a244900 0 0x0700>;
 			#phy-cells = <1>;
 			status = "okay";
 		};
-
 	};
 
 	ethsys: syscon@1b000000 {
@@ -905,11 +1055,23 @@
 			     <GIC_SPI 199 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_SPI 198 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&topckgen CLK_TOP_ETHIF_SEL>,
+			 <&clk26m>,
+			 <&clk26m>,
+			 <&clk26m>,
 			 <&apmixedsys CLK_APMIXED_TRGPLL>,
 			 <&ethsys CLK_ETHSYS_ESW>,
 			 <&ethsys CLK_ETHSYS_GP2>,
-			 <&ethsys CLK_ETHSYS_GP1>;
-		clock-names = "ethif", "trgpll", "esw", "gp2", "gp1";
+			 <&ethsys CLK_ETHSYS_GP1>,
+			 <&clk26m>,
+			 <&clk26m>,
+			 <&clk26m>,
+			 <&clk26m>,
+			 <&clk26m>;
+		clock-names = "ethif", "eth1pll", "eth2pll",
+			      "sgmipll", "trgpll", "esw", "gp2",
+			      "gp1", "gp0", "sgmii_tx250m",
+			      "sgmii_rx250m", "sgmii_cdr_ref",
+			      "sgmii_cdr_fb";
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_ETH>;
 		resets = <&watchdog MT2701_TOPRGU_ETHDMA_RST>;
 		reset-names = "eth";
@@ -960,4 +1122,3 @@
                 status = "disabled";
         };
 };
-

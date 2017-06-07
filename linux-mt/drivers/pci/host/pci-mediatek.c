@@ -31,7 +31,8 @@
 #include <linux/signal.h>
 #include <linux/types.h>
 #include <linux/phy/phy.h>
-
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 
 /* PCI CfgWr/CfgRd registers */
 #define CFG_HEADER_0			0x460
@@ -152,6 +153,11 @@
 #define CFG_HEADER_DW2(regn, fun, dev, bus) \
 	(CFG_DW2_REGN(regn) | CFG_DW2_FUN(fun) | \
 	 CFG_DW2_DEV(dev) | CFG_DW2_BUS(bus))
+
+/* subsys IOC on/off defines */
+#define HIF_DMA_CHANNEL_MAP	0x8
+#define HIF_DMA_PCIE_IOC_MSK	(BIT(0) | BIT(1))
+#define HIF_DMA_PCIE_IOC_EN	(BIT(0) | BIT(1))
 
 /**
  * struct mtk_pcie_port - PCIe port information
@@ -1039,22 +1045,18 @@ static int  mtk_add_pcie_port(struct mtk_pcie *pcie,
 /* Enable IO coherent for PCIe RC and device.*/
 static int mtk_pcie_enable_ioc(struct platform_device *pdev)
 {
-	struct resource *regs;
-	void __iomem *addr;
+	struct device_node *np;
+	struct regmap *syscon;
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 3);
-	addr = devm_ioremap_resource(&pdev->dev, regs);
-	if (IS_ERR(addr))
+	if (!pdev)
 		return -EINVAL;
-	writel(0x3, addr);
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 4);
-	addr = devm_ioremap_resource(&pdev->dev, regs);
-	if (IS_ERR(addr))
-		return -EINVAL;
-	writel(0x3, addr + 0x8);
+	np = pdev->dev.of_node;
+	syscon = syscon_regmap_lookup_by_phandle(np, "mediatek,hifsys");
+	if (IS_ERR(syscon))
+		return -ENODEV;
 
-	return 0;
+	return regmap_update_bits(syscon, HIF_DMA_CHANNEL_MAP, HIF_DMA_PCIE_IOC_MSK, HIF_DMA_PCIE_IOC_EN);
 }
 
 static int mtk_pcie_switch_xtal(struct platform_device *pdev)
@@ -1064,7 +1066,7 @@ static int mtk_pcie_switch_xtal(struct platform_device *pdev)
 	u32 val;
 
 	/* change setting for rc0 phy. */
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 7);
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 4);
 	addr = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(addr))
 		return -EINVAL;
@@ -1121,7 +1123,7 @@ static int mtk_pcie_switch_xtal(struct platform_device *pdev)
 	writel(val, addr + 0x200);
 
 	/* change phy setting for rc1 */
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 8);
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 5);
 	addr = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(addr))
 		return -EINVAL;

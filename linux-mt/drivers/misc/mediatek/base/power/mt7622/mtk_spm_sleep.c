@@ -17,20 +17,13 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/string.h>
-#include <mt-plat/aee.h>
 #include <linux/i2c.h>
 #include <linux/of_fdt.h>
 #include <asm/setup.h>
 #include <linux/lockdep.h>
-#ifdef MT7622_PORTING
-#include <mt-plat/mtk_cirq.h>
-#endif
 #include "mtk_spm_pcm.h"
 #include "mtk_spm_sleep.h"
-#ifdef MT7622_PORTING
 #include "mtk_cpuidle.h"
-#endif
-/* #include <mach/wd_api.h> */
 
 #include "mtk_spm_internal.h"
 
@@ -73,48 +66,16 @@ struct wake_status spm_wakesta;	/* record last wakesta */
 
 #define WAIT_UART_ACK_TIMES     10	/* 10 * 10us */
 
-#define SPM_WAKE_PERIOD         600	/* sec */
-
 #define WAKE_SRC_FOR_SUSPEND \
-	(WAKE_SRC_KP | WAKE_SRC_EINT |  WAKE_SRC_CONN_WDT  | WAKE_SRC_CONN2AP | \
-	WAKE_SRC_USB_CD | WAKE_SRC_USB_PDN | WAKE_SRC_ETH |\
-	WAKE_SRC_SYSPWREQ)
+	(WAKE_SRC_EINT | WAKE_SRC_CONN_WDT  | WAKE_SRC_CONN2AP | \
+	WAKE_SRC_USB_CD | WAKE_SRC_USB_PDN | WAKE_SRC_CPU_IRQ | \
+	WAKE_SRC_RTC | WAKE_SRC_CIRQ | WAKE_SRC_UART0 | WAKE_SRC_SEJ | \
+	WAKE_SRC_PCIE | WAKE_SRC_GMAC)
 
 #define spm_is_wakesrc_invalid(wakesrc)     (!!((u32)(wakesrc) & 0xFC7F3A9B))
 
 #define reg_read(addr)         __raw_readl((void __force __iomem *)(addr))
 #define reg_write(addr, val)   mt_reg_sync_writel((val), ((void *)addr))
-
-#ifdef CONFIG_MTK_RAM_CONSOLE
-#define SPM_AEE_RR_REC 1
-#else
-#define SPM_AEE_RR_REC 0
-#endif
-
-#if SPM_AEE_RR_REC
-enum spm_suspend_step {
-	SPM_SUSPEND_ENTER = 0,
-	SPM_SUSPEND_ENTER_WFI,
-	SPM_SUSPEND_LEAVE_WFI,
-	SPM_SUSPEND_LEAVE
-};
-/* extern void aee_rr_rec_spm_suspend_val(u32 val); */
-/* extern u32 aee_rr_curr_spm_suspend_val(void); */
-void __attribute__ ((weak)) aee_rr_rec_spm_suspend_val(u32 val)
-{
-}
-
-u32 __attribute__ ((weak)) aee_rr_curr_spm_suspend_val(void)
-{
-	return 0;
-}
-#endif
-
-int __attribute__ ((weak)) get_dynamic_period(int first_use, int first_wakeup_time,
-					      int battery_capacity_level)
-{
-	return 0;
-}
 
 void __attribute__ ((weak)) mt_cirq_clone_gic(void)
 {
@@ -160,11 +121,11 @@ static struct pwr_ctrl suspend_ctrl = {
 	.ca7top_idle_mask = 0,
 	.ca15top_idle_mask = 1,
 	.mcusys_idle_mask = 0,
-	.disp0_req_mask = 0,
-	.disp1_req_mask = 0,
-	.mfg_req_mask = 0,
-	.vdec_req_mask = 0,
-	.mm_ddr_req_mask = 0,
+	.disp0_req_mask = 1,
+	.disp1_req_mask = 1,
+	.mfg_req_mask = 1,
+	.vdec_req_mask = 1,
+	.mm_ddr_req_mask = 1,
 	.conn_mask = 0,
 #ifdef CONFIG_MTK_NFC
 	.srclkenai_mask = 0,	/* unmask for NFC use */
@@ -177,8 +138,8 @@ static struct pwr_ctrl suspend_ctrl = {
 
 	.ca7_wfi0_en = 1,
 	.ca7_wfi1_en = 1,
-	.ca7_wfi2_en = 1,
-	.ca7_wfi3_en = 1,
+	.ca7_wfi2_en = 0,
+	.ca7_wfi3_en = 0,
 	.ca15_wfi0_en = 0,
 	.ca15_wfi1_en = 0,
 	.ca15_wfi2_en = 0,
@@ -213,12 +174,14 @@ static void spm_kick_pcm_to_run(struct pwr_ctrl *pwrctrl)
 	{
 		u32 con1;
 
-		con1 = spm_read(SPM_PCM_CON1) & ~(CON1_PCM_WDT_WAKE_MODE | CON1_PCM_WDT_EN);
+		con1 = spm_read(SPM_PCM_CON1) & ~(CON1_PCM_WDT_WAKE_MODE |
+							CON1_PCM_WDT_EN);
 		spm_write(SPM_PCM_CON1, CON1_CFG_KEY | con1);
 
 		if (spm_read(SPM_PCM_TIMER_VAL) > PCM_TIMER_MAX)
 			spm_write(SPM_PCM_TIMER_VAL, PCM_TIMER_MAX);
-		spm_write(SPM_PCM_WDT_TIMER_VAL, spm_read(SPM_PCM_TIMER_VAL) + PCM_WDT_TIMEOUT);
+		spm_write(SPM_PCM_WDT_TIMER_VAL,
+				spm_read(SPM_PCM_TIMER_VAL) + PCM_WDT_TIMEOUT);
 		spm_write(SPM_PCM_CON1, con1 | CON1_CFG_KEY | CON1_PCM_WDT_EN);
 	}
 #endif
@@ -240,9 +203,8 @@ static void spm_kick_pcm_to_run(struct pwr_ctrl *pwrctrl)
 
 static void spm_trigger_wfi_for_sleep(struct pwr_ctrl *pwrctrl)
 {
-#ifdef MT7622_PORTING
 	if (is_cpu_pdn(pwrctrl->pcm_flags)) {
-		spm_dormant_sta = mt_cpu_dormant(CPU_SHUTDOWN_MODE /* | DORMANT_SKIP_WFI */);
+		spm_dormant_sta = mt_cpu_dormant(CPU_SHUTDOWN_MODE);
 		switch (spm_dormant_sta) {
 		case MT_CPU_DORMANT_RESET:
 			break;
@@ -256,31 +218,34 @@ static void spm_trigger_wfi_for_sleep(struct pwr_ctrl *pwrctrl)
 
 	if (is_infra_pdn(pwrctrl->pcm_flags))
 		mtk_uart_restore();
-#endif
 }
 
 static void spm_clean_after_wakeup(void)
 {
 	/* disable PCM WDT to stop count if needed */
 #if SPM_PCMWDT_EN
-	spm_write(SPM_PCM_CON1, CON1_CFG_KEY | (spm_read(SPM_PCM_CON1) & ~CON1_PCM_WDT_EN));
+	spm_write(SPM_PCM_CON1, CON1_CFG_KEY | (spm_read(SPM_PCM_CON1) &
+							~CON1_PCM_WDT_EN));
 #endif
 
 #if SPM_PCMTIMER_DIS
-	spm_write(SPM_PCM_CON1, CON1_CFG_KEY | (spm_read(SPM_PCM_CON1) | CON1_PCM_TIMER_EN));
+	spm_write(SPM_PCM_CON1, CON1_CFG_KEY | (spm_read(SPM_PCM_CON1) |
+							CON1_PCM_TIMER_EN));
 #endif
 
 	__spm_clean_after_wakeup();
 }
 
-static wake_reason_t spm_output_wake_reason(struct wake_status *wakesta, struct pcm_desc *pcmdesc)
+static wake_reason_t spm_output_wake_reason(struct wake_status *wakesta,
+						struct pcm_desc *pcmdesc)
 {
 	wake_reason_t wr;
 
 	wr = __spm_output_wake_reason(wakesta, pcmdesc, true);
 
 #if 1
-	memcpy(&suspend_info[log_wakesta_cnt], wakesta, sizeof(struct wake_status));
+	memcpy(&suspend_info[log_wakesta_cnt], wakesta,
+				sizeof(struct wake_status));
 	suspend_info[log_wakesta_cnt].log_index = log_wakesta_index;
 
 	if (log_wakesta_cnt >= 10) {
@@ -304,29 +269,6 @@ static wake_reason_t spm_output_wake_reason(struct wake_status *wakesta, struct 
 	return wr;
 }
 
-#if SPM_PWAKE_EN
-static u32 spm_get_wake_period(int pwake_time, wake_reason_t last_wr)
-{
-	int period = SPM_WAKE_PERIOD;
-#if 1
-	if (pwake_time < 0) {
-		/* use FG to get the period of 1% battery decrease */
-		period = get_dynamic_period(last_wr != WR_PCM_TIMER ? 1 : 0, SPM_WAKE_PERIOD, 1);
-		if (period <= 0) {
-			spm_warn("CANNOT GET PERIOD FROM FUEL GAUGE\n");
-			period = SPM_WAKE_PERIOD;
-		}
-	} else {
-		period = pwake_time;
-		spm_crit2("pwake = %d\n", pwake_time);
-	}
-
-	if (period > 36 * 3600)	/* max period is 36.4 hours */
-		period = 36 * 3600;
-#endif
-	return period;
-}
-#endif
 
 /*
  * wakesrc: WAKE_SRC_XXX
@@ -365,34 +307,13 @@ u32 spm_get_sleep_wakesrc(void)
 	return __spm_suspend.pwrctrl->wake_src;
 }
 
-#if SPM_AEE_RR_REC
-void spm_suspend_aee_init(void)
-{
-	aee_rr_rec_spm_suspend_val(0);
-}
-#endif
-
 wake_reason_t spm_go_to_sleep(u32 spm_flags, u32 spm_data)
 {
 	u32 sec = 2;
-#ifdef MT7622_PORTING
-	u32 capcode;
-#endif
-/*	int wd_ret; */
 	unsigned long flags;
-#ifdef MT7622_PORTING
-	struct mtk_irq_mask mask;
-#endif
-	struct irq_desc *desc = irq_to_desc(spm_irq_0);
-/*	struct wd_api *wd_api; */
 	static wake_reason_t last_wr = WR_NONE;
 	struct pcm_desc *pcmdesc;
 	struct pwr_ctrl *pwrctrl;
-
-#if SPM_AEE_RR_REC
-	spm_suspend_aee_init();
-	aee_rr_rec_spm_suspend_val(1 << SPM_SUSPEND_ENTER);
-#endif
 
 	pcmdesc = __spm_suspend.pcmdesc;
 	pwrctrl = __spm_suspend.pwrctrl;
@@ -400,38 +321,15 @@ wake_reason_t spm_go_to_sleep(u32 spm_flags, u32 spm_data)
 	set_pwrctrl_pcm_flags(pwrctrl, spm_flags);
 	set_pwrctrl_pcm_data(pwrctrl, spm_data);
 
-#ifdef MT7622_PORTING
-	if (!mt_xo_has_ext_crystal())
-		pwrctrl->pcm_flags |= SPM_32K_LESS;
-#endif
-
-	/* Read XO cap code */
-#ifdef MT7622_PORTING
-	capcode = mt_xo_get_current_capid();
-	spm_write(SPM_PCM_RESERVE8, capcode);
-#endif
-
 #if SPM_PWAKE_EN
 	sec = spm_get_wake_period(-1 /* FIXME */, last_wr);
 #endif
-	pwrctrl->timer_val = sec * 32768;
-#if 0
-	wd_ret = get_wd_api(&wd_api);
-	if (!wd_ret)
-		wd_api->wd_suspend_notify();
-#endif
-/*	mt_power_gs_dump_suspend(); */
+	pwrctrl->timer_val = sec * spm_rtc_cnt;
+	/* mt_power_gs_dump_suspend(); */
 
 	/* spm_suspend_pre_process(pwrctrl); */
 	lockdep_off();
 	spin_lock_irqsave(&__spm_lock, flags);
-#ifdef MT7622_PORTING
-	mt_irq_mask_all(&mask);
-#endif
-	if (desc)
-		unmask_irq(desc);
-	mt_cirq_clone_gic();
-	mt_cirq_enable();
 
 	spm_set_sysclk_settle();
 
@@ -471,15 +369,7 @@ wake_reason_t spm_go_to_sleep(u32 spm_flags, u32 spm_data)
 	spm_kick_pcm_to_run(pwrctrl);
 #endif
 
-#if SPM_AEE_RR_REC
-	aee_rr_rec_spm_suspend_val(aee_rr_curr_spm_suspend_val() | (1 << SPM_SUSPEND_ENTER_WFI));
-#endif
-
 	spm_trigger_wfi_for_sleep(pwrctrl);
-
-#if SPM_AEE_RR_REC
-	aee_rr_rec_spm_suspend_val(aee_rr_curr_spm_suspend_val() | (1 << SPM_SUSPEND_LEAVE_WFI));
-#endif
 
 	/* record last wakesta */
 	__spm_get_wakeup_status(&spm_wakesta);
@@ -493,23 +383,9 @@ wake_reason_t spm_go_to_sleep(u32 spm_flags, u32 spm_data)
 	last_wr = spm_output_wake_reason(&spm_wakesta, pcmdesc);
 
 RESTORE_IRQ:
-	mt_cirq_flush();
-	mt_cirq_disable();
-
-#ifdef MT7622_PORTING
-	mt_irq_mask_restore(&mask);
-#endif
-
 	spin_unlock_irqrestore(&__spm_lock, flags);
 	lockdep_on();
 	/* spm_suspend_post_process(pwrctrl); */
-#if 0
-	if (!wd_ret)
-		wd_api->wd_resume_notify();
-#endif
-#if SPM_AEE_RR_REC
-	aee_rr_rec_spm_suspend_val(aee_rr_curr_spm_suspend_val() | (1 << SPM_SUSPEND_LEAVE));
-#endif
 
 	return last_wr;
 }
@@ -555,7 +431,8 @@ void spm_poweron_config_set(void)
 void spm_output_sleep_option(void)
 {
 	spm_notice("PWAKE_EN:%d, PCMWDT_EN:%d, BYPASS_SYSPWREQ:%d, I2C_CHANNEL:%d\n",
-		   SPM_PWAKE_EN, SPM_PCMWDT_EN, SPM_BYPASS_SYSPWREQ, I2C_CHANNEL);
+		   SPM_PWAKE_EN, SPM_PCMWDT_EN, SPM_BYPASS_SYSPWREQ,
+							I2C_CHANNEL);
 }
 
 /* record last wakesta */

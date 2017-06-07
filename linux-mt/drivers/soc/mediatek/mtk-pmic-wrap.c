@@ -673,6 +673,7 @@ struct pmic_wrapper_type {
 	int slv_switch:1;
 	int slv_program:1;
 	int is_32bit:1;
+	int need_suspend:1;
 	int (*init_reg_clock)(struct pmic_wrapper *wrp);
 	int (*init_soc_specific)(struct pmic_wrapper *wrp);
 };
@@ -1256,7 +1257,7 @@ static irqreturn_t pwrap_interrupt(int irqno, void *dev_id)
 static const struct regmap_config pwrap_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 16,
-	.reg_stride = 2,
+	.reg_stride = 1,
 	.reg_read = pwrap_regmap_read,
 	.reg_write = pwrap_regmap_write,
 	.max_register = 0xffff,
@@ -1299,6 +1300,7 @@ static const struct pmic_wrapper_type pwrap_mt2701 = {
 	.slv_switch = 1,
 	.slv_program = 1,
 	.is_32bit = 0,
+	.need_suspend = 0,
 	.init_reg_clock = pwrap_mt2701_init_reg_clock,
 	.init_soc_specific = pwrap_mt2701_init_soc_specific,
 };
@@ -1314,6 +1316,7 @@ static struct pmic_wrapper_type pwrap_mt8135 = {
 	.slv_switch = 0,
 	.slv_program = 1,
 	.is_32bit = 0,
+	.need_suspend = 0,
 	.init_reg_clock = pwrap_mt8135_init_reg_clock,
 	.init_soc_specific = pwrap_mt8135_init_soc_specific,
 };
@@ -1329,6 +1332,7 @@ static struct pmic_wrapper_type pwrap_mt8173 = {
 	.slv_switch = 0,
 	.slv_program = 1,
 	.is_32bit = 0,
+	.need_suspend = 0,
 	.init_reg_clock = pwrap_mt8173_init_reg_clock,
 	.init_soc_specific = pwrap_mt8173_init_soc_specific,
 };
@@ -1344,6 +1348,7 @@ static struct pmic_wrapper_type pwrap_mt7622 = {
 	.slv_switch = 0,
 	.slv_program = 0,
 	.is_32bit = 1,
+	.need_suspend = 1,
 	.init_reg_clock = pwrap_mt7622_init_reg_clock,
 	.init_soc_specific = pwrap_mt7622_init_soc_specific,
 };
@@ -1504,10 +1509,54 @@ err_out1:
 	return ret;
 }
 
+#ifdef CONFIG_PM
+static int pwrap_pm_suspend_noirq(struct device *device)
+{
+	struct platform_device *pdev = to_platform_device(device);
+	struct pmic_wrapper *wrp = platform_get_drvdata(pdev);
+
+	if (!wrp->master->need_suspend)
+		return 0;
+
+	clk_disable_unprepare(wrp->clk_spi);
+	clk_disable_unprepare(wrp->clk_wrap);
+
+	return 0;
+}
+
+static int pwrap_pm_resume_noirq(struct device *device)
+{
+	int ret;
+	struct platform_device *pdev = to_platform_device(device);
+	struct pmic_wrapper *wrp = platform_get_drvdata(pdev);
+
+	if (!wrp->master->need_suspend)
+		return 0;
+
+	ret = clk_prepare_enable(wrp->clk_spi);
+	if (ret)
+		dev_err(wrp->dev, "enable pwrap spi clock error\n");
+
+	ret = clk_prepare_enable(wrp->clk_wrap);
+	if (ret)
+		dev_err(wrp->dev, "enable pwrap wrap clock error\n");
+
+	return 0;
+}
+
+const struct dev_pm_ops pwrap_pm_ops = {
+	.suspend_noirq = pwrap_pm_suspend_noirq,
+	.resume_noirq = pwrap_pm_resume_noirq,
+};
+#endif
+
 static struct platform_driver pwrap_drv = {
 	.driver = {
 		.name = "mt-pmic-pwrap",
 		.of_match_table = of_match_ptr(of_pwrap_match_tbl),
+#ifdef CONFIG_PM
+		.pm = &pwrap_pm_ops,
+#endif
 	},
 	.probe = pwrap_probe,
 };

@@ -632,6 +632,15 @@ config CRYPTO_SHA1_SSSE3
 	  Extensions (AVX/AVX2) or SHA-NI(SHA Extensions New Instructions),
 	  when available.
 
+config CRYPTO_SHA256_ARM
+	tristate "SHA-224/256 digest algorithm (ARM-asm and NEON)"
+	select CRYPTO_HASH
+	help
+	  SHA-256 secure hash standard (DFIPS 180-2) implemented
+	  using optimized ARM assembler and NEON, when available.
+	  modules built sha256-arm, defined in arch/arm64/crypto/
+	  Kconfig.
+
 config CRYPTO_SHA256_SSSE3
 	tristate "SHA256 digest algorithm (SSSE3/AVX/AVX2/SHA-NI)"
 	depends on X86 && 64BIT

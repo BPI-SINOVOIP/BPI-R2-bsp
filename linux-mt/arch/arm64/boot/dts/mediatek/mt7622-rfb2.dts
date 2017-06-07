@@ -198,6 +198,10 @@
 	status = "okay";
 };
 
+&svs {
+	vproc-supply = <&mt6380_vcpu_reg>;
+};
+
 &uart0 {
 	status = "okay";
 };

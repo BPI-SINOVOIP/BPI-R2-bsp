@@ -20,7 +20,8 @@
 #define CONFIG_RAETH_TX_RX_INT_SEPARATION
 #define CONFIG_RAETH_RW_PDMAPTR_FROM_VAR
 
-#define CONFIG_RAETH_NAPI_TX_RX
+/*#define CONFIG_RAETH_NAPI_TX_RX*/
+#define CONFIG_RAETH_NAPI_RX_ONLY
 
 /* definitions */
 #ifdef	DELAY_INT
@@ -162,6 +163,16 @@
 #define QDMA_MQ       BIT(27)
 #else
 #define QDMA_MQ       (0)
+#endif
+#ifdef	CONFIG_RAETH_NAPI_RX_ONLY
+#define FE_INT_NAPI_RX_ONLY	BIT(28)
+#else
+#define FE_INT_NAPI_RX_ONLY	(0)
+#endif
+#ifdef	CONFIG_QDMA_SUPPORT_QOS
+#define FE_QDMA_FQOS	BIT(29)
+#else
+#define FE_QDMA_FQOS	(0)
 #endif
 
 #define MT7623_FE	(7623)
@@ -315,6 +326,8 @@ end_device->features |= FE_HW_IOCOHERENT; \
 end_device->features |= FE_FPGA_MODE;	\
 end_device->features |= FE_HW_NAT;	\
 end_device->features |= FE_INT_NAPI_TX_RX; \
+end_device->features |= FE_INT_NAPI_RX_ONLY; \
+end_device->features |= FE_QDMA_FQOS;	\
 }
 
 #define fe_architecture_config(end_device)              \

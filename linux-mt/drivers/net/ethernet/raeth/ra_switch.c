@@ -2558,6 +2558,7 @@ void fe_sw_init(void)
 		sys_reg_write(ETHDMASYS_ETH_SW_BASE + 0x8c, 0x02404040);
 		sys_reg_write(ETHDMASYS_ETH_SW_BASE + 0x98, 0x00007f7f);
 		sys_reg_write(ETHDMASYS_ETH_SW_BASE + 0x04, 0xfbffffff);
+		sys_reg_write(ETHDMASYS_ETH_SW_BASE + 0x9c, 0x0008a041);
 	}
 
 	if (ei_local->architecture & GE1_SGMII_FORCE_2500) {
@@ -2759,6 +2760,58 @@ void sw_ioctl(struct ra_switch_ioctl_data *ioctl_data)
 
 	case SW_IOCTL_WRITE_REG:
 		rtk_hal_write_reg(ioctl_data);
+		break;
+
+	case SW_IOCTL_QOS_EN:
+		rtk_hal_qos_en(ioctl_data);
+		break;
+
+	case SW_IOCTL_QOS_SET_TABLE2TYPE:
+		rtk_hal_qos_set_table2type(ioctl_data);
+		break;
+
+	case SW_IOCTL_QOS_GET_TABLE2TYPE:
+		rtk_hal_qos_get_table2type(ioctl_data);
+		break;
+
+	case SW_IOCTL_QOS_SET_PORT2TABLE:
+		rtk_hal_qos_set_port2table(ioctl_data);
+		break;
+
+	case SW_IOCTL_QOS_GET_PORT2TABLE:
+		rtk_hal_qos_get_port2table(ioctl_data);
+		break;
+
+	case SW_IOCTL_QOS_SET_PORT2PRI:
+		rtk_hal_qos_set_port2pri(ioctl_data);
+		break;
+
+	case SW_IOCTL_QOS_GET_PORT2PRI:
+		rtk_hal_qos_get_port2pri(ioctl_data);
+		break;
+
+	case SW_IOCTL_QOS_SET_DSCP2PRI:
+		rtk_hal_qos_set_dscp2pri(ioctl_data);
+		break;
+
+	case SW_IOCTL_QOS_GET_DSCP2PRI:
+		rtk_hal_qos_get_dscp2pri(ioctl_data);
+		break;
+
+	case SW_IOCTL_QOS_SET_PRI2QUEUE:
+		rtk_hal_qos_set_pri2queue(ioctl_data);
+		break;
+
+	case SW_IOCTL_QOS_GET_PRI2QUEUE:
+		rtk_hal_qos_get_pri2queue(ioctl_data);
+		break;
+
+	case SW_IOCTL_QOS_SET_QUEUE_WEIGHT:
+		rtk_hal_qos_set_queue_weight(ioctl_data);
+		break;
+
+	case SW_IOCTL_QOS_GET_QUEUE_WEIGHT:
+		rtk_hal_qos_get_queue_weight(ioctl_data);
 		break;
 
 	default:

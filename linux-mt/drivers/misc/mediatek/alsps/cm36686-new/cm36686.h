@@ -47,5 +47,8 @@
 #define CMP_DMA_MAX_WR_SIZE	(CMP_DMA_MAX_TRANSACTION_LEN - CMP_REG_ADDR_LEN)
 /*-----------------end of I2C interface------------------*/
 
+/*#define CM36686_PS_EINT_ENABLE*/
+#define DEVICE_ATTRIBUTE_ENABLE
+#define CMP_DEVICE_NUM	2
 #endif
 

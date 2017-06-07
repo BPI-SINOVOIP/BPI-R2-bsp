@@ -903,6 +903,8 @@ static void __init mtk_pciesys_init(struct device_node *node)
 	if (r)
 		pr_err("%s(): could not register clock provider: %d\n",
 			__func__, r);
+
+	mtk_register_reset_controller(node, 1, 0x34);
 }
 CLK_OF_DECLARE(mtk_pciesys, "mediatek,mt7622-pciesys", mtk_pciesys_init);
 

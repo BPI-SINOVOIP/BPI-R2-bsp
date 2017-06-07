@@ -15,14 +15,29 @@
 #define _DT_BINDINGS_RESET_CONTROLLER_MT7622
 
 /* TOPRGU resets */
-#define MT7622_TOPRGU_MM_RST      1 /* Write 1 to reset MM and its related pad macro(SPI,DPI,MIPI_CFG,MIPI_TX) */
-#define MT7622_TOPRGU_MFG_RST     2 /* Write 1 to reset MFG */
-#define MT7622_TOPRGU_VENC_RST    3 /* Write 1 to reset VENC */
-#define MT7622_TOPRGU_VDEC_RST    4 /* Write 1 to reset VDEC */
-#define MT7622_TOPRGU_IMG_RST     5 /* Write 1 to VENC & IMG and its related pad macro(cam,mipi_rx) */
-#define MT7622_TOPRGU_MD_RST      7 /* Write 1 to reset MODEM system(2T 32K duration is required for TD modem) */
-#define MT7622_TOPRGU_CONN_RST    9 /* Write 1 to reset CONNSYS */
-#define MT7622_TOPRGU_C2K_SW_RST 14 /* Write 1 to reset the MODEM C2K system when C2K WDT is asserted */
-#define MT7622_TOPRGU_C2K_RST    15 /* Write 1 to reset MODEM C2K system */
+#define MT7622_TOPRGU_MM_RST		1
+#define MT7622_TOPRGU_MFG_RST		2
+#define MT7622_TOPRGU_VENC_RST		3
+#define MT7622_TOPRGU_VDEC_RST		4
+#define MT7622_TOPRGU_IMG_RST		5
+#define MT7622_TOPRGU_MD_RST		7
+#define MT7622_TOPRGU_CONN_RST		9
+#define MT7622_TOPRGU_C2K_SW_RST	14
+#define MT7622_TOPRGU_C2K_RST		15
+
+/* PCIe/SATA subsys resets */
+#define MT7622_SATA_PHY_REG_RST		12
+#define MT7622_SATA_PHY_SW_RST		13
+#define MT7622_SATA_AXI_BUS_RST		15
+#define MT7622_PCIE1_CORE_RST		19
+#define MT7622_PCIE1_MMIO_RST		20
+#define MT7622_PCIE1_HRST		21
+#define MT7622_PCIE1_USER_RST		22
+#define MT7622_PCIE1_PIPE_RST		23
+#define MT7622_PCIE0_CORE_RST		27
+#define MT7622_PCIE0_MMIO_RST		28
+#define MT7622_PCIE0_HRST		29
+#define MT7622_PCIE0_USER_RST		30
+#define MT7622_PCIE0_PIPE_RST		31
 
 #endif  /* _DT_BINDINGS_RESET_CONTROLLER_MT7622 */

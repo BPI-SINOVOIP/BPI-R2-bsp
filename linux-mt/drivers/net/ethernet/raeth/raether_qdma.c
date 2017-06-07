@@ -170,7 +170,7 @@ bool qdma_tx_desc_alloc(void)
 	int i = 0;
 
 	ei_local->txd_pool =
-	    dma_alloc_coherent(dev->dev.parent,
+	    dma_alloc_coherent(&ei_local->qdma_pdev->dev,
 			       QTXD_LEN * NUM_TX_DESC,
 			       &ei_local->phy_txd_pool, GFP_KERNEL);
 	pr_err("txd_pool=%p phy_txd_pool=%p\n", ei_local->txd_pool,
@@ -313,7 +313,7 @@ bool sfq_init(struct net_device *dev)
 		       sys_reg_read(VQTX_4_7_BIND_QID));
 	}
 
-	sfq0 = dma_alloc_coherent(dev->dev.parent,
+	sfq0 = dma_alloc_coherent(&ei_local->qdma_pdev->dev,
 				  VQ_NUM0 * sizeof(struct SFQ_table), &sfq_phy0,
 				  GFP_KERNEL);
 
@@ -322,7 +322,7 @@ bool sfq_init(struct net_device *dev)
 		sfq0[i].sfq_info1.VQHPTR = 0xdeadbeef;
 		sfq0[i].sfq_info2.VQTPTR = 0xdeadbeef;
 	}
-	sfq1 = dma_alloc_coherent(dev->dev.parent,
+	sfq1 = dma_alloc_coherent(&ei_local->qdma_pdev->dev,
 				  VQ_NUM1 * sizeof(struct SFQ_table), &sfq_phy1,
 				  GFP_KERNEL);
 	memset(sfq1, 0x0, VQ_NUM1 * sizeof(struct SFQ_table));
@@ -331,7 +331,7 @@ bool sfq_init(struct net_device *dev)
 		sfq1[i].sfq_info2.VQTPTR = 0xdeadbeef;
 	}
 
-	sfq2 = dma_alloc_coherent(dev->dev.parent,
+	sfq2 = dma_alloc_coherent(&ei_local->qdma_pdev->dev,
 				  VQ_NUM2 * sizeof(struct SFQ_table), &sfq_phy2,
 				  GFP_KERNEL);
 	memset(sfq2, 0x0, VQ_NUM2 * sizeof(struct SFQ_table));
@@ -340,7 +340,7 @@ bool sfq_init(struct net_device *dev)
 		sfq2[i].sfq_info2.VQTPTR = 0xdeadbeef;
 	}
 
-	sfq3 = dma_alloc_coherent(dev->dev.parent,
+	sfq3 = dma_alloc_coherent(&ei_local->qdma_pdev->dev,
 				  VQ_NUM3 * sizeof(struct SFQ_table), &sfq_phy3,
 				  GFP_KERNEL);
 	memset(sfq3, 0x0, VQ_NUM3 * sizeof(struct SFQ_table));
@@ -355,7 +355,7 @@ bool sfq_init(struct net_device *dev)
 	}
 	if (ei_local->chip_name == MT7622_FE) {
 		sfq4 =
-		    dma_alloc_coherent(dev->dev.parent,
+		    dma_alloc_coherent(&ei_local->qdma_pdev->dev,
 				       VQ_NUM4 * sizeof(struct SFQ_table),
 				       &sfq_phy4, GFP_KERNEL);
 		memset(sfq4, 0x0, VQ_NUM4 * sizeof(struct SFQ_table));
@@ -364,7 +364,7 @@ bool sfq_init(struct net_device *dev)
 			sfq4[i].sfq_info2.VQTPTR = 0xdeadbeef;
 		}
 		sfq5 =
-		    dma_alloc_coherent(dev->dev.parent,
+		    dma_alloc_coherent(&ei_local->qdma_pdev->dev,
 				       VQ_NUM5 * sizeof(struct SFQ_table),
 				       &sfq_phy5, GFP_KERNEL);
 		memset(sfq5, 0x0, VQ_NUM5 * sizeof(struct SFQ_table));
@@ -373,7 +373,7 @@ bool sfq_init(struct net_device *dev)
 			sfq5[i].sfq_info2.VQTPTR = 0xdeadbeef;
 		}
 		sfq6 =
-		    dma_alloc_coherent(dev->dev.parent,
+		    dma_alloc_coherent(&ei_local->qdma_pdev->dev,
 				       VQ_NUM6 * sizeof(struct SFQ_table),
 				       &sfq_phy6, GFP_KERNEL);
 		memset(sfq6, 0x0, VQ_NUM6 * sizeof(struct SFQ_table));
@@ -382,7 +382,7 @@ bool sfq_init(struct net_device *dev)
 			sfq6[i].sfq_info2.VQTPTR = 0xdeadbeef;
 		}
 		sfq7 =
-		    dma_alloc_coherent(dev->dev.parent,
+		    dma_alloc_coherent(&ei_local->qdma_pdev->dev,
 				       VQ_NUM7 * sizeof(struct SFQ_table),
 				       &sfq_phy7, GFP_KERNEL);
 		memset(sfq7, 0x0, VQ_NUM7 * sizeof(struct SFQ_table));
@@ -440,7 +440,7 @@ bool fq_qdma_init(struct net_device *dev)
 	dma_addr_t phy_free_page_head;
 	int i;
 
-	free_head = dma_alloc_coherent(dev->dev.parent,
+	free_head = dma_alloc_coherent(&ei_local->qdma_pdev->dev,
 				       NUM_QDMA_PAGE *
 				       QTXD_LEN, &phy_free_head, GFP_KERNEL);
 
@@ -451,7 +451,8 @@ bool fq_qdma_init(struct net_device *dev)
 	memset(free_head, 0x0, QTXD_LEN * NUM_QDMA_PAGE);
 
 	free_page_head =
-	    dma_alloc_coherent(dev->dev.parent, NUM_QDMA_PAGE * QDMA_PAGE_SIZE,
+	    dma_alloc_coherent(&ei_local->qdma_pdev->dev,
+			       NUM_QDMA_PAGE * QDMA_PAGE_SIZE,
 			       &phy_free_page_head, GFP_KERNEL);
 
 	if (unlikely(!free_page_head)) {
@@ -605,6 +606,9 @@ int rt2880_qdma_eth_send(struct END_DEVICE *ei_local, struct net_device *dev,
 
 	cpu_ptr = &dummy_desc;
 	/* 2. prepare data */
+	dma_sync_single_for_device(&ei_local->qdma_pdev->dev,
+				   virt_to_phys(skb->data),
+				   skb->len, DMA_TO_DEVICE);
 	/* cpu_ptr->txd_info1.SDP = VIRT_TO_PHYS(skb->data); */
 	cpu_ptr->txd_info1.SDP = virt_to_phys(skb->data);
 	cpu_ptr->txd_info3.SDL = skb->len;
@@ -622,7 +626,7 @@ int rt2880_qdma_eth_send(struct END_DEVICE *ei_local, struct net_device *dev,
 	if (skb->mark < 64) {
 		cpu_ptr->txd_info3.QID = M2Q_table[skb->mark];
 	} else {
-		pr_err("skb->mark out of range\n");
+		pr_debug("skb->mark out of range\n");
 		cpu_ptr->txd_info3.QID = 0;
 	}
 
@@ -770,7 +774,8 @@ int rt2880_qdma_eth_send_tso(struct END_DEVICE *ei_local,
 	struct tcphdr *th = NULL;
 	struct skb_frag_struct *frag;
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
-	unsigned int len, size, offset, frag_txd_num;
+	unsigned int len, size, frag_txd_num;
+	dma_addr_t offset;
 	unsigned long flags;
 	int i;
 	int init_qid;
@@ -781,6 +786,10 @@ int rt2880_qdma_eth_send_tso(struct END_DEVICE *ei_local,
 	cpu_ptr = &init_dummy_desc;
 
 	len = length - skb->data_len;
+	dma_sync_single_for_device(&ei_local->qdma_pdev->dev,
+				   virt_to_phys(skb->data),
+				   len,
+				   DMA_TO_DEVICE);
 	offset = virt_to_phys(skb->data);
 	cpu_ptr->txd_info1.SDP = offset;
 	if (len > MAX_QTXD_LEN) {
@@ -815,7 +824,7 @@ int rt2880_qdma_eth_send_tso(struct END_DEVICE *ei_local,
 	if (skb->mark < 64) {
 		cpu_ptr->txd_info3.QID = M2Q_table[skb->mark];
 	} else {
-		pr_err("skb->mark out of range\n");
+		pr_debug("skb->mark out of range\n");
 		cpu_ptr->txd_info3.QID = 0;
 	}
 
@@ -901,7 +910,6 @@ int rt2880_qdma_eth_send_tso(struct END_DEVICE *ei_local,
 	 *prev_cpu_ptr->txd_info4 = dummy_desc.txd_info4;
 	 */
 	if (len > 0) {
-		offset = virt_to_phys(skb->data) + MAX_QTXD_LEN;
 		frag_txd_num = cal_frag_txd_num(len);
 		for (frag_txd_num = frag_txd_num; frag_txd_num > 0;
 		     frag_txd_num--) {
@@ -970,10 +978,15 @@ int rt2880_qdma_eth_send_tso(struct END_DEVICE *ei_local,
 			cpu_ptr = &dummy_desc;
 			cpu_ptr->txd_info3.QID = init_qid;
 			cpu_ptr->txd_info1.SDP =
-			    dma_map_page(dev->dev.parent,
+			    dma_map_page(&ei_local->qdma_pdev->dev,
 					 frag->page.p,
 					 frag->page_offset +
 					 offset, size, DMA_TO_DEVICE);
+			if (unlikely(dma_mapping_error
+					(&ei_local->qdma_pdev->dev,
+					 cpu_ptr->txd_info1.SDP)))
+				pr_err("[%s]dma_map_page() failed...\n",
+				       __func__);
 
 			cpu_ptr->txd_info3.SDL = (size & 0x3FFF);
 			if (ei_local->chip_name == MT7622_FE)
@@ -1022,7 +1035,7 @@ int rt2880_qdma_eth_send_tso(struct END_DEVICE *ei_local,
 
 			th->check = htons(skb_shinfo(skb)->gso_size);
 
-			dma_sync_single_for_device(dev->dev.parent,
+			dma_sync_single_for_device(&ei_local->qdma_pdev->dev,
 						   virt_to_phys(th),
 						   sizeof(struct
 							  tcphdr),
@@ -1037,7 +1050,7 @@ int rt2880_qdma_eth_send_tso(struct END_DEVICE *ei_local,
 			init_cpu_ptr->txd_info4.TSO = 1;
 			th->check = htons(skb_shinfo(skb)->gso_size);
 
-			dma_sync_single_for_device(NULL,
+			dma_sync_single_for_device(&ei_local->qdma_pdev->dev,
 						   virt_to_phys(th),
 						   sizeof(struct
 							  tcphdr),
@@ -1125,7 +1138,7 @@ int fe_qdma_rx_dma_init(struct net_device *dev)
 
 	/* Initial QDMA RX Ring */
 	ei_local->qrx_ring =
-	    dma_alloc_coherent(dev->dev.parent,
+	    dma_alloc_coherent(&ei_local->qdma_pdev->dev,
 			       NUM_QRX_DESC * sizeof(struct PDMA_rxdesc),
 			       &ei_local->phy_qrx_ring,
 			       GFP_ATOMIC | __GFP_ZERO);
@@ -1142,12 +1155,14 @@ int fe_qdma_rx_dma_init(struct net_device *dev)
 		ei_local->qrx_ring[i].rxd_info2.LS0 = 0;
 		ei_local->qrx_ring[i].rxd_info2.PLEN0 = MAX_RX_LENGTH;
 		ei_local->qrx_ring[i].rxd_info1.PDP0 =
-		    dma_map_single(NULL, ei_local->netrx0_skbuf[i]->data,
+		    dma_map_single(&ei_local->qdma_pdev->dev,
+				   ei_local->netrx0_skbuf[i]->data,
 				   MAX_RX_LENGTH + NET_IP_ALIGN,
 				   PCI_DMA_FROMDEVICE);
 		if (unlikely
 		    (dma_mapping_error
-		     (dev->dev.parent, ei_local->qrx_ring[i].rxd_info1.PDP0))) {
+		     (&ei_local->qdma_pdev->dev,
+		      ei_local->qrx_ring[i].rxd_info1.PDP0))) {
 			pr_err("[%s]dma_map_single() failed...\n", __func__);
 			goto no_rx_mem;
 		}
@@ -1213,17 +1228,16 @@ void fe_qdma_tx_dma_deinit(struct net_device *dev)
 
 	/* free TX Ring */
 	if (ei_local->txd_pool)
-		dma_free_coherent(NULL,
-				  NUM_TX_DESC *
-				  QTXD_LEN,
+		dma_free_coherent(&ei_local->qdma_pdev->dev,
+				  NUM_TX_DESC * QTXD_LEN,
 				  ei_local->txd_pool, ei_local->phy_txd_pool);
 	if (ei_local->free_head)
-		dma_free_coherent(NULL,
-				  NUM_QDMA_PAGE *
-				  QTXD_LEN,
+		dma_free_coherent(&ei_local->qdma_pdev->dev,
+				  NUM_QDMA_PAGE * QTXD_LEN,
 				  ei_local->free_head, ei_local->phy_free_head);
 	if (ei_local->free_page_head)
-		dma_free_coherent(NULL, NUM_QDMA_PAGE * QDMA_PAGE_SIZE,
+		dma_free_coherent(&ei_local->qdma_pdev->dev,
+				  NUM_QDMA_PAGE * QDMA_PAGE_SIZE,
 				  ei_local->free_page_head,
 				  ei_local->phy_free_page_head);
 
@@ -1249,7 +1263,7 @@ void set_fe_qdma_glo_cfg(void)
 
 	/* Enable randon early drop and set drop threshold automatically */
 	if (!(ei_local->features & FE_HW_SFQ))
-		sys_reg_write(QDMA_FC_THRES, 0x174444);
+		sys_reg_write(QDMA_FC_THRES, 0x4444);
 	sys_reg_write(QDMA_HRED2, 0x0);
 
 	dma_glo_cfg =
@@ -1274,6 +1288,7 @@ int ei_qdma_start_xmit(struct sk_buff *skb, struct net_device *dev, int gmac_no)
 	int ring_no;
 
 	ring_no = skb->queue_mapping + (gmac_no - 1) * GMAC1_TXQ_NUM;
+
 #if defined(CONFIG_RA_HW_NAT)  || defined(CONFIG_RA_HW_NAT_MODULE)
 	if (ra_sw_nat_hook_tx) {
 		if (ra_sw_nat_hook_tx(skb, gmac_no) != 1) {
@@ -1286,8 +1301,6 @@ int ei_qdma_start_xmit(struct sk_buff *skb, struct net_device *dev, int gmac_no)
 	dev->trans_start = jiffies;	/* save the timestamp */
 	/*spin_lock_irqsave(&ei_local->page_lock, flags); */
 
-	dma_sync_single_for_device(dev->dev.parent, virt_to_phys(skb->data),
-				   skb->len, DMA_TO_DEVICE);
 	/* check free_txd_num before calling rt288_eth_send() */
 
 	if (ei_local->features & FE_TSO) {
@@ -1438,8 +1451,15 @@ int ei_qdma_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			} else {
 				page = 0;
 			}
+			/*magic number for ioctl identify CR 0x1b101a14*/
+			if (reg.off == 0x777) {
+				page = 0;
+				reg.off = 0x214;
+			}
+
 			sys_reg_write(QDMA_PAGE, page);
 			pr_err("page=%d, reg.off =%x\n", page, reg.off);
+			sys_reg_write(QDMA_PAGE, 0);
 		}
 
 		reg.val = sys_reg_read(QTX_CFG_0 + reg.off);
@@ -1478,9 +1498,15 @@ int ei_qdma_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			} else {
 				page = 0;
 			}
+			/*magic number for ioctl identify CR 0x1b101a14*/
+			if (reg.off == 0x777) {
+				page = 0;
+				reg.off = 0x214;
+			}
 			sys_reg_write(QDMA_PAGE, page);
 			pr_err("reg.val =%x\n", reg.val);
 			sys_reg_write(QTX_CFG_0 + reg.off, reg.val);
+			sys_reg_write(QDMA_PAGE, 0);
 		} else {
 			sys_reg_write(QTX_CFG_0 + reg.off, reg.val);
 		}

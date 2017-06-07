@@ -544,10 +544,10 @@ void get_thermal_all_register(void)
 }
 
 /* TODO: FIXME */
-void get_thermal_slope_intercept(struct TS_PTPOD *ts_info, enum thermal_bank_name ts_bank)
+void get_thermal_slope_intercept(struct TS_SVS *ts_info, enum thermal_bank_name ts_bank)
 {
 	unsigned int temp0, temp1, temp2;
-	struct TS_PTPOD ts_ptpod;
+	struct TS_SVS ts_svs;
 	S32 x_roomt;
 
 	tscpu_dprintk("get_thermal_slope_intercept\n");
@@ -567,7 +567,7 @@ void get_thermal_slope_intercept(struct TS_PTPOD *ts_info, enum thermal_bank_nam
 		temp1 = temp0 / (165 + g_o_slope);
 	else
 		temp1 = temp0 / (165 - g_o_slope);
-	ts_ptpod.ts_MTS = temp1;
+	ts_svs.ts_MTS = temp1;
 
 	temp0 = (g_degc_cali * 10 / 2);
 	temp1 = ((10000 * 100000 / 4096 / g_gain) * g_oe + x_roomt * 10) * 15 / 18;
@@ -577,11 +577,11 @@ void get_thermal_slope_intercept(struct TS_PTPOD *ts_info, enum thermal_bank_nam
 	else
 		temp2 = temp1 * 10 / (165 - g_o_slope);
 
-	ts_ptpod.ts_BTS = (temp0 + temp2 - 250) * 4 / 10;
+	ts_svs.ts_BTS = (temp0 + temp2 - 250) * 4 / 10;
 
-	ts_info->ts_MTS = ts_ptpod.ts_MTS;
-	ts_info->ts_BTS = ts_ptpod.ts_BTS;
-	tscpu_printk("ts_MTS=%d, ts_BTS=%d\n", ts_ptpod.ts_MTS, ts_ptpod.ts_BTS);
+	ts_info->ts_MTS = ts_svs.ts_MTS;
+	ts_info->ts_BTS = ts_svs.ts_BTS;
+	tscpu_printk("ts_MTS=%d, ts_BTS=%d\n", ts_svs.ts_MTS, ts_svs.ts_BTS);
 }
 EXPORT_SYMBOL(get_thermal_slope_intercept);
 

@@ -2958,17 +2958,21 @@ BOOLEAN kalRetrieveNetworkAddress(IN P_GLUE_INFO_T prGlueInfo, IN OUT PARAM_MAC_
 
 	if (prGlueInfo->fgIsMacAddrOverride == FALSE) {
 #if !defined(CONFIG_X86)
-		UINT_32 i;
-		BOOLEAN fgIsReadError = FALSE;
+	struct device_node *node;
+	BOOLEAN fgIsReadError = TRUE;
 
-		for (i = 0; i < MAC_ADDR_LEN; i += 2) {
-			if (kalCfgDataRead16(prGlueInfo,
-					     OFFSET_OF(WIFI_CFG_PARAM_STRUCT, aucMacAddress) + i,
-					     (PUINT_16) (((PUINT_8) prMacAddr) + i)) == FALSE) {
-				fgIsReadError = TRUE;
-				break;
-			}
+	node = of_find_compatible_node(NULL, NULL, "mediatek,connectivity-combo");
+
+	if (node) {
+		const UINT_8 *prop;
+
+		prop = of_get_property(node, "aucMacAddress", NULL);
+		if (prop != NULL) {
+			COPY_MAC_ADDR(prMacAddr, prop);
+			fgIsReadError = FALSE;
+			DBGLOG(INIT, INFO, "fgIsMacAddrOverride MAC address: " MACSTR, prMacAddr);
 		}
+	}
 
 		if (fgIsReadError == TRUE)
 			return FALSE;
@@ -3490,6 +3494,7 @@ kalGetConfigurationVersion(IN P_GLUE_INFO_T prGlueInfo,
 			   OUT PUINT_16 pu2Part1CfgPeerVersion,
 			   OUT PUINT_16 pu2Part2CfgOwnVersion, OUT PUINT_16 pu2Part2CfgPeerVersion)
 {
+	struct device_node *node;
 	ASSERT(prGlueInfo);
 
 	ASSERT(pu2Part1CfgOwnVersion);
@@ -3497,13 +3502,35 @@ kalGetConfigurationVersion(IN P_GLUE_INFO_T prGlueInfo,
 	ASSERT(pu2Part2CfgOwnVersion);
 	ASSERT(pu2Part2CfgPeerVersion);
 
-	kalCfgDataRead16(prGlueInfo, OFFSET_OF(WIFI_CFG_PARAM_STRUCT, u2Part1OwnVersion), pu2Part1CfgOwnVersion);
+	node = of_find_compatible_node(NULL, NULL, "mediatek,connectivity-combo");
 
-	kalCfgDataRead16(prGlueInfo, OFFSET_OF(WIFI_CFG_PARAM_STRUCT, u2Part1PeerVersion), pu2Part1CfgPeerVersion);
+	if (node) {
+		const UINT_8 *prop;
 
-	kalCfgDataRead16(prGlueInfo, OFFSET_OF(WIFI_CFG_PARAM_STRUCT, u2Part2OwnVersion), pu2Part2CfgOwnVersion);
+		prop = of_get_property(node, "u2Part1OwnVersion", NULL);
+		if (prop != NULL) {
+			memcpy(pu2Part1CfgOwnVersion, prop, sizeof(UINT_16));
+			DBGLOG(INIT, INFO, "DTB u2Part1OwnVersion: %04x\n", *pu2Part1CfgOwnVersion);
+		}
 
-	kalCfgDataRead16(prGlueInfo, OFFSET_OF(WIFI_CFG_PARAM_STRUCT, u2Part2PeerVersion), pu2Part2CfgPeerVersion);
+		prop = of_get_property(node, "u2Part1PeerVersion", NULL);
+		if (prop != NULL) {
+			memcpy(pu2Part1CfgPeerVersion, prop, sizeof(UINT_16));
+			DBGLOG(INIT, INFO, "DTB u2Part1PeerVersion: %04x\n", *pu2Part1CfgPeerVersion);
+		}
+
+		prop = of_get_property(node, "u2Part2OwnVersion", NULL);
+		if (prop != NULL) {
+			memcpy(pu2Part2CfgOwnVersion, prop, sizeof(UINT_16));
+			DBGLOG(INIT, INFO, "DTB u2Part2OwnVersion: %04x\n", *pu2Part2CfgOwnVersion);
+		}
+
+		prop = of_get_property(node, "u2Part2PeerVersion", NULL);
+		if (prop != NULL) {
+			memcpy(pu2Part2CfgPeerVersion, prop, sizeof(UINT_16));
+			DBGLOG(INIT, INFO, "DTB u2Part2PeerVersion: %04x\n", *pu2Part2CfgPeerVersion);
+		}
+	}
 
 }
 

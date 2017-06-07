@@ -138,10 +138,6 @@ config  RAETH_ESW
 	bool "Embedded 5-Port Switch"
 	depends on !RAETH_GE1_SGMII
 
-config  GE1_RGMII_ONE_EPHY
-	bool "RGMII + 1 port EPHY"
-	depends on !RAETH_GE1_SGMII
-
 config  GE1_RGMII_FORCE_1000
 	bool "RGMII_FORCE_1000 (GigaSW, CPU)"
 	depends on !RAETH_GE1_SGMII

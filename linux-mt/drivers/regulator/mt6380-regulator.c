@@ -74,8 +74,9 @@
 #define MT6380_EFU_CTRL_7                         0x0207
 #define MT6380_EFU_CTRL_8                         0x0208
 
-#define mt6380_LDO_MODE_NORMAL	0
-#define mt6380_LDO_MODE_LP	1
+#define MT6380_REGULATOR_MODE_NORMAL	0
+#define MT6380_REGULATOR_MODE_LP	1
+#define MT6380_REGULATOR_MODE_FORCE_PWM	1
 
 /*
  * mt6380 regulators' information
@@ -97,7 +98,7 @@ struct mt6380_regulator_info {
 };
 
 #define mt6380_BUCK(match, vreg, min, max, step, volt_ranges, enreg,	\
-		vosel, vosel_mask, enbit, voselon)			\
+		vosel, vosel_mask, enbit, voselon, _modeset_reg, _modeset_mask)	\
 [mt6380_ID_##vreg] = {							\
 	.desc = {							\
 		.name = #vreg,						\
@@ -115,6 +116,8 @@ struct mt6380_regulator_info {
 		.enable_mask = BIT(enbit),					\
 	},								\
 	.vselon_reg = voselon,						\
+	.modeset_reg = _modeset_reg,					\
+	.modeset_mask = _modeset_mask,					\
 }
 
 #define mt6380_LDO(match, vreg, ldo_volt_table, enreg, enbit, vosel,	\
@@ -200,10 +203,11 @@ static int mt6380_get_status(struct regulator_dev *rdev)
 	return (regval & info->desc.enable_mask) ? REGULATOR_STATUS_ON : REGULATOR_STATUS_OFF;
 }
 
-static int mt6380_ldo_set_mode(struct regulator_dev *rdev, unsigned int mode)
+static int mt6380_regulator_set_mode(struct regulator_dev *rdev, unsigned int mode)
 {
 	int ret, val = 0;
 	struct mt6380_regulator_info *info = rdev_get_drvdata(rdev);
+	u32 reg_value;
 
 	if (!info->modeset_mask) {
 		dev_err(&rdev->dev, "regulator %s doesn't support set_mode\n",
@@ -213,10 +217,13 @@ static int mt6380_ldo_set_mode(struct regulator_dev *rdev, unsigned int mode)
 
 	switch (mode) {
 	case REGULATOR_MODE_STANDBY:
-		val = mt6380_LDO_MODE_LP;
+		val = MT6380_REGULATOR_MODE_LP;
 		break;
 	case REGULATOR_MODE_NORMAL:
-		val = mt6380_LDO_MODE_NORMAL;
+		val = MT6380_REGULATOR_MODE_NORMAL;
+		break;
+	case REGULATOR_MODE_FAST:
+		val = MT6380_REGULATOR_MODE_FORCE_PWM;
 		break;
 	default:
 		return -EINVAL;
@@ -227,10 +234,17 @@ static int mt6380_ldo_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	ret = regmap_update_bits(rdev->regmap, info->modeset_reg,
 				  info->modeset_mask, val);
 
+	if (regmap_read(rdev->regmap, info->modeset_reg, &reg_value) < 0) {
+		dev_err(&rdev->dev, "Failed to read register value\n");
+		return -EIO;
+	}
+
+	dev_info(&rdev->dev, "info->modeset_reg 0x%x = 0x%x\n", info->modeset_reg, reg_value);
+
 	return ret;
 }
 
-static unsigned int mt6380_ldo_get_mode(struct regulator_dev *rdev)
+static unsigned int mt6380_regulator_get_mode(struct regulator_dev *rdev)
 {
 	unsigned int val;
 	unsigned int mode;
@@ -268,6 +282,8 @@ static struct regulator_ops mt6380_volt_range_ops = {
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
 	.get_status = mt6380_get_status,
+	.set_mode = mt6380_regulator_set_mode,
+	.get_mode = mt6380_regulator_get_mode,
 };
 
 static struct regulator_ops mt6380_volt_table_ops = {
@@ -280,8 +296,8 @@ static struct regulator_ops mt6380_volt_table_ops = {
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
 	.get_status = mt6380_get_status,
-	.set_mode = mt6380_ldo_set_mode,
-	.get_mode = mt6380_ldo_get_mode,
+	.set_mode = mt6380_regulator_set_mode,
+	.get_mode = mt6380_regulator_get_mode,
 };
 
 static struct regulator_ops mt6380_volt_fixed_ops = {
@@ -290,21 +306,21 @@ static struct regulator_ops mt6380_volt_fixed_ops = {
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
 	.get_status = mt6380_get_status,
-	.set_mode = mt6380_ldo_set_mode,
-	.get_mode = mt6380_ldo_get_mode,
+	.set_mode = mt6380_regulator_set_mode,
+	.get_mode = mt6380_regulator_get_mode,
 };
 
 /* The array is indexed by id(mt6380_ID_XXX) */
 static struct mt6380_regulator_info mt6380_regulators[] = {
 	mt6380_BUCK("buck_vcore1", VCPU, 600000, 1393750, 6250,
 		buck_volt_range1, MT6380_ANA_CTRL_3, MT6380_ANA_CTRL_1, 0xfe,
-		3, MT6380_ANA_CTRL_1),
+		3, MT6380_ANA_CTRL_1, MT6380_CPUBUCK_CON_0, 0x8000000),
 	mt6380_BUCK("buck_vcore", VCORE, 600000, 1393750, 6250,
 		buck_volt_range2, MT6380_ANA_CTRL_3, MT6380_ANA_CTRL_2, 0xfe,
-		2, MT6380_ANA_CTRL_2),
+		2, MT6380_ANA_CTRL_2, 0, 0),
 	mt6380_BUCK("buck_vrf", VRF, 1200000, 1575000, 25000,
 		buck_volt_range3, MT6380_ANA_CTRL_3, MT6380_SIDO_CON_0, 0x78,
-		1, MT6380_SIDO_CON_0),
+		1, MT6380_SIDO_CON_0, 0, 0),
 	mt6380_LDO("ldo_vmldo", VMLDO, ldo_volt_table1,
 		MT6380_LDO_CTRL_0, 1, MT6380_MLDO_CON_0, 0xE000,
 		MT6380_ANA_CTRL_1, 0x4000000),
@@ -326,8 +342,8 @@ static int mt6380_regulator_probe(struct platform_device *pdev)
 	struct regmap *regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	struct regulator_config config = {};
 	struct regulator_dev *rdev;
+	struct regulation_constraints *c;
 	int i;
-	u32 reg_value;
 
 	for (i = 0; i < mt6380_MAX_REGULATOR; i++) {
 		config.dev = &pdev->dev;
@@ -340,6 +356,14 @@ static int mt6380_regulator_probe(struct platform_device *pdev)
 				mt6380_regulators[i].desc.name);
 			return PTR_ERR(rdev);
 		}
+
+		/* Constrain board-specific capabilities according to what
+		 * this driver and the chip itself can actually do.
+		 */
+		c = rdev->constraints;
+		c->valid_modes_mask |= REGULATOR_MODE_NORMAL|
+			REGULATOR_MODE_STANDBY | REGULATOR_MODE_FAST;
+		c->valid_ops_mask |= REGULATOR_CHANGE_MODE;
 	}
 	return 0;
 }

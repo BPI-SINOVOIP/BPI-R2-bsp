@@ -17,8 +17,8 @@
 
 / {
 	chosen {
-		bootargs = "console=ttyS0,921600n1 root=/dev/mmcblk0p6 debugshell=1 printk.disable_uart=0 \
-rootwait initcall_debug=1 loglevel=8";
+		bootargs = "console=ttyS0,921600n1 root=/dev/mmcblk0p7 debugshell=1 printk.disable_uart=0 \
+rootwait initcall_debug=1 loglevel=8 sysrq_always_enabled";
 	};
 };
 

@@ -3220,11 +3220,65 @@ int priv_driver_set_monitor(IN struct net_device *prNetDev, IN char *pcCommand, 
 }
 #endif
 
+int priv_driver_set_test_cmd(IN struct net_device *prNetDev, IN char *pcCommand, IN int i4TotalLen)
+{
+	P_GLUE_INFO_T prGlueInfo = NULL;
+	WLAN_STATUS rStatus = WLAN_STATUS_SUCCESS;
+	UINT_32 u4BufLen = 0;
+	INT_32 i4BytesWritten = 0;
+	INT_32 i4Argc = 0;
+	PCHAR apcArgv[WLAN_CFG_ARGV_MAX] = { 0 };
+	UINT_32 u4Ret = 0;
+	P_NDIS_TRANSPORT_STRUCT prNdisReq;
+
+	ASSERT(prNetDev);
+	if (GLUE_CHK_PR2(prNetDev, pcCommand) == FALSE)
+		return -1;
+	prGlueInfo = *((P_GLUE_INFO_T *) netdev_priv(prNetDev));
+
+	DBGLOG(REQ, LOUD, "command is %s\n", pcCommand);
+	wlanCfgParseArgument(pcCommand, &i4Argc, apcArgv);
+	DBGLOG(REQ, LOUD, "argc is %i\n", i4Argc);
+
+	if (i4Argc >= 3) {
+		/*
+		 * rSwCtrlInfo.u4Id = kalStrtoul(apcArgv[1], NULL, 0);
+		 * rSwCtrlInfo.u4Data = kalStrtoul(apcArgv[2], NULL, 0);
+		 */
+		prNdisReq = (P_NDIS_TRANSPORT_STRUCT) &aucOidBuf[0];
+
+		u4Ret = kalkStrtou32(apcArgv[1], 0, (PUINT_32)&(prNdisReq->ndisOidContent[0]));
+		if (u4Ret)
+			DBGLOG(REQ, LOUD, "parse rSwCtrlInfo error u4Ret=%d\n", u4Ret);
+		u4Ret = kalkStrtou32(apcArgv[2], 0, (PUINT_32)&(prNdisReq->ndisOidContent[4]));
+		if (u4Ret)
+			DBGLOG(REQ, LOUD, "parse rSwCtrlInfo error u4Ret=%d\n", u4Ret);
+
+		/*kalMemCopy(&prNdisReq->ndisOidContent[0], &apcArgv[1], 8);*/
+		prNdisReq->ndisOidCmd = OID_CUSTOM_MTK_WIFI_TEST;
+		prNdisReq->inNdisOidlength = 8;
+		prNdisReq->outNdisOidLength = 8;
+		rStatus = priv_set_ndis(prNetDev, prNdisReq, &u4BufLen);
+
+		if (rStatus != WLAN_STATUS_SUCCESS) {
+			i4BytesWritten = snprintf(pcCommand, i4TotalLen, "Exec result Fail");
+			return -1;
+		}
+
+		i4BytesWritten = snprintf(pcCommand, i4TotalLen, "Exec result OK");
+		return i4BytesWritten;
+	}
+
+	i4BytesWritten = snprintf(pcCommand, i4TotalLen, "Exec result Fail");
+	return i4BytesWritten;
+}
+
 #if CFG_SUPPORT_BATCH_SCAN
 #define CMD_BATCH_SET           "WLS_BATCHING SET"
 #define CMD_BATCH_GET           "WLS_BATCHING GET"
 #define CMD_BATCH_STOP          "WLS_BATCHING STOP"
 #endif
+#define CMD_SET_TEST_CMD	"SET_TEST_CMD"
 
 INT_32 priv_driver_cmds(IN struct net_device *prNetDev, IN PCHAR pcCommand, IN INT_32 i4TotalLen)
 {
@@ -3343,6 +3397,8 @@ INT_32 priv_driver_cmds(IN struct net_device *prNetDev, IN PCHAR pcCommand, IN I
 		else if (strncasecmp(pcCommand, CMD_SETMONITOR, strlen(CMD_SETMONITOR)) == 0)
 			i4BytesWritten = priv_driver_set_monitor(prNetDev, pcCommand, i4TotalLen);
 #endif
+		else if (strncasecmp(pcCommand, CMD_SET_TEST_CMD, strlen(CMD_SET_TEST_CMD)) == 0)
+			i4BytesWritten = priv_driver_set_test_cmd(prNetDev, pcCommand, i4TotalLen);
 		else
 			i4CmdFound = 0;
 	}

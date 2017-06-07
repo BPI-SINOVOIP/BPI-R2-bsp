@@ -44,7 +44,7 @@ static int probe(struct platform_device *pdev)
 	struct resource *res;
 	const char *mac_addr = NULL;
 	struct net_device *dev = NULL;
-	int i, irq, ret = 0;
+	int i = 0, irq, ret = 0;
 	struct hw_if_struct *hw_if = NULL;
 	struct desc_if_struct *desc_if = NULL;
 	unsigned char tx_q_count = 0, rx_q_count = 0;
@@ -205,7 +205,10 @@ static int probe(struct platform_device *pdev)
 	ret = mdio_register(dev);
 	while (ret == -ENOLINK) {
 		ret = mdio_register(dev);
-		usleep_range(100, 200);
+		usleep_range(1000, 2000);
+		i++;
+		if (i > 10)
+			goto err_out_mdio_reg;
 	}
 	if (ret < 0) {
 		dev_err(&pdev->dev, "MDIO bus (id %d) registration failed\n", pdata->bus_id);

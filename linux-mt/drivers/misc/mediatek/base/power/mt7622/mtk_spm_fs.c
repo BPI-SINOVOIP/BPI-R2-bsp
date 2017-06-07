@@ -71,26 +71,26 @@ static ssize_t show_pcm_desc(const struct pcm_desc *pcmdesc, char *buf)
 	return p - buf;
 }
 
-static ssize_t suspend_pcm_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+static ssize_t suspend_pcm_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
 {
 	return show_pcm_desc(__spm_suspend.pcmdesc, buf);
 }
 
-static ssize_t dpidle_pcm_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+static ssize_t dpidle_pcm_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
 {
 	return show_pcm_desc(__spm_dpidle.pcmdesc, buf);
 }
 
-static ssize_t sodi_pcm_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+static ssize_t sodi_pcm_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
 {
-#ifdef MT7622_PORTING
-	return show_pcm_desc(__spm_sodi.pcmdesc, buf);
-#else
 	return 0;
-#endif
 }
 
-static ssize_t ddrdfs_pcm_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+static ssize_t ddrdfs_pcm_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
 {
 /* For bring up */
 #if 0
@@ -101,7 +101,8 @@ static ssize_t ddrdfs_pcm_show(struct kobject *kobj, struct kobj_attribute *attr
 }
 
 #if defined(SPM_VCORE_EN)
-static ssize_t vcorefs_pcm_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+static ssize_t vcorefs_pcm_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
 {
 	return show_pcm_desc(__spm_vcore_dvfs.pcmdesc, buf);
 }
@@ -161,37 +162,33 @@ static ssize_t show_pwr_ctrl(const struct pwr_ctrl *pwrctrl, char *buf)
 	return p - buf;
 }
 
-static ssize_t suspend_ctrl_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+static ssize_t suspend_ctrl_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
 {
 	return show_pwr_ctrl(__spm_suspend.pwrctrl, buf);
 }
 
-static ssize_t dpidle_ctrl_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+static ssize_t dpidle_ctrl_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
 {
 	return show_pwr_ctrl(__spm_dpidle.pwrctrl, buf);
 }
 
-static ssize_t sodi_ctrl_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+static ssize_t sodi_ctrl_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
 {
-#ifdef MT7622_PORTING
-	return show_pwr_ctrl(__spm_sodi.pwrctrl, buf);
-#else
 	return 0;
-#endif
 }
 
-static ssize_t ddrdfs_ctrl_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+static ssize_t ddrdfs_ctrl_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
 {
-/* for bring up */
-#if 0
-	return show_pwr_ctrl(__spm_ddrdfs.pwrctrl, buf);
-#else
 	return 0;
-#endif
 }
 
 #if defined(SPM_VCORE_EN)
-static ssize_t vcorefs_ctrl_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+static ssize_t vcorefs_ctrl_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
 {
 	return show_pwr_ctrl(__spm_vcore_dvfs.pwrctrl, buf);
 }
@@ -200,7 +197,8 @@ static ssize_t vcorefs_ctrl_show(struct kobject *kobj, struct kobj_attribute *at
 /*
  * xxx_ctrl_store Function
  */
-static ssize_t store_pwr_ctrl(struct pwr_ctrl *pwrctrl, const char *buf, size_t count)
+static ssize_t store_pwr_ctrl(struct pwr_ctrl *pwrctrl, const char *buf,
+								size_t count)
 {
 	u32 val;
 	char cmd[32];
@@ -294,42 +292,38 @@ static ssize_t store_pwr_ctrl(struct pwr_ctrl *pwrctrl, const char *buf, size_t 
 	return count;
 }
 
-static ssize_t suspend_ctrl_store(struct kobject *kobj, struct kobj_attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t suspend_ctrl_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
 {
 	return store_pwr_ctrl(__spm_suspend.pwrctrl, buf, count);
 }
 
-static ssize_t dpidle_ctrl_store(struct kobject *kobj, struct kobj_attribute *attr,
-				 const char *buf, size_t count)
+static ssize_t dpidle_ctrl_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
 {
 	return store_pwr_ctrl(__spm_dpidle.pwrctrl, buf, count);
 }
 
-static ssize_t sodi_ctrl_store(struct kobject *kobj, struct kobj_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t sodi_ctrl_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
 {
-#ifdef MT7622_PORTING
-	return store_pwr_ctrl(__spm_sodi.pwrctrl, buf, count);
-#else
 	return 0;
-#endif
 }
 
-static ssize_t ddrdfs_ctrl_store(struct kobject *kobj, struct kobj_attribute *attr,
-				 const char *buf, size_t count)
+static ssize_t ddrdfs_ctrl_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
 {
-/* for bring up */
-#if 0
-	return store_pwr_ctrl(__spm_ddrdfs.pwrctrl, buf, count);
-#else
 	return 0;
-#endif
 }
 
 #if defined(SPM_VCORE_EN)
-static ssize_t vcorefs_ctrl_store(struct kobject *kobj, struct kobj_attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t vcorefs_ctrl_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
 {
 	return store_pwr_ctrl(__spm_vcore_dvfs.pwrctrl, buf, count);
 }
@@ -338,7 +332,8 @@ static ssize_t vcorefs_ctrl_store(struct kobject *kobj, struct kobj_attribute *a
 /*
  * golden_dump_xxx Function
  */
-static ssize_t golden_dump_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+static ssize_t golden_dump_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
 {
 	char *p = buf;
 

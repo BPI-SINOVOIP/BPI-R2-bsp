@@ -202,6 +202,7 @@ struct END_DEVICE {
 	dma_addr_t phy_tx_ring0;
 
 	/* QDMA TX  PTR */
+	struct platform_device *qdma_pdev;
 	struct sk_buff *free_skb[NUM_TX_DESC];
 	unsigned int tx_dma_ptr;
 	unsigned int tx_cpu_ptr;

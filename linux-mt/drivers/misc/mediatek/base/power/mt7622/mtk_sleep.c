@@ -17,7 +17,6 @@
 #include <linux/spinlock.h>
 #include <linux/suspend.h>
 #include <linux/console.h>
-#include <mt-plat/aee.h>
 #include <linux/proc_fs.h>
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
@@ -31,12 +30,6 @@
 #include "mtk_spm.h"
 #include "mtk_spm_sleep.h"
 #include "mtk_spm_idle.h"
-
-/* #include <mt-plat/mt_gpio.h> */
-#if 0
-#include <mach/battery_common.h>
-#include <mach/systracker.h>
-#endif
 
 #undef ENABLE_AUTO_SUSPEND_TEST
 
@@ -71,33 +64,33 @@
 #define slp_info(fmt, args...)      pr_info(TAG""fmt, ##args)
 #define slp_debug(fmt, args...)     pr_debug(TAG""fmt, ##args)
 
-#define slp_crit2(fmt, args...)     \
-do {	                            \
-	aee_sram_printk(fmt, ##args);   \
-	slp_crit(fmt, ##args);          \
-} while (0)
+#define slp_crit2(fmt, args...)     slp_crit(fmt, ##args)
 
 /* void systracker_enable(void); */
 /* extern void mt_power_gs_dump_suspend(void); */
 
 #ifdef CONFIG_MTK_FPGA
 /* TODO: let fpga config build pass */
-int __attribute__ ((weak)) spm_set_sleep_wakesrc(u32 wakesrc, bool enable, bool replace)
+int __attribute__ ((weak))
+	spm_set_sleep_wakesrc(u32 wakesrc, bool enable, bool replace)
 {
 	return 0;
 }
 
-int __attribute__ ((weak)) spm_set_dpidle_wakesrc(u32 wakesrc, bool enable, bool replace)
+int __attribute__ ((weak))
+	spm_set_dpidle_wakesrc(u32 wakesrc, bool enable, bool replace)
 {
 	return 0;
 }
 
-void __attribute__ ((weak)) spm_output_sleep_option(void)
+void __attribute__ ((weak))
+	spm_output_sleep_option(void)
 {
 }
 #else
 /* TODO: let evb config build pass */
-int __attribute__ ((weak)) spm_set_dpidle_wakesrc(u32 wakesrc, bool enable, bool replace)
+int __attribute__ ((weak))
+	spm_set_dpidle_wakesrc(u32 wakesrc, bool enable, bool replace)
 {
 	return 0;
 }
@@ -132,10 +125,10 @@ static u32 slp_time = 30;
 
 static u32 slp_spm_flags = {
 #if 1				/* normal suspend */
-	SPM_L2_DORMANT_DIS | SPM_VPROC_LOW_DIS
+	0
 #else				/* legacy suspend */
-	SPM_L2_DORMANT_DIS | SPM_VPROC_LOW_DIS | SPM_CPU_PDN_DIS | SPM_INFRA_PDN_DIS |
-	SPM_DDRPHY_S1_DIS | SPM_26M_DIS
+	SPM_L2_DORMANT_DIS | SPM_VPROC_LOW_DIS | SPM_CPU_PDN_DIS |
+	SPM_INFRA_PDN_DIS | SPM_DDRPHY_S1_DIS | SPM_26M_DIS
 	/* SPM_L2_DORMANT_DIS | SPM_VPROC_LOW_DIS | SPM_INFRA_PDN_DIS */
 #endif
 };
@@ -143,11 +136,10 @@ static u32 slp_spm_flags = {
 #if SLP_SLEEP_DPIDLE_EN
 static u32 slp_spm_deepidle_flags = {
 #if 1				/* normal suspend */
-	SPM_INFRA_PDN_DIS | SPM_26M_OFF_DIS
-	/* SPM_BUS26M_DIS | SPM_MPLLOFF_DIS | SPM_FHC_SLEEP_DIS | SPM_26M_DIS */
+	SPM_INFRA_PDN_DIS
 #else
-	SPM_CPU_PDN_DIS | SPM_DDRPHY_S1_DIS | SPM_VPROC_LOW_DIS | SPM_INFRA_PDN_DIS |
-	SPM_26M_OFF_DIS
+	SPM_CPU_PDN_DIS | SPM_DDRPHY_S1_DIS | SPM_VPROC_LOW_DIS |
+	SPM_INFRA_PDN_DIS | SPM_26M_OFF_DIS
 #endif
 };
 #endif
@@ -156,19 +148,16 @@ static u32 slp_spm_deepidle_flags = {
 static u32 slp_spm_data;
 
 #ifdef ENABLE_AUTO_SUSPEND_TEST
-static enum hrtimer_restart slp_auto_suspend_resume_timer_func(struct hrtimer *timer)
+static enum hrtimer_restart
+	slp_auto_suspend_resume_timer_func(struct hrtimer *timer)
 {
 	slp_crit2("do slp_auto_suspend_resume_timer_func\n");
 
 	slp_auto_suspend_resume = 0;
 	slp_auto_suspend_resume_cnt = 0;
 
-#if 0
-	charging_suspend_enable();
-#else
 	slp_auto_suspend_resume_timer_flag = 1;
 	wake_up_interruptible(&slp_auto_suspend_resume_timer_waiter);
-#endif
 
 	return HRTIMER_NORESTART;
 }
@@ -177,10 +166,10 @@ static int slp_auto_suspend_resume_thread_handler(void *unused)
 {
 	do {
 		wait_event_interruptible(slp_auto_suspend_resume_timer_waiter,
-					 slp_auto_suspend_resume_timer_flag != 0);
+				slp_auto_suspend_resume_timer_flag != 0);
 		slp_auto_suspend_resume_timer_flag = 0;
 		charging_suspend_enable();
-		slp_crit2("slp_auto_suspend_resume_thread_handler charging_suspend_enable\n");
+		slp_crit2("%s charging_suspend_enable\n", __func__);
 
 	} while (!kthread_should_stop());
 
@@ -211,10 +200,6 @@ static int slp_suspend_ops_prepare(void)
 	/* legacy log */
 	slp_notice("@@@@@@@@@@@@@@@@@@@@\tChip_pm_prepare\t@@@@@@@@@@@@@@@@@@@@\n");
 
-#if 0
-	if (slp_chk_golden)
-		mt_power_gs_dump_suspend();
-#endif
 	return 0;
 }
 
@@ -237,32 +222,7 @@ static int slp_suspend_ops_enter(suspend_state_t state)
 
 	/* legacy log */
 	slp_notice("@@@@@@@@@@@@@@@@@@@@\tChip_pm_enter\t@@@@@@@@@@@@@@@@@@@@\n");
-
-#if 0 /* !defined(CONFIG_MTK_FPGA) */
-	if (slp_dump_gpio)
-		gpio_dump_regs();
-#endif
-
-#if 0
-	if (slp_dump_regs)
-		slp_dump_pm_regs();
-#endif
-
-/* todo: need mt_clkmgr.h */
-#if 0
-	if (slp_check_mtcmos_pll)
-		slp_check_pm_mtcmos_pll();
-#endif
-
-/* todo: need mt_spm_mtcmos.h */
-#if 0
-	if (!spm_cpusys0_can_power_down()) {
-		slp_error("CANNOT SLEEP DUE TO CPU1~x PON\n");
-		/* return -EPERM; */
-		ret = -EPERM;
-		goto LEAVE_SLEEP;
-	}
-#endif
+	/* power_off_mtcmos(); */
 
 	if (is_infra_pdn(slp_spm_flags) && !is_cpu_pdn(slp_spm_flags)) {
 		slp_error("CANNOT SLEEP DUE TO INFRA PDN BUT CPU PON\n");
@@ -271,25 +231,15 @@ static int slp_suspend_ops_enter(suspend_state_t state)
 		goto LEAVE_SLEEP;
 	}
 
-
-	/* only for test */
-#if 0
-	slp_pasr_en(1, 0x0);
-	slp_dpd_en(1);
-#endif
-
 #if SLP_SLEEP_DPIDLE_EN
 	if ((slp_ck26m_on) || (fm_radio_is_playing))
-		slp_wake_reason = spm_go_to_sleep_dpidle(slp_spm_deepidle_flags, slp_spm_data);
+		slp_wake_reason =
+		spm_go_to_sleep_dpidle(slp_spm_deepidle_flags, slp_spm_data);
 	else
 #endif
 		slp_wake_reason = spm_go_to_sleep(slp_spm_flags, slp_spm_data);
 
 LEAVE_SLEEP:
-
-#ifdef CONFIG_MTK_SYSTRACKER
-	/* systracker_enable(); */
-#endif
 
 	return ret;
 }
@@ -307,7 +257,8 @@ static void slp_suspend_ops_end(void)
 
 #ifdef ENABLE_AUTO_SUSPEND_TEST
 	if (slp_auto_suspend_resume == 1) {
-		slp_crit2("slp_auto_suspend_resume_cnt = %d\n", slp_auto_suspend_resume_cnt);
+		slp_crit2("slp_auto_suspend_resume_cnt = %d\n",
+					slp_auto_suspend_resume_cnt);
 		slp_auto_suspend_resume_cnt++;
 
 		if (slp_auto_suspend_resume_cnt > 10) {
@@ -340,7 +291,8 @@ int slp_set_wakesrc(u32 wakesrc, bool enable, bool ck26m_on)
 	int r;
 	unsigned long flags;
 
-	slp_notice("wakesrc = 0x%x, enable = %u, ck26m_on = %u\n", wakesrc, enable, ck26m_on);
+	slp_notice("wakesrc = 0x%x, enable = %u, ck26m_on = %u\n", wakesrc,
+							enable, ck26m_on);
 
 #if SLP_REPLACE_DEF_WAKESRC
 	if (wakesrc & WAKE_SRC_CFG_KEY)
@@ -358,9 +310,11 @@ int slp_set_wakesrc(u32 wakesrc, bool enable, bool ck26m_on)
 		r = spm_set_sleep_wakesrc(wakesrc, enable, true);
 #else
 	if (ck26m_on)
-		r = spm_set_dpidle_wakesrc(wakesrc & ~WAKE_SRC_CFG_KEY, enable, false);
+		r = spm_set_dpidle_wakesrc(wakesrc & ~WAKE_SRC_CFG_KEY,
+							enable, false);
 	else
-		r = spm_set_sleep_wakesrc(wakesrc & ~WAKE_SRC_CFG_KEY, enable, false);
+		r = spm_set_sleep_wakesrc(wakesrc & ~WAKE_SRC_CFG_KEY,
+							enable, false);
 #endif
 
 	if (!r)
@@ -380,50 +334,15 @@ bool slp_will_infra_pdn(void)
 	return is_infra_pdn(slp_spm_flags);
 }
 
-#if 0
-/*
- * en: 1: enable pasr, 0: disable pasr
- * value: pasr setting (RK1, MR17 for RK0)
- */
-void slp_pasr_en(bool en, u32 value)
-{
-	if (slp_pars_dpd) {
-		if (en) {
-			slp_spm_flags &= ~SPM_PASR_DIS;
-			slp_spm_data = value;
-		} else {
-			slp_spm_flags |= SPM_PASR_DIS;
-			slp_spm_data = 0;
-		}
-	}
-}
-#endif
-
-#if 0
-/*
- * en: 1: enable DPD, 0: disable DPD
- */
-void slp_dpd_en(bool en)
-{
-	if (slp_pars_dpd) {
-		if (en)
-			slp_spm_flags &= ~SPM_DPD_DIS;
-		else
-			slp_spm_flags |= SPM_DPD_DIS;
-	}
-}
-#endif
-
 static int __init slp_module_init(void)
 {
 	spm_output_sleep_option();
 
 	slp_notice("SLEEP_DPIDLE_EN:%d, REPLACE_DEF_WAKESRC:%d, SUSPEND_LOG_EN:%d\n",
-		   SLP_SLEEP_DPIDLE_EN, SLP_REPLACE_DEF_WAKESRC, SLP_SUSPEND_LOG_EN);
+		   SLP_SLEEP_DPIDLE_EN, SLP_REPLACE_DEF_WAKESRC,
+						SLP_SUSPEND_LOG_EN);
 
-#if 1
 	suspend_set_ops(&slp_suspend_ops);
-#endif
 
 #if SLP_SUSPEND_LOG_EN
 	console_suspend_enabled = 0;
@@ -450,16 +369,20 @@ void slp_start_auto_suspend_resume_timer(u32 sec)
 
 	ktime = ktime_set(slp_time, 0);
 
-	hrtimer_init(&slp_auto_suspend_resume_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&slp_auto_suspend_resume_hrtimer, CLOCK_MONOTONIC,
+							HRTIMER_MODE_REL);
 
-	slp_auto_suspend_resume_hrtimer.function = slp_auto_suspend_resume_timer_func;
-	hrtimer_start(&slp_auto_suspend_resume_hrtimer, ktime, HRTIMER_MODE_REL);
+	slp_auto_suspend_resume_hrtimer.function =
+					slp_auto_suspend_resume_timer_func;
+	hrtimer_start(&slp_auto_suspend_resume_hrtimer, ktime,
+							HRTIMER_MODE_REL);
 }
 
 void slp_create_auto_suspend_resume_thread(void)
 {
 	slp_auto_suspend_resume_thread =
-	    kthread_run(slp_auto_suspend_resume_thread_handler, 0, "auto suspend resume");
+	    kthread_run(slp_auto_suspend_resume_thread_handler, 0,
+						"auto suspend resume");
 }
 
 void slp_set_auto_suspend_wakelock(bool lock)

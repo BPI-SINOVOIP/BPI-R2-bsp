@@ -224,6 +224,18 @@ static int xhci_mtk_clks_enable(struct xhci_hcd_mtk *mtk)
 		goto free_clk_err;
 	}
 
+	ret = clk_prepare_enable(mtk->ahb_clk);
+	if (ret) {
+		dev_err(mtk->dev, "failed to enable ahb_clk\n");
+		goto ahb_clk_err;
+	}
+
+	ret = clk_prepare_enable(mtk->dma_clk);
+	if (ret) {
+		dev_err(mtk->dev, "failed to enable dma_clk\n");
+		goto dma_clk_err;
+	}
+
 	if (mtk->wakeup_src) {
 		ret = clk_prepare_enable(mtk->wk_deb_p0);
 		if (ret) {
@@ -242,6 +254,10 @@ static int xhci_mtk_clks_enable(struct xhci_hcd_mtk *mtk)
 usb_p1_err:
 	clk_disable_unprepare(mtk->wk_deb_p0);
 usb_p0_err:
+	clk_disable_unprepare(mtk->dma_clk);
+dma_clk_err:
+	clk_disable_unprepare(mtk->ahb_clk);
+ahb_clk_err:
 	clk_disable_unprepare(mtk->free_clk);
 free_clk_err:
 	clk_disable_unprepare(mtk->sys_clk);
@@ -257,6 +273,8 @@ static void xhci_mtk_clks_disable(struct xhci_hcd_mtk *mtk)
 	}
 	clk_disable_unprepare(mtk->free_clk);
 	clk_disable_unprepare(mtk->sys_clk);
+	clk_disable_unprepare(mtk->ahb_clk);
+	clk_disable_unprepare(mtk->dma_clk);
 }
 
 /* only clocks can be turn off for ip-sleep wakeup mode */
@@ -563,6 +581,22 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 	if (IS_ERR(mtk->free_clk)) {
 		dev_err(dev, "fail to get free_clk\n");
 		return PTR_ERR(mtk->free_clk);
+	}
+
+	mtk->ahb_clk = devm_clk_get(dev, "ahb_ck");
+	if (IS_ERR(mtk->ahb_clk)) {
+		if (PTR_ERR(mtk->ahb_clk) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		mtk->ahb_clk = NULL;
+	}
+
+	mtk->dma_clk = devm_clk_get(dev, "dma_ck");
+	if (IS_ERR(mtk->dma_clk)) {
+		if (PTR_ERR(mtk->dma_clk) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		mtk->dma_clk = NULL;
 	}
 
 	mtk->lpm_support = of_property_read_bool(node, "usb3-lpm-capable");

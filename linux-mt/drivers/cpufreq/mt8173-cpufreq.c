@@ -519,12 +519,14 @@ static struct platform_driver mt8173_cpufreq_platdrv = {
 };
 
 static const struct of_device_id machines[] __initconst = {
+	{ .compatible = "mediatek,mt2701", },
+	{ .compatible = "mediatek,mt7623", },
 	{ .compatible = "mediatek,mt8173", },
 	{ .compatible = "mediatek,mt2712", },
 	{ }
 };
 
-static int mt8173_cpufreq_driver_init(void)
+static int __init mt8173_cpufreq_driver_init(void)
 {
 	struct platform_device *pdev;
 	int err;

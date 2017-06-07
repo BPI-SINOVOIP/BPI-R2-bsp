@@ -22,7 +22,7 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n1 root=/dev/ram \
-			initrd=0x44000000,0x615E36 loglevel=8 androidboot.hardware=mt7622";
+			initrd=0x44000000,0x615E36 loglevel=8 androidboot.hardware=mt7622 swiotlb=8192";
 	};
 
 	mmc_fixed_1v8_io: fixedregulator@0 {
@@ -239,10 +239,80 @@
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 	};
+
+	snand_pins_default: snand@0 {
+		pins_cmd_dat {
+			pinmux = <MT7622_PIN_8_SPI_WP__FUNC_SNFI_WP>,
+				 <MT7622_PIN_9_SPI_HOLD__FUNC_SNFI_HOLD>,
+				 <MT7622_PIN_11_SPI_MOSI__FUNC_SNFI_MOSI>,
+				 <MT7622_PIN_12_SPI_MISO__FUNC_SNFI_MISO>,
+				 <MT7622_PIN_13_SPI_CS__FUNC_SNFI_CS>;
+			input-enable;
+			drive-strength = <MTK_DRIVE_8mA>;
+			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+		};
+		pins_clk {
+			pinmux = <MT7622_PIN_10_SPI_CLK__FUNC_SNFI_CLK>;
+			drive-strength = <MTK_DRIVE_8mA>;
+			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
+		};
+	};
 };
 
 &pwm {
 	status = "okay";
+};
+
+&snand {
+	pinctrl-0 = <&snand_pins_default>;
+	status = "okay";
+	flash@0 {
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "Preloader";
+				reg = <0x00000 0x0080000>;
+				read-only;
+			};
+
+			partition@80000 {
+				label = "ATF";
+				reg = <0x80000 0x0040000>;
+			};
+
+			partition@c0000 {
+				label = "Bootloader";
+				reg = <0xc0000 0x0080000>;
+			};
+
+			partition@140000 {
+				label = "Config";
+				reg = <0x140000 0x0080000>;
+			};
+
+			partition@1c0000 {
+				label = "Factory";
+				reg = <0x1c0000 0x0040000>;
+			};
+
+			partition@200000 {
+				label = "Kernel";
+				reg = <0x200000 0x2000000>;
+			};
+
+			partition@2200000 {
+				label = "User_data";
+				reg = <0x2200000 0x4000000>;
+			};
+		};
+	};
+};
+
+&svs {
+	vproc-supply = <&mt6380_vcpu_reg>;
 };
 
 &uart0 {

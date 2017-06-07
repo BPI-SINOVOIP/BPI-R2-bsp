@@ -60,6 +60,8 @@
 #define ASYS_I2SO3_CON 0x0624
 #define ASYS_I2SO4_CON 0x0628
 #define ASYS_I2SO5_CON 0x062c
+#define AFE_PCM_INTF_CON1 0x063C
+#define AFE_PCM_INTF_CON2 0x0640
 #define PWR2_TOP_CON 0x0634
 #define AFE_CONN0 0x06c0
 #define AFE_CONN1 0x06c4
@@ -67,6 +69,8 @@
 #define AFE_CONN3 0x06cc
 #define AFE_CONN4 0x06d0
 #define AFE_CONN5 0x06d4
+#define AFE_CONN10 0x06e8
+#define AFE_CONN11 0x06ec
 #define AFE_CONN14 0x06f8
 #define AFE_CONN15 0x06fc
 #define AFE_CONN16 0x0700
@@ -78,6 +82,9 @@
 #define AFE_CONN22 0x0718
 #define AFE_CONN23 0x071c
 #define AFE_CONN24 0x0720
+#define AFE_CONN25 0x0724
+#define AFE_CONN26 0x0728
+#define AFE_CONN32 0x0740
 #define AFE_CONN41 0x0764
 #define ASYS_IRQ1_CON 0x0780
 #define ASYS_IRQ2_CON 0x0784
@@ -124,8 +131,15 @@
 #define AFE_UL5_BASE 0x1340
 #define AFE_UL5_END 0x1348
 #define AFE_UL5_CUR 0x134c
+#define AFE_AWB2_BASE 0x12e0
+#define AFE_AWB2_END 0x12e8
+#define AFE_AWB2_CUR 0x12ec
 #define AFE_DAI_BASE 0x1370
 #define AFE_DAI_CUR 0x137c
+#define AFE_PCMI_BASE 0x1330
+#define AFE_PCMI_CUR 0x1334
+#define AFE_PCMO_BASE 0x12c0
+#define AFE_PCMO_CUR 0x12c4
 #define AFE_MEMIF_BASE_MSB 0x0304
 #define AFE_MEMIF_END_MSB 0x0308
 #define AFE_TDM_G1_CON1 0x0290
@@ -150,6 +164,31 @@
 #define AFE_TDM_IN_END 0x1368
 #define AFE_TDM_AGENT_CFG 0x02c0
 #define AFE_MCH_OUT_CFG 0x0300
+#define AFE_ASRC_PCMO_CON0   0x0ac0
+#define AFE_ASRC_PCMO_CON1   0x0ac4
+#define AFE_ASRC_PCMO_CON2   0x0ac8
+#define AFE_ASRC_PCMO_CON3   0x0acc
+#define AFE_ASRC_PCMO_CON4   0x0ad0
+#define AFE_ASRC_PCMO_CON5   0x0ad4
+#define AFE_ASRC_PCMO_CON6   0x0ad8
+#define AFE_ASRC_PCMO_CON7   0x0adc
+#define AFE_ASRC_PCMO_CON10  0x0ae8
+#define AFE_ASRC_PCMO_CON11  0x0aec
+#define AFE_ASRC_PCMO_CON13  0x0af4
+#define AFE_ASRC_PCMO_CON14  0x0af8
+#define AFE_ASRC_PCMI_CON0   0x0a80
+#define AFE_ASRC_PCMI_CON1   0x0a84
+#define AFE_ASRC_PCMI_CON2   0x0a88
+#define AFE_ASRC_PCMI_CON3   0x0a8c
+#define AFE_ASRC_PCMI_CON4   0x0a90
+#define AFE_ASRC_PCMI_CON5   0x0a94
+#define AFE_ASRC_PCMI_CON6   0x0a98
+#define AFE_ASRC_PCMI_CON7   0x0a9c
+#define AFE_ASRC_PCMI_CON10  0x0aa8
+#define AFE_ASRC_PCMI_CON11  0x0aac
+#define AFE_ASRC_PCMI_CON13  0x0ab4
+#define AFE_ASRC_PCMI_CON14  0x0ab8
+
 
 #define FPGA_CFG0 0x04e0
 #define FPGA_CFG1 0x04e4
@@ -173,32 +212,14 @@
 #define AUDIO_TOP_CON1_TDMIN_BCK_PLL_DIV       (0xff<<24)
 #define AUDIO_TOP_CON1_TDMIN_BCK_PLL_DIV_SET(x)       ((x)<<24)
 
-/* AUDIO_TOP_CON2 (0x0008) */
-#define AUDIO_TOP_CON2_TDMOUT1_PLL_SEL           (0x1<<0)
-#define AUDIO_TOP_CON2_TDMOUT1_PLL_SEL_APLL1     (0x0<<0)
-#define AUDIO_TOP_CON2_TDMOUT1_PLL_SEL_APLL2     (0x1<<0)
-#define AUDIO_TOP_CON2_TDMOUT1_BCK_EN            (0x1<<1)
-#define AUDIO_TOP_CON2_TDMOUT1_BCK_INV           (0x1<<2)
-#define AUDIO_TOP_CON2_TDMOUT1_CLK_AGENT_PDN     (0x1<<3)
-/* tdmin_bck = clock source * (1 / x+1)*/
-#define AUDIO_TOP_CON2_TDMOUT1_BCK_PLL_DIV       (0xff<<8)
-#define AUDIO_TOP_CON2_TDMOUT1_BCK_PLL_DIV_SET(x)       ((x)<<8)
-#define AUDIO_TOP_CON2_TDMOUT2_CLK_AGENT_PDN     (0x1<<4)
-#define AUDIO_TOP_CON2_TDMOUT2_PLL_SEL           (0x1<<16)
-#define AUDIO_TOP_CON2_TDMOUT2_PLL_SEL_APLL1     (0x0<<16)
-#define AUDIO_TOP_CON2_TDMOUT2_PLL_SEL_APLL2     (0x1<<16)
-#define AUDIO_TOP_CON2_TDMOUT2_BCK_EN               (0x1<<17)
-#define AUDIO_TOP_CON2_TDMOUT2_BCK_INV           (0x1<<18)
-/* tdmin_bck = clock source * (1 / x+1)*/
-#define AUDIO_TOP_CON2_TDMOUT2_BCK_PLL_DIV       (0xff<<24)
-#define AUDIO_TOP_CON2_TDMOUT2_BCK_PLL_DIV_SET(x)       ((x)<<24)
-
 /* AUDIO_TOP_CON4 (0x0010) */
 #define AUDIO_TOP_CON4_I2SO1_PWN	(0x1 << 6)
 #define AUDIO_TOP_CON4_PDN_A1SYS	(0x1 << 21)
 #define AUDIO_TOP_CON4_PDN_A2SYS	(0x1 << 22)
 #define AUDIO_TOP_CON4_PDN_AFE_CONN	(0x1 << 23)
+#define AUDIO_TOP_CON4_PDN_PCM          (0x1 << 24)
 #define AUDIO_TOP_CON4_PDN_MRGIF	(0x1 << 25)
+
 
 /* AFE_DAIBT_CON0 (0x001c) */
 #define AFE_DAIBT_CON0_DAIBT_EN		(0x1 << 0)
@@ -257,19 +278,36 @@
 #define ASYS_I2S_CON_I2S_COUPLE_MODE	(0x1 << 17)
 /* 0:EIAJ 1:I2S */
 #define ASYS_I2S_CON_I2S_MODE		(0x1 << 3)
+#define ASYS_I2S_CON_I2S_MODE_SET(x)	(x << 3)
+#define ASYS_I2S_CON_RIGHT_J		(0x1 << 14)
+#define ASYS_I2S_CON_RIGHT_J_SET(x)	(x << 14)
 #define ASYS_I2S_CON_WIDE_MODE		(0x1 << 1)
 #define ASYS_I2S_CON_WIDE_MODE_SET(x)	((x) << 1)
 #define ASYS_I2S_IN_PHASE_FIX		(0x1 << 31)
+#define ASYS_I2S_CON_INV_LRCK		(0x1 << 5)
+#define ASYS_I2S_CON_INV_LRCK_SET(x)	(x << 5)
+#define ASYS_I2S_CON_INV_BCK		(0x1 << 6)
+#define ASYS_I2S_CON_INV_BCK_SET(x)	(x << 6)
 
 /* TDM in/out register bit control */
 #define AFE_TDM_CON_LRCK_WIDTH              (0x1ff << 23)
 #define AFE_TDM_CON_LRCK_WIDTH_SET(x)       ((x) << 23)
+#define AFE_TDM_CON_INOUT_SYNC     (0x1 << 18)
+#define AFE_TDM_CON_INOUT_SYNC_SET(x)   ((x) << 18)
+#define AFE_TDM_CON_IN_BCK        (0x1 << 19)
+#define AFE_TDM_CON_IN_BCK_SET(x)  ((x) << 19)
 #define AFE_TDM_CON_CH              (0x7 << 12)
 #define AFE_TDM_CON_CH_SET(x)       ((x) << 12)
 #define AFE_TDM_CON_WLEN           (0x3 << 8)
 #define AFE_TDM_CON_WLEN_SET(x)    ((x) << 8)
+#define AFE_TDM_CON_LRCK_DELAY             (0x1 << 5)
+#define AFE_TDM_CON_LRCK_DELAY_SET(x)    ((x) << 5)
 #define AFE_TDM_CON_DELAY             (0x1 << 3)
 #define AFE_TDM_CON_DELAY_SET(x)    ((x) << 3)
+#define AFE_TDM_CON_INV_LRCK             (0x1 << 2)
+#define AFE_TDM_CON_INV_LRCK_SET(x)    ((x) << 2)
+#define AFE_TDM_CON_INV_BCK             (0x1 << 1)
+#define AFE_TDM_CON_INV_BCK_SET(x)    ((x) << 1)
 #define AFE_TDM_CON_EN             (0x1 << 0)
 
 /* TDM in channel mask */
@@ -286,6 +324,43 @@
 #define DAC_2CH_MCLK_CLK_DOMAIN_44   (0x1<<16)
 #define XCLK_DIVIDER_MASK            (0xFF<<24)
 #define XCLK_DIVIDER_POS                    24
+
+/* PCM_INTF */
+#define AFE_PCM_EX_MODEM          (0x1 << 17)
+#define AFE_PCM_EX_MODEM_SET(x)       ((x) << 17)
+#define AFE_PCM_24BIT          (0x1 << 16)
+#define AFE_PCM_24BIT_SET(x)       ((x) << 16)
+#define AFE_PCM_WLEN           (0x3 << 14)
+#define AFE_PCM_WLEN_SET(x)       ((x) << 14)
+#define AFE_PCM_BYP_ASRC           (0x1 << 6)
+#define AFE_PCM_BYP_ASRC_SET(x)       ((x) << 6)
+#define AFE_PCM_SLAVE              (0x1 << 5)
+#define AFE_PCM_SLAVE_SET(x)       ((x) << 5)
+#define AFE_PCM_MODE              (0x3 << 3)
+#define AFE_PCM_MODE_SET(x)       ((x) << 3)
+#define AFE_PCM_FMT              (0x3 << 1)
+#define AFE_PCM_FMT_SET(x)       ((x) << 1)
+#define AFE_PCM_EN              (0x1 << 0)
+#define AFE_PCM_EN_SET(x)       ((x) << 0)
+
+/* AFE_ASRC_PCMO_CON */
+#define AFE_PCM_ASRC_O16BIT          (0x1 << 19)
+#define AFE_PCM_ASRC_O16BIT_SET(x)       ((x) << 19)
+#define AFE_PCM_ASRC_MONO          (0x1 << 16)
+#define AFE_PCM_ASRC_MONO_SET(x)       ((x) << 16)
+#define AFE_PCM_ASRC_OFS          (0x3 << 14)
+#define AFE_PCM_ASRC_OFS_SET(x)       ((x) << 14)
+#define AFE_PCM_ASRC_IFS          (0x3 << 12)
+#define AFE_PCM_ASRC_IFS_SET(x)       ((x) << 12)
+#define AFE_PCM_ASRC_IIR          (0x1 << 11)
+#define AFE_PCM_ASRC_IIR_SET(x)       ((x) << 11)
+#define AFE_PCM_ASRC_PALETTE          (0xffffff)
+#define AFE_PCM_ASRC_PALETTE_SET(x)       ((x))
+#define AFE_PCM_ASRC_TH          (0xffffff)
+#define AFE_PCM_ASRC_TH_SET(x)       ((x))
+#define AFE_PCM_ASRC_CLR         (0x1 << 4)
+#define AFE_PCM_ASRC_EN         (0x1 << 0)
+#define AFE_PCM_ASRC_EN_SET(x)       ((x))
 
 #define AFE_END_ADDR 0x15e0
 #endif

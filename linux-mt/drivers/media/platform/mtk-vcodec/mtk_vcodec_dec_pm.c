@@ -96,6 +96,12 @@ int mtk_vcodec_init_dec_pm(struct mtk_vcodec_dev *mtkdev)
 		ret = PTR_ERR(pm->vdec_bus_clk_src);
 	}
 
+	pm->img_resz = devm_clk_get(&pdev->dev, "img_resz");
+	if (IS_ERR(pm->img_resz)) {
+		mtk_v4l2_err();
+		ret = PTR_ERR(pm->img_resz);
+	}
+
 	pm_runtime_enable(&pdev->dev);
 
 	return ret;
@@ -185,6 +191,10 @@ void mtk_vcodec_dec_clock_on(struct mtk_vcodec_pm *pm)
 	if (ret)
 		mtk_v4l2_err("clk_set_parent vdec_sel vdecpll fail %d", ret);
 
+	ret = clk_prepare_enable(pm->img_resz);
+	if (ret)
+		mtk_v4l2_err("clk_prepare_enable img_resz fail %d", ret);
+
 	ret = mtk_smi_larb_get(pm->larbvdec);
 	if (ret)
 		mtk_v4l2_err("mtk_smi_larb_get larbvdec fail %d", ret);
@@ -202,5 +212,6 @@ void mtk_vcodec_dec_clock_off(struct mtk_vcodec_pm *pm)
 	clk_disable_unprepare(pm->vdec_bus_clk_src);
 	clk_disable_unprepare(pm->vencpll);
 	clk_disable_unprepare(pm->vcodecpll);
+	clk_disable_unprepare(pm->img_resz);
 }
 

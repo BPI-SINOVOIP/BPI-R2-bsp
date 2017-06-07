@@ -303,7 +303,7 @@ static void mtk_i2c_init_hw(struct mtk_i2c *i2c)
 		writew(I2C_DCM_DISABLE, i2c->base + OFFSET_DCM_EN);
 
 	if (i2c->dev_comp->timing_adjust)
-		writew(i2c->clk_src_div - 1, i2c->base + OFFSET_CLOCK_DIV);
+		writew(I2C_DEFAULT_CLK_DIV - 1, i2c->base + OFFSET_CLOCK_DIV);
 
 	writew(i2c->timing_reg, i2c->base + OFFSET_TIMING);
 	writew(i2c->high_speed_reg, i2c->base + OFFSET_HS);
@@ -735,14 +735,12 @@ static int mtk_i2c_parse_dt(struct device_node *np, struct mtk_i2c *i2c)
 	if (ret < 0)
 		i2c->speed_hz = I2C_DEFAULT_SPEED;
 
-	if (!i2c->dev_comp->timing_adjust) {
-		ret = of_property_read_u32(np, "clock-div", &i2c->clk_src_div);
-		if (ret < 0)
-			return ret;
+	ret = of_property_read_u32(np, "clock-div", &i2c->clk_src_div);
+	if (ret < 0)
+		return ret;
 
-		if (i2c->clk_src_div == 0)
-			return -EINVAL;
-	}
+	if (i2c->clk_src_div == 0)
+		return -EINVAL;
 
 	i2c->have_pmic = of_property_read_bool(np, "mediatek,have-pmic");
 	i2c->use_push_pull =
@@ -799,7 +797,7 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	if (i2c->dev_comp->timing_adjust)
-		i2c->clk_src_div = I2C_DEFAULT_CLK_DIV;
+		i2c->clk_src_div *= I2C_DEFAULT_CLK_DIV;
 
 	if (i2c->have_pmic && !i2c->dev_comp->pmic_i2c)
 		return -EINVAL;

@@ -271,6 +271,34 @@ static int mtk_cpufreq_set_voltage(struct mtk_cpu_dvfs_info *info,
 					     vproc + VOLT_TOL);
 }
 
+static int mtk_cpufreq_opp_notifier(struct notifier_block *nb,
+unsigned long event, void *data)
+{
+	struct dev_pm_opp *opp = data;
+	struct mtk_cpu_dvfs_info *info = container_of(nb, struct mtk_cpu_dvfs_info, opp_nb);
+	unsigned long freq, volt;
+	int ret = 0;
+
+	if (event == OPP_EVENT_ADJUST_VOLTAGE) {
+		rcu_read_lock();
+		freq = dev_pm_opp_get_freq(opp);
+		rcu_read_unlock();
+
+		mutex_lock(&info->lock);
+		if (info->opp_freq == freq) {
+			rcu_read_lock();
+			volt = dev_pm_opp_get_voltage(opp);
+			rcu_read_unlock();
+			ret = mtk_cpufreq_set_voltage(info, volt);
+			if (ret)
+				dev_err(info->cpu_dev, "failed to scale voltage: %d\n", ret);
+		}
+		mutex_unlock(&info->lock);
+	}
+
+	return notifier_from_errno(ret);
+}
+
 static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 				  unsigned int index)
 {
@@ -446,6 +474,7 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	struct dev_pm_opp *opp;
 	unsigned long rate;
 	int ret;
+	struct srcu_notifier_head *opp_srcu_head;
 
 	cpu_dev = get_cpu_device(cpu);
 	if (!cpu_dev) {
@@ -548,7 +577,7 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 		goto out_free_opp_table;
 	}
 	info->intermediate_voltage = dev_pm_opp_get_voltage(opp);
-#if 0
+#if 1
 	opp_srcu_head = dev_pm_opp_get_notifier(cpu_dev);
 	if (IS_ERR(opp_srcu_head)) {
 		ret = PTR_ERR(opp_srcu_head);

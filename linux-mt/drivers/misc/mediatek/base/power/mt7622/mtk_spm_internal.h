@@ -18,20 +18,14 @@
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
 #include <linux/io.h>
-#ifdef MT7622_PORTING
-#include <mt-plat/aee.h>
-#include <mt-plat/mtk_chip.h>
-#endif
 
 #include "mtk_spm.h"
-/*#include <mt-plat/mt_lpae.h>*/
-/*#include <mt-plat/mt_gpio.h>*/
 
 /*
  * Config and Parameter
  */
-#define CONFIG_SUPPORT_PCM_ALLINONE		1
-#define CONFIG_SPMC_MODE	1
+#define CONFIG_SUPPORT_PCM_ALLINONE		0
+#define CONFIG_SPMC_MODE	0
 
 #ifdef MTK_FORCE_CLUSTER1
 #define SPM_CTRL_BIG_CPU	1
@@ -44,7 +38,6 @@
 
 #define PCM_WDT_TIMEOUT		(30 * 32768)	/* 30s */
 #define PCM_TIMER_MAX		(0xffffffff - PCM_WDT_TIMEOUT)
-
 
 /*
  * Define and Declare
@@ -64,7 +57,7 @@
 #define CON1_SPM_SRAM_SLP_B	(1U << 10)
 #define CON1_SPM_SRAM_ISO_B	(1U << 11)
 #define CON1_EVENT_LOCK_EN	(1U << 12)
-#define CON1_SRCCLKEN_FAST_RESP	  (1U << 13)
+#define CON1_SRCCLKEN_FAST_RESP	(1U << 13)
 #define CON1_CFG_KEY		(SPM_PROJECT_CODE << 16)
 
 #define PCM_PWRIO_EN_R0		(1U << 0)
@@ -77,7 +70,7 @@
 #define R13_EXT_SRCLKENA_0	(1U << 0)
 #define R13_EXT_SRCLKENA_1	(1U << 1)
 #define R13_EXT_SRCLKENA_2	(1U << 2)
-#define R13_MM_STATE	(1U << 11)
+#define R13_MM_STATE		(1U << 11)
 #define R13_CONN_STATE		(1U << 13)
 #define R13_CONN_SRCLKENA	(1U << 14)
 #define R13_CONN_APSRC_REQ	(1U << 15)
@@ -90,9 +83,10 @@
 #define PCM_SW_INT5		(1U << 5)
 #define PCM_SW_INT6		(1U << 6)
 #define PCM_SW_INT7		(1U << 7)
-#define PCM_SW_INT_ALL		(PCM_SW_INT7 | PCM_SW_INT6 | PCM_SW_INT5 |	\
-				 PCM_SW_INT4 | PCM_SW_INT3 | PCM_SW_INT2 |	\
-				 PCM_SW_INT1 | PCM_SW_INT0)
+#define PCM_SW_INT_ALL		(PCM_SW_INT7 | PCM_SW_INT6 |	\
+				PCM_SW_INT5 | PCM_SW_INT4 |	\
+				PCM_SW_INT3 | PCM_SW_INT2 |	\
+				PCM_SW_INT1 | PCM_SW_INT0)
 
 #define CC_SYSCLK0_EN_0		(1U << 0)
 #define CC_SYSCLK0_EN_1		(1U << 1)
@@ -103,8 +97,8 @@
 #define CC_SRCLKENA_MASK_0	(1U << 6)
 #define CC_CLKSQ0_SEL		(1U << 11)
 #define CC_CLKSQ1_SEL		(1U << 12)
-#define CC_SRCLKEN0_EN	(1U << 13)
-#define CC_SRCLKEN1_EN	(1U << 14)
+#define CC_SRCLKEN0_EN		(1U << 13)
+#define CC_SRCLKEN1_EN		(1U << 14)
 #define CC_CXO32K_RM_EN_CONN	(1U << 15)
 
 #define ASC_SRCCLKENI_MASK      (1U << 25)
@@ -136,7 +130,8 @@
 				 ISRM_RET_IRQ5 | ISRM_RET_IRQ4 |	\
 				 ISRM_RET_IRQ3 | ISRM_RET_IRQ2 |	\
 				 ISRM_RET_IRQ1)
-#define ISRM_ALL_EXC_TWAM	(ISRM_RET_IRQ_AUX | ISRM_RET_IRQ0 | ISRM_PCM_RETURN)
+#define ISRM_ALL_EXC_TWAM	(ISRM_RET_IRQ_AUX | ISRM_RET_IRQ0 |	\
+				ISRM_PCM_RETURN)
 #define ISRM_ALL		(ISRM_ALL_EXC_TWAM | ISRM_TWAM)
 
 #define ISRS_TWAM		(1U << 2)
@@ -281,7 +276,7 @@ extern void __spm_kick_pcm_to_run(const struct pwr_ctrl *pwrctrl);
 extern void __spm_get_wakeup_status(struct wake_status *wakesta);
 extern void __spm_clean_after_wakeup(void);
 extern wake_reason_t __spm_output_wake_reason(const struct wake_status *wakesta,
-						   const struct pcm_desc *pcmdesc, bool suspend);
+				const struct pcm_desc *pcmdesc, bool suspend);
 
 #if CONFIG_SUPPORT_PCM_ALLINONE
 extern unsigned int __spm_is_pcm_loaded(void);
@@ -307,7 +302,8 @@ extern void spm_set_dram_bank_info_pcm_flag(u32 *pcm_flags);
  * if in talking, modify @spm_flags based on @lpscen and return __spm_talking,
  * otherwise, do nothing and return @lpscen
  */
-extern struct spm_lp_scen *spm_check_talking_get_lpscen(struct spm_lp_scen *lpscen,
+extern struct spm_lp_scen
+		*spm_check_talking_get_lpscen(struct spm_lp_scen *lpscen,
 							u32 *spm_flags);
 
 
@@ -316,9 +312,9 @@ extern struct spm_lp_scen *spm_check_talking_get_lpscen(struct spm_lp_scen *lpsc
  **************************************/
 #define EVENT_VEC(event, resume, imme, pc)	\
 	(((pc) << 16) |				\
-	 (!!(imme) << 7) |			\
-	 (!!(resume) << 6) |			\
-	 ((event) & 0x3f))
+	 (!!(imme) << 6) |			\
+	 (!!(resume) << 5) |			\
+	 ((event) & 0x1f))
 
 #define spm_emerg(fmt, args...)		pr_emerg("[SPM] " fmt, ##args)
 #define spm_alert(fmt, args...)		pr_alert("[SPM] " fmt, ##args)
@@ -329,16 +325,8 @@ extern struct spm_lp_scen *spm_check_talking_get_lpscen(struct spm_lp_scen *lpsc
 #define spm_info(fmt, args...)		pr_info("[SPM] " fmt, ##args)
 #define spm_debug(fmt, args...)		pr_debug("[SPM] " fmt, ##args)
 
-#ifndef MT7622_PORTING
-extern void aee_sram_printk(const char *fmt, ...);
-#endif
-
 /* just use in suspend flow for important log due to console suspend */
-#define spm_crit2(fmt, args...)		\
-do {					\
-	aee_sram_printk(fmt, ##args);	\
-	spm_crit(fmt, ##args);		\
-} while (0)
+#define spm_crit2(fmt, args...)		spm_crit(fmt, ##args)
 
 #define wfi_with_sync()					\
 do {							\
@@ -362,13 +350,13 @@ static inline void set_pwrctrl_pcm_flags(struct pwr_ctrl *pwrctrl, u32 flags)
 	else
 		pwrctrl->pcm_flags = pwrctrl->pcm_flags_cust;
 
-#ifdef MT7622_PORTING
+#if 0
 	if (mt_get_chip_sw_ver() == CHIP_SW_VER_01) /* E1 */
 		pwrctrl->pcm_flags |= SPM_MCU_PDN_DIS;
 #endif
 
 #if !CONFIG_SUPPORT_PCM_ALLINONE
-	pwrctrl->pcm_flags |= SPM_ALL_IN_ONE_DIS;
+	/* pwrctrl->pcm_flags |= SPM_ALL_IN_ONE_DIS; */
 #endif
 }
 

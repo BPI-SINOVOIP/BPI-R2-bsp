@@ -74,14 +74,20 @@ int mtk_partition_register(struct mtd_info *mtd, int start_blk)
 #ifdef MTK_PARTITION_GPT
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	u8 *buf;
-	int i, j, header_found, current_part, ret = 0;
+	int i, j, header_found, current_part = 0, ret = 0;
 	loff_t addr;
 	size_t retlen;
 	struct mtd_partition *mtk_part = NULL;
+	u32 part_size;
 
 	buf = kmalloc(mtd->writesize + mtd->oobsize, GFP_KERNEL);
 	if (!buf)
 		return -1;
+	part_size = MTK_GPT_MAX_PART * sizeof(struct mtd_partition);
+	mtk_part = kmalloc(part_size, GFP_KERNEL);
+	if (!mtk_part)
+		return -1;
+	memset(mtk_part, 0, part_size);
 
 	memset(g_gpt_Partition, 0x0, sizeof(g_gpt_Partition));
 	for (i = start_blk; i <= MTK_GPT_END_BLK; i++) {
@@ -96,29 +102,12 @@ int mtk_partition_register(struct mtd_info *mtd, int start_blk)
 			/* header found, looking for entry */
 			if (header_found) {
 				gpt_entry *gpt_e;
-				u32 part_count, part_size, name_len;
+				u32 part_count, name_len;
 				u8 *part_name, *p;
 				efi_char16_t *efi_name;
 				u64 start_page, end_page;
 
 				part_count = 0;
-				gpt_e = (gpt_entry *)buf;
-				while (gpt_e->partition_type_guid.b[0] != 0) {
-					part_count++;
-					gpt_e++;
-				}
-				if (!part_count) {
-					ret = -1;
-					break;
-				}
-
-				part_size = part_count * sizeof(struct mtd_partition);
-				mtk_part = kmalloc(part_size, GFP_KERNEL);
-				if (!mtk_part) {
-					ret = -1;
-					break;
-				}
-				memset(mtk_part, 0, part_size);
 
 				gpt_e = (gpt_entry *)buf;
 				while (gpt_e->partition_type_guid.b[0] != 0) {
@@ -153,8 +142,12 @@ int mtk_partition_register(struct mtd_info *mtd, int start_blk)
 
 					gpt_e++;
 					current_part++;
+					part_count++;
+					if ((part_count * sizeof(gpt_entry)) == mtd->writesize)
+						break;
 				}
-				break;
+				if (!part_count)
+					break;
 			} else {
 				gpt_header *gpt_hdr;
 

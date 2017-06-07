@@ -237,7 +237,7 @@ enum thermal_bank_name {
 	THERMAL_BANK_NUM
 };
 
-struct TS_PTPOD {
+struct TS_SVS {
 	unsigned int ts_MTS;
 	unsigned int ts_BTS;
 };
@@ -247,8 +247,8 @@ struct mtk_gpu_power_info {
 	unsigned int gpufreq_power;
 };
 
-/* ptp driver need this function */
-extern void get_thermal_slope_intercept(struct TS_PTPOD *ts_info, enum thermal_bank_name ts_bank);
+/* svs driver need this function */
+extern void get_thermal_slope_intercept(struct TS_SVS *ts_info, enum thermal_bank_name ts_bank);
 
 /* mtk_thermal_platform.c need this */
 extern void set_taklking_flag(bool flag);

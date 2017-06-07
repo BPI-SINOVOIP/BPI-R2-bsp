@@ -2096,8 +2096,8 @@ static const struct of_device_id mt7622_afe_pcm_dt_match[] = {
 MODULE_DEVICE_TABLE(of, mt7622_afe_pcm_dt_match);
 
 static const struct dev_pm_ops mt7622_afe_pm_ops = {
-	SET_RUNTIME_PM_OPS(mt7622_afe_runtime_suspend,
-	mt7622_afe_runtime_resume, NULL)
+	.suspend = mt7622_afe_runtime_suspend,
+	.resume = mt7622_afe_runtime_resume,
 };
 
 static struct platform_driver mt7622_afe_pcm_driver = {

@@ -17,6 +17,7 @@
 #include <linux/cpufreq.h>
 #include "mtk_power_throttle.h"
 #include "mt_hotplug_strategy.h"
+#include "mtk_svs.h"
 /*#include "inc/mtk_thermal.h"*/
 
 static unsigned long clipped_freq;
@@ -216,6 +217,12 @@ out:
 	return ret;
 }
 
+int __attribute__ ((weak)) is_svs_initialized_done(void)
+{
+	pr_warn("%s() is not implemented\n", __func__);
+	return 0;
+}
+
 /**
  * cpufreq_thermal_notifier - notifier callback for cpufreq policy change.
  * @nb:	struct notifier_block * with callback info.
@@ -233,6 +240,7 @@ static int mtk_cpufreq_thermal_notifier(struct notifier_block *nb,
 				    unsigned long event, void *data)
 {
 	struct cpufreq_policy *policy = data;
+	int ret;
 
 	pr_debug("%s %ld\n", __func__, event);
 
@@ -260,8 +268,15 @@ static int mtk_cpufreq_thermal_notifier(struct notifier_block *nb,
 	 * Only DVFS TLP feature enable, we can keep the max freq by CPUFREQ
 	 * GOVERNOR or Pref service.
 	 */
-	if ((policy->max != clipped_freq) && (clipped_freq >= policy->min))
+	if ((policy->max != clipped_freq) && (clipped_freq >= policy->min)) {
+		ret = is_svs_initialized_done();
+		if (ret) {
+			pr_err("SVS is initializing. Cannot do thermal throttling, ret = %d\n", ret);
+			return NOTIFY_DONE;
+		}
+
 		cpufreq_verify_within_limits(policy, 0, clipped_freq);
+	}
 
 	return NOTIFY_OK;
 }

@@ -34,8 +34,8 @@
 /* Section 1: Device Tree Global Variables                    */
 /**************************************************************/
 const struct of_device_id msdc_of_ids[] = {
-	{   .compatible = DT_COMPATIBLE_NAME, },
-	{ },
+	{   .compatible = MT2701_DT_COMPATIBLE_NAME, },
+	{   .compatible = MT2712_DT_COMPATIBLE_NAME, },
 };
 
 void __iomem *gpio_base;
@@ -183,7 +183,8 @@ void msdc_sdio_power(struct msdc_host *host, u32 on)
 		g_msdc2_flash = g_msdc2_io;
 		break;
 #endif
-
+	case 3:
+		break;
 	default:
 		/* if host_id is 3, it uses default 1.8v setting,
 		 * which always turns on
@@ -407,11 +408,9 @@ int msdc_get_ccf_clk_pointer(struct platform_device *pdev,
 		pr_err("can not get msdc%d clock control\n", pdev->id);
 		return 1;
 	}
-	if (clk_prepare(host->clock_control)) {
-		pr_err("can not prepare msdc%d clock control\n", pdev->id);
-		return 1;
-	}
 
+	host->clk_on = false;
+	msdc_prepare_clk(host);
 	return 0;
 }
 
@@ -589,7 +588,8 @@ void msdc_set_pin_mode(struct msdc_host *host)
 		/* MSDC_SET_FIELD(MSDC2_GPIO_MODE14, 0x003FFFF8, 0x24492); */
 		break;
 #endif
-
+	case 3:
+		break;
 	default:
 		pr_err("[%s] invlalid host->id!\n", __func__);
 		break;
@@ -617,7 +617,8 @@ void msdc_set_ies_by_id(u32 id, int set_ies)
 		 */
 		break;
 #endif
-
+	case 3:
+		break;
 	default:
 		pr_err("[%s] invlalid host->id!\n", __func__);
 		break;
@@ -643,7 +644,8 @@ void msdc_set_smt_by_id(u32 id, int set_smt)
 		 */
 		break;
 #endif
-
+	case 3:
+		break;
 	default:
 		pr_err("[%s] invlalid host->id!\n", __func__);
 		break;
@@ -678,7 +680,8 @@ void msdc_set_tdsel_by_id(u32 id, u32 flag, u32 value)
 		/* MSDC_SET_FIELD(MSDC2_GPIO_TDSEL_ADDR, MSDC2_TDSEL_ALL_MASK , 0);*/
 		break;
 #endif
-
+	case 3:
+		break;
 	default:
 		pr_err("[%s] invlalid host->id!\n", __func__);
 		break;
@@ -717,7 +720,8 @@ void msdc_set_rdsel_by_id(u32 id, u32 flag, u32 value)
 		/* MSDC_SET_FIELD(MSDC2_GPIO_RDSEL_ADDR, MSDC2_RDSEL_ALL_MASK, 0);*/
 		break;
 #endif
-
+	case 3:
+		break;
 	default:
 		pr_err("[%s] invlalid host->id!\n", __func__);
 		break;
@@ -743,6 +747,8 @@ void msdc_get_tdsel_by_id(u32 id, u32 *value)
 			MSDC2_TDSEL_CMD_MASK, *value);
 		break;
 #endif
+	case 3:
+		break;
 	}
 }
 
@@ -765,6 +771,8 @@ void msdc_get_rdsel_by_id(u32 id, u32 *value)
 			MSDC2_RDSEL_CMD_MASK, *value);
 		break;
 #endif
+	case 3:
+		break;
 	}
 }
 
@@ -803,7 +811,8 @@ void msdc_set_sr_by_id(u32 id, int clk, int cmd, int dat, int rst, int ds)
 		 */
 		break;
 #endif
-
+	case 3:
+		break;
 	default:
 		pr_err("[%s] invlalid host->id!\n", __func__);
 		break;
@@ -855,7 +864,8 @@ void msdc_set_driving_by_id(u32 id, struct msdc_hw *hw, bool sd_18)
 		 */
 		break;
 #endif
-
+	case 3:
+		break;
 	default:
 		pr_err("[%s] invlalid host->id!\n", __func__);
 		break;
@@ -911,7 +921,8 @@ void msdc_get_driving_by_id(u32 id, struct msdc_hw *hw)
 		 */
 		break;
 #endif
-
+	case 3:
+		break;
 	default:
 		pr_err("[%s] invlalid host->id!\n", __func__);
 		break;
@@ -980,7 +991,8 @@ void msdc_pin_config_by_id(u32 id, u32 mode)
 		 */
 		break;
 #endif
-
+	case 3:
+		break;
 	default:
 		pr_err("[%s] invlalid host->id!\n", __func__);
 		break;
@@ -1195,7 +1207,7 @@ int msdc_dt_init(struct platform_device *pdev, struct mmc_host *mmc)
 	unsigned int id = 0;
 	int ret;
 	static char const * const msdc_names[] = {
-		"msdc0", "msdc1", "sdio", "msdc3"};
+		"msdc0", "msdc1", "sdio", "msdc3_sdio"};
 	static char const * const ioconfig_names[] = { MSDC0_IOCFG_NAME, MSDC1_IOCFG_NAME,
 		MSDC2_IOCFG_NAME, MSDC3_IOCFG_NAME
 	};
@@ -1224,50 +1236,98 @@ int msdc_dt_init(struct platform_device *pdev, struct mmc_host *mmc)
 		return ret;
 	}
 
-	if (gpio_base == NULL) {
-		np = of_find_compatible_node(NULL, NULL, "mediatek,mt2701-pctl-a-syscfg");
-		gpio_base = of_iomap(np, 0);
-		pr_debug("of_iomap for gpio base @ 0x%p\n", gpio_base);
-	}
+	/* host_id = 2 indicate mt2701 */
+	if (host->id == 2) {
+		if (gpio_base == NULL) {
+			np = of_find_compatible_node(NULL, NULL, "mediatek,mt2701-pctl-a-syscfg");
+			gpio_base = of_iomap(np, 0);
+			pr_debug("of_iomap for gpio base @ 0x%p\n", gpio_base);
+		}
 
-	if (msdc_io_cfg_bases[id] == NULL) {
-		np = of_find_compatible_node(NULL, NULL, ioconfig_names[id]);
-		msdc_io_cfg_bases[id] = of_iomap(np, 0);
-		pr_debug("of_iomap for MSDC%d IOCFG base @ 0x%p\n",
-			id, msdc_io_cfg_bases[id]);
-	}
+		if (msdc_io_cfg_bases[id] == NULL) {
+			np = of_find_compatible_node(NULL, NULL, ioconfig_names[id]);
+			msdc_io_cfg_bases[id] = of_iomap(np, 0);
+			pr_debug("of_iomap for MSDC%d IOCFG base @ 0x%p\n",
+				id, msdc_io_cfg_bases[id]);
+		}
 
 #ifndef FPGA_PLATFORM
-	if (infracfg_ao_reg_base == NULL) {
-		np = of_find_compatible_node(NULL, NULL,
-			"mediatek,mt2701-dcm");
-		infracfg_ao_reg_base = of_iomap(np, 1);
-		pr_err("of_iomap for infracfg_ao base @ 0x%p\n",
-			infracfg_ao_reg_base);
-	}
+		if (infracfg_ao_reg_base == NULL) {
+			np = of_find_compatible_node(NULL, NULL,
+				"mediatek,mt2701-dcm");
+			infracfg_ao_reg_base = of_iomap(np, 1);
+			pr_err("of_iomap for infracfg_ao base @ 0x%p\n",
+				infracfg_ao_reg_base);
+		}
 
-	if (toprgu_reg_base == NULL) {
-		np = of_find_compatible_node(NULL, NULL, "mediatek,mt2701-rgu");
-		toprgu_reg_base = of_iomap(np, 0);
-		pr_err("of_iomap for toprgu base @ 0x%p\n",
-			toprgu_reg_base);
-	}
+		if (toprgu_reg_base == NULL) {
+			np = of_find_compatible_node(NULL, NULL, "mediatek,mt2701-rgu");
+			toprgu_reg_base = of_iomap(np, 0);
+			pr_err("of_iomap for toprgu base @ 0x%p\n",
+				toprgu_reg_base);
+		}
 
-	if (apmixed_reg_base == NULL) {
-		np = of_find_compatible_node(NULL, NULL, "mediatek,mt2701-apmixedsys");
-		apmixed_reg_base = of_iomap(np, 0);
-		pr_err("of_iomap for apmixed base @ 0x%p\n",
-			apmixed_reg_base);
-	}
+		if (apmixed_reg_base == NULL) {
+			np = of_find_compatible_node(NULL, NULL, "mediatek,mt2701-apmixedsys");
+			apmixed_reg_base = of_iomap(np, 0);
+			pr_err("of_iomap for apmixed base @ 0x%p\n",
+				apmixed_reg_base);
+		}
 
-	if (topckgen_reg_base == NULL) {
-		np = of_find_compatible_node(NULL, NULL,
-			"mediatek,mt2701-topckgen");
-		topckgen_reg_base = of_iomap(np, 0);
-		pr_err("of_iomap for topckgen base @ 0x%p\n",
-			topckgen_reg_base);
-	}
+		if (topckgen_reg_base == NULL) {
+			np = of_find_compatible_node(NULL, NULL,
+				"mediatek,mt2701-topckgen");
+			topckgen_reg_base = of_iomap(np, 0);
+			pr_err("of_iomap for topckgen base @ 0x%p\n",
+				topckgen_reg_base);
+		}
 #endif
+	} else if (host->id == 3) {/* host_id = 3 indicates mt2712 */
+		if (gpio_base == NULL) {
+			np = of_find_compatible_node(NULL, NULL, "mediatek,mt2712-pctl-a-syscfg");
+			gpio_base = of_iomap(np, 0);
+			pr_debug("of_iomap for gpio base @ 0x%p\n", gpio_base);
+		}
+
+		if (msdc_io_cfg_bases[id] == NULL) {
+			np = of_find_compatible_node(NULL, NULL, ioconfig_names[id]);
+			msdc_io_cfg_bases[id] = of_iomap(np, 0);
+			pr_debug("of_iomap for MSDC%d IOCFG base @ 0x%p\n",
+				id, msdc_io_cfg_bases[id]);
+		}
+
+#ifndef FPGA_PLATFORM
+		if (infracfg_ao_reg_base == NULL) {
+			np = of_find_compatible_node(NULL, NULL,
+				"mediatek,mt2712-infracfg");
+			infracfg_ao_reg_base = of_iomap(np, 1);
+			pr_err("of_iomap for infracfg_ao base @ 0x%p\n",
+				infracfg_ao_reg_base);
+		}
+
+		if (toprgu_reg_base == NULL) {
+			np = of_find_compatible_node(NULL, NULL, "mediatek,mt2712-rgu");
+			toprgu_reg_base = of_iomap(np, 0);
+			pr_err("of_iomap for toprgu base @ 0x%p\n",
+				toprgu_reg_base);
+		}
+
+		if (apmixed_reg_base == NULL) {
+			np = of_find_compatible_node(NULL, NULL, "mediatek,mt2712-apmixedsys");
+			apmixed_reg_base = of_iomap(np, 0);
+			pr_err("of_iomap for apmixed base @ 0x%p\n",
+				apmixed_reg_base);
+		}
+
+		if (topckgen_reg_base == NULL) {
+			np = of_find_compatible_node(NULL, NULL,
+				"mediatek,mt2712-topckgen");
+			topckgen_reg_base = of_iomap(np, 0);
+			pr_err("of_iomap for topckgen base @ 0x%p\n",
+				topckgen_reg_base);
+		}
+#endif
+	}
 
 	return 0;
 }

@@ -3361,7 +3361,7 @@ int mtk_snand_read_oob_hw(struct mtd_info *mtd, struct nand_chip *chip,
 	int sec_num = 1<<(chip->page_shift-9);
 	int spare_per_sector = mtd->oobsize/sec_num;
 
-	if (mtk_snand_read_oob_raw(mtd, chip->oob_poi, page, mtd->oobsize)
+	if (mtk_snand_read_oob_raw(mtd, chip->oob_poi, page, mtd->oobsize/2)
 				   == 0) {
 		pr_warn("[%s]read oob raw failed\n", __func__);
 		return -EIO;
@@ -3467,7 +3467,7 @@ static void mtk_snand_init_hw(struct mtk_snfc *snfc,
 			reg = snfi_readw(snfc, NFI_CNFG) | CNFG_HW_ECC_EN;
 			snfi_writew(snfc, reg, NFI_CNFG);
 		}
-		mtk_snand_ecc_config(snfc, host->hw, 4);
+		mtk_snand_ecc_config(snfc, hw, 4);
 		mtk_snand_configure_fdm(snfc, 8, 1);
 	}
 
@@ -3609,6 +3609,13 @@ static int mtk_snfc_enable_clk(struct device *dev, struct mtk_snfc_clk *clk)
 	}
 
 	return 0;
+}
+
+static void mtk_snfc_disable_clk(struct mtk_snfc_clk *clk)
+{
+	clk_disable_unprepare(clk->nfi_clk);
+	clk_disable_unprepare(clk->pad_clk);
+	clk_disable_unprepare(clk->nfiecc_clk);
 }
 
 static const struct mtk_snand_type snfc_mt7622 = {
@@ -3804,8 +3811,6 @@ static int mtk_snand_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	platform_set_drvdata(pdev, host);
-	nand_chip->select_chip(mtd, 0);
 	#if defined(MTK_COMBO_NAND_SUPPORT)
 	nand_chip->chipsize -= (PART_SIZE_BMTPOOL);
 	#else
@@ -3872,13 +3877,49 @@ static int mtk_snand_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int mtk_snand_suspend(struct device *dev)
+{
+	struct mtk_snfc *snfc = dev_get_drvdata(dev);
+
+	mtk_snfc_disable_clk(&snfc->clk);
+
+	return 0;
+}
+
+static int mtk_snand_resume(struct device *dev)
+{
+	struct mtk_snfc *snfc = dev_get_drvdata(dev);
+	int ret;
+
+	udelay(200);
+
+	ret = mtk_snfc_enable_clk(dev, &snfc->clk);
+	if (ret)
+		return ret;
+
+	mtk_snand_init_hw(snfc, host);
+
+	return 0;
+}
+
+static const struct dev_pm_ops mtk_snand_dev_pm_ops = {
+	.suspend = mtk_snand_suspend,
+	.resume = mtk_snand_resume,
+};
+
+#define MTK_SNAND_DEV_PM_OPS	(&mtk_snand_dev_pm_ops)
+#else
+#define MTK_SNAND_DEV_PM_OPS	NULL
+#endif
+
 static struct platform_driver mtk_snfc_driver = {
 	.probe = mtk_snand_probe,
 	.remove = mtk_snand_remove,
 	.driver = {
 		.name = "mtk-snand",
 		.of_match_table = mtk_snfc_id_table,
-		.pm = NULL,
+		.pm = MTK_SNAND_DEV_PM_OPS,
 	},
 };
 

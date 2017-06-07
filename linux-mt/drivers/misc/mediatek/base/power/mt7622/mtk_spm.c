@@ -18,10 +18,7 @@
 #include <linux/smp.h>
 #include <linux/delay.h>
 #include <linux/atomic.h>
-#ifdef MT7622_PORTING
-#include <mt-plat/aee.h>
-#include "mtk_devinfo.h"
-#endif
+#include <linux/clk.h>
 
 #include "mtk_spm_idle.h"
 
@@ -33,9 +30,11 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 
-void __weak aee_kernel_warning_api(const char *file, const int line, const int db_opt,
-				   const char *module, const char *msg, ...)
+int __attribute__ ((weak))
+	get_dynamic_period(int first_use, int first_wakeup_time,
+					int battery_capacity_level)
 {
+	return 0;
 }
 
 void __iomem *spm_base;
@@ -46,6 +45,8 @@ u32 spm_irq_0 = 120;
 u32 spm_irq_1 = 121;
 u32 spm_irq_2 = 122;
 u32 spm_irq_3 = 123;
+/* 25MHz crystal divided by 1024 */
+u32 spm_rtc_cnt = 24414;
 
 /*
  * Config and Parameter
@@ -81,7 +82,8 @@ static irqreturn_t spm_irq0_handler(int irq, void *dev_id)
 	}
 
 	/* clean ISR status */
-	spm_write(SPM_SLEEP_ISR_MASK, spm_read(SPM_SLEEP_ISR_MASK) | ISRM_ALL_EXC_TWAM);
+	spm_write(SPM_SLEEP_ISR_MASK, spm_read(SPM_SLEEP_ISR_MASK) |
+							ISRM_ALL_EXC_TWAM);
 	spm_write(SPM_SLEEP_ISR_STATUS, isr);
 	if (isr & ISRS_TWAM)
 		udelay(100);	/* need 3T TWAM clock (32K/26M) */
@@ -144,7 +146,8 @@ static int spm_irq_register(void)
 
 	for (i = 0; i < ARRAY_SIZE(irqdesc); i++) {
 		err = request_irq(irqdesc[i].irq, irqdesc[i].handler,
-				  IRQF_TRIGGER_LOW | IRQF_NO_SUSPEND, "SPM", NULL);
+				  IRQF_TRIGGER_LOW | IRQF_NO_SUSPEND, "SPM",
+								NULL);
 		if (err) {
 			spm_err("FAILED TO REQUEST IRQ%d (%d)\n", i, err);
 			r = -EPERM;
@@ -160,6 +163,7 @@ static void spm_register_init(void)
 {
 	unsigned long flags;
 	struct device_node *node;
+	struct clk *spm_rtc_clk;
 
 	node = of_find_compatible_node(NULL, NULL, "mediatek,mt7622-scpsys");
 	if (!node)
@@ -181,9 +185,23 @@ static void spm_register_init(void)
 	if (!spm_irq_3)
 		spm_err("get spm_irq_3 failed\n");
 
+	spm_rtc_clk = of_clk_get_by_name(node, "spm_rtc");
+	if (!spm_rtc_clk)
+		spm_err("get spm_rtc clk failed\n");
+
 	spm_err("spm_base = %p\n", spm_base);
-	spm_err("spm_irq_0 = %d, spm_irq_1 = %d, spm_irq_2 = %d, spm_irq_3 = %d\n", spm_irq_0,
-		spm_irq_1, spm_irq_2, spm_irq_3);
+	spm_err("spm_irq_0 = %d, spm_irq_1 = %d\n", spm_irq_0, spm_irq_1);
+	spm_err("spm_irq_2 = %d, spm_irq_3 = %d\n", spm_irq_2, spm_irq_3);
+
+	if (spm_irq_0) {
+		spm_err("set spm as wakeup devcie.\n");
+		irq_set_irq_wake(spm_irq_0, 1);
+	}
+
+	if (spm_rtc_clk) {
+		spm_rtc_cnt = clk_get_rate(spm_rtc_clk);
+		spm_info("spm_rtc cnt: %d.\n", spm_rtc_cnt);
+	}
 
 	spin_lock_irqsave(&__spm_lock, flags);
 
@@ -209,14 +227,19 @@ static void spm_register_init(void)
 	spm_write(SPM_PCM_IM_LEN, 0);
 
 	spm_write(SPM_CLK_CON, spm_read(SPM_CLK_CON) | CC_SRCLKENA_MASK_0);
-	/* CC_CLKSQ0_SEL is DONT-CARE in Suspend since PCM_PWR_IO_EN[0]=1 in Suspend */
+	/* CC_CLKSQ0_SEL is DONT-CARE in Suspend since PCM_PWR_IO_EN[0]=1
+	 * in Suspend
+	 */
 
 	spm_write(SPM_PCM_SRC_REQ, 0);
 
 	/* TODO: check if this means "Set SRCLKENI_MASK=1'b1" */
-	spm_write(SPM_AP_STANBY_CON, spm_read(SPM_AP_STANBY_CON) | ASC_SRCCLKENI_MASK);
+	spm_write(SPM_AP_STANBY_CON, spm_read(SPM_AP_STANBY_CON) |
+						ASC_SRCCLKENI_MASK);
 
-	/* unmask gce_busy_mask (set to 1b1); otherwise, gce (cmd-q) can not notify SPM to exit EMI self-refresh */
+	/* unmask gce_busy_mask (set to 1b1); otherwise,
+	 * gce (cmd-q) can not notify SPM to exit EMI self-refresh
+	 */
 	spm_write(SPM_PCM_MMDDR_MASK, spm_read(SPM_PCM_MMDDR_MASK) | (1U << 4));
 
 	/* clean ISR status */
@@ -230,10 +253,6 @@ static void spm_register_init(void)
 static int __init spm_module_init(void)
 {
 	int r = 0;
-	/* This following setting is moved to LK by WDT init, because of DTS init level issue */
-#if 0
-	struct wd_api *wd_api;
-#endif
 
 	spm_register_init();
 
@@ -243,32 +262,6 @@ static int __init spm_module_init(void)
 #if defined(CONFIG_PM)
 	if (spm_fs_init() != 0)
 		r = -EPERM;
-#endif
-
-#if 0
-	get_wd_api(&wd_api);
-	if (wd_api->wd_spmwdt_mode_config) {
-		wd_api->wd_spmwdt_mode_config(WD_REQ_EN, WD_REQ_RST_MODE);
-	} else {
-		spm_err("FAILED TO GET WD API\n");
-		r = -ENODEV;
-	}
-#endif
-
-#ifdef MT7622_PORTING
-	spm_sodi_init();
-#endif
-	/* spm_mcdi_init(); */
-
-#if 0
-	if (spm_golden_setting_cmp(1) != 0) {
-		/* r = -EPERM; */
-		aee_kernel_warning("SPM Warring", "dram golden setting mismach");
-	}
-#endif
-
-#ifdef SPM_VCORE_EN
-	spm_go_to_vcore_dvfs(SPM_VCORE_DVFS_EN, 0);
 #endif
 
 	return r;
@@ -354,7 +347,8 @@ void spm_twam_enable_monitor(const struct twam_sig *twamsig, bool speed_mode)
 	mon3 = mon_type.sig3 & 0x3;
 
 	spin_lock_irqsave(&__spm_lock, flags);
-	spm_write(SPM_SLEEP_ISR_MASK, spm_read(SPM_SLEEP_ISR_MASK) & ~ISRM_TWAM);
+	spm_write(SPM_SLEEP_ISR_MASK, spm_read(SPM_SLEEP_ISR_MASK) &
+							~ISRM_TWAM);
 	/* Monitor Control */
 	spm_twam_con_val = ((sig3 << 27) |
 			(sig2 << 22) |
@@ -372,7 +366,9 @@ void spm_twam_enable_monitor(const struct twam_sig *twamsig, bool speed_mode)
 	spm_write(SPM_SLEEP_TWAM_CON, spm_twam_con_val);
 
 	/* Window Length */
-	/* 0x13DDF0 for 50ms, 0x65B8 for 1ms, 0x1458 for 200us, 0xA2C for 100us */
+	/* 0x13DDF0 for 50ms, 0x65B8 for 1ms, 0x1458 for 200us,
+	 * 0xA2C for 100us
+	 */
 	/* in speed mode (26 MHz) */
 	spm_write(SPM_SLEEP_TWAM_WINDOW_LEN, length);
 	spin_unlock_irqrestore(&__spm_lock, flags);
@@ -389,7 +385,8 @@ void spm_twam_disable_monitor(void)
 	unsigned long flags;
 
 	spin_lock_irqsave(&__spm_lock, flags);
-	spm_write(SPM_SLEEP_TWAM_CON, spm_read(SPM_SLEEP_TWAM_CON) & ~TWAM_CON_EN);
+	spm_write(SPM_SLEEP_TWAM_CON, spm_read(SPM_SLEEP_TWAM_CON) &
+							~TWAM_CON_EN);
 	spm_write(SPM_SLEEP_ISR_MASK, spm_read(SPM_SLEEP_ISR_MASK) | ISRM_TWAM);
 	spm_write(SPM_SLEEP_ISR_STATUS, ISRC_TWAM);
 	spin_unlock_irqrestore(&__spm_lock, flags);
@@ -398,68 +395,34 @@ void spm_twam_disable_monitor(void)
 }
 EXPORT_SYMBOL(spm_twam_disable_monitor);
 
-/* TODO: remove ddrphy golden compare first */
-#if 0
-/*
- * SPM Goldeng Seting API(MEMPLL Control, DRAMC)
- */
-struct ddrphy_golden_cfg {
-	u32 addr;
-	u32 value;
-};
-
-static struct ddrphy_golden_cfg ddrphy_setting[] = {
-	{0x5c0, 0x063c0000},
-	{0x5c4, 0x00000000},
-	{0x5c8, 0x0000fC10},	/* temp remove mempll2/3 control for golden setting refine */
-	{0x5cc, 0x40101000},
-};
-
-int spm_golden_setting_cmp(bool en)
+#define SPM_WAKE_PERIOD         600	/* sec */
+u32 spm_get_wake_period(int pwake_time, wake_reason_t last_wr)
 {
-	int i, ddrphy_num, r = 0;
+	int period = SPM_WAKE_PERIOD;
 
-	if (!en)
-		return r;
-
-	/* Compare Dramc Goldeing Setting */
-	ddrphy_num = ARRAY_SIZE(ddrphy_setting) / ARRAY_SIZE(ddrphy_setting[0]);
-	for (i = 0; i < ddrphy_num; i++) {
-		if (spm_read(spm_ddrphy_base + ddrphy_setting[i].addr) != ddrphy_setting[i].value) {
-			spm_err("dramc setting mismatch addr: %p, val: 0x%x\n",
-				spm_ddrphy_base + ddrphy_setting[i].addr,
-				spm_read(spm_ddrphy_base + ddrphy_setting[i].addr));
-			r = -EPERM;
+#if 1
+	if (pwake_time < 0) {
+		/* use FG to get the period of 1% battery decrease */
+		period = get_dynamic_period(last_wr != WR_PCM_TIMER ? 1 : 0,
+							SPM_WAKE_PERIOD, 1);
+		if (period <= 0) {
+			spm_warn("CANNOT GET PERIOD FROM FUEL GAUGE\n");
+			period = SPM_WAKE_PERIOD;
 		}
+	} else {
+		period = pwake_time;
+		spm_crit2("pwake = %d\n", pwake_time);
 	}
 
-	return r;
-}
+	if (period > 36 * 3600)	/* max period is 36.4 hours */
+		period = 36 * 3600;
 #endif
+	return period;
+}
 
-/*
- * SPM AP-BSI Protocol Generator
- */
-/* TODO: Add BSI control */
-
-#define SPMC_CPU_PWR_STA_MASK	0x10004
-#define SPM_CPU_PWR_STA_MASK	0x3C00
-#define SPM_CPU_PWR_STA_SHIFT	13
+#define SPM_CPU_PWR_STA_MASK	0x3000
 unsigned int spm_get_cpu_pwr_status(void)
 {
-#if CONFIG_SPMC_MODE
-	u32 stat = 0;
-	u32 val;
-	u8 i;
-
-	for (i = 0; i < num_possible_cpus(); i++) {
-		val = spm_read(SPM_SPMC_MP0_CPU0_PWR_CON + 0x4*i) & SPMC_CPU_PWR_STA_MASK;
-		if (val != 0x0)
-			stat |= 0x1 << (SPM_CPU_PWR_STA_SHIFT - i);
-	}
-
-	return stat;
-#else
 	u32 val[2] = {0};
 	u32 stat = 0;
 
@@ -470,7 +433,6 @@ unsigned int spm_get_cpu_pwr_status(void)
 	stat &= val[1] & SPM_CPU_PWR_STA_MASK;
 
 	return stat;
-#endif
 }
 EXPORT_SYMBOL(spm_get_cpu_pwr_status);
 
