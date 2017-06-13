@@ -5,7 +5,7 @@
 TARGET_PRODUCT="bpi-r2"
 BOARD=BPI-R2-720P
 board="bpi-r2"
-kernel="4.4.59-BPI-R2-Kernel"
+kernel="4.4.70-BPI-R2-Kernel"
 MODE=$1
 BPILINUX=linux-mt
 BPIPACK=mt-pack

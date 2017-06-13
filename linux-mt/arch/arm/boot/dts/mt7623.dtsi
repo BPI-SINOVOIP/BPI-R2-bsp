@@ -93,6 +93,7 @@
 		cpu0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
+		        clock-frequency = <13000000>;
 			reg = <0x0>;
 			clocks = <&infracfg CLK_INFRA_CPUSEL>,
 				 <&apmixedsys CLK_APMIXED_MAINPLL>;
@@ -105,18 +106,21 @@
 		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
+		        clock-frequency = <13000000>;
 			reg = <0x1>;
 			operating-points-v2 = <&cpu_opp_table>;
 		};
 		cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
+		        clock-frequency = <13000000>;
 			reg = <0x2>;
 			operating-points-v2 = <&cpu_opp_table>;
 		};
 		cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
+		        clock-frequency = <13000000>;
 			reg = <0x3>;
 			operating-points-v2 = <&cpu_opp_table>;
 		};
