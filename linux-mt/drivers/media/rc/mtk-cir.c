@@ -128,7 +128,6 @@ static irqreturn_t mtk_ir_irq(int irqno, void *dev_id)
 	u8  wid = 0;
 	u32 i, j, val;
 	
-        printk(KERN_ERR "ir interrupt \n");
 	DEFINE_IR_RAW_EVENT(rawir);
 
 	spin_lock(&ir->ir_lock);
@@ -145,7 +144,6 @@ static irqreturn_t mtk_ir_irq(int irqno, void *dev_id)
 	for (i = 0 ; i < MTK_CHKDATA_SZ ; i++) {
 		val = mtk_r32(ir, MTK_CHKDATA_REG(i));
 		dev_dbg(ir->dev, "@reg%d=0x%08x\n", i, val);
-		printk(KERN_ERR "@reg%d=0x%08x\n", i, val);
 
 		for (j = 0 ; j < 4 ; j++) {
 			wid = (val & (0xff << j * 8)) >> j * 8;
