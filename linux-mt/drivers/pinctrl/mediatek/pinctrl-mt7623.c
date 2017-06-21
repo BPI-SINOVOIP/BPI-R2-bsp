@@ -305,6 +305,13 @@ static int mt7623_ies_smt_set(struct regmap *regmap, unsigned int pin,
 	return -EINVAL;
 }
 
+static void mt7623_spec_dir_set(struct mtk_pinctrl *pctl,
+			unsigned int *reg_addr, unsigned int pin, bool input)
+{
+	if (pin > 175)
+		*reg_addr += 0x10;
+}
+
 static const struct mtk_pinctrl_devdata mt7623_pinctrl_data = {
 	.pins = mtk_pins_mt7623,
 	.npins = ARRAY_SIZE(mtk_pins_mt7623),
@@ -314,6 +321,7 @@ static const struct mtk_pinctrl_devdata mt7623_pinctrl_data = {
 	.n_pin_drv_grps = ARRAY_SIZE(mt7623_pin_drv),
 	.spec_pull_set = mt7623_spec_pull_set,
 	.spec_ies_smt_set = mt7623_ies_smt_set,
+	.spec_dir_set = mt7623_spec_dir_set,
 	.dir_offset = 0x0000,
 	.pullen_offset = 0x0150,
 	.pullsel_offset = 0x0280,
