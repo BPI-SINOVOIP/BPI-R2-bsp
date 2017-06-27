@@ -1,4 +1,4 @@
-# bf-kernel-4.4a
+# BPI R2 BSP
 
 Overview
 ------------
