@@ -20,6 +20,13 @@ O=$1
 PRELOADER=$TOPDIR/mt-pack/mtk/${TARGET_PRODUCT}/bin/preloader_iotg7623Np1_emmc.bin
 UBOOT=$TOPDIR/u-boot-mt/u-boot.bin
 
+#
+HEAD0=$TOPDIR/mt-pack/mtk/${TARGET_PRODUCT}/bin/BPI-R2-HEAD440-0k.img
+HEAD1=$TOPDIR/mt-pack/mtk/${TARGET_PRODUCT}/bin/BPI-R2-HEAD1-512b.img
+#
+sudo dd if=$HEAD0 	of=$O bs=512 seek=0
+sudo dd if=$HEAD1 	of=$O bs=512 seek=1
+
 sudo dd if=$PRELOADER 	of=$O bs=1k seek=2
 sudo dd if=$UBOOT 	of=$O bs=1k seek=320
 
