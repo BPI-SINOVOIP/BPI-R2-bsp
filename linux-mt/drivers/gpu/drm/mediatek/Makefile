@@ -16,6 +16,8 @@ mediatek-drm-y := mtk_disp_ovl.o \
 		  mtk_lvds.o \
 		  mtk_lvds_phy.o
 
+mediatek-drm-$(CONFIG_DRM_FBDEV_EMULATION) += mtk_drm_fbdev.o
+
 ifeq ($(CONFIG_DEBUG_FS),y)
 mediatek-drm-y += mtk_drm_debugfs.o
 endif
