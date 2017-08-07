@@ -1079,6 +1079,7 @@
 		resets = <&watchdog MT2701_TOPRGU_ETHDMA_RST>;
 		reset-names = "eth";
 		mediatek,ethsys = <&ethsys>;
+                mediatek,pctl = <&syscfg_pctl_a>;
 		mediatek,switch = <&gsw>;
 		#reset-cells = <1>;
 		#address-cells = <1>;

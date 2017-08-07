@@ -1477,6 +1477,15 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	}
 	regmap_write(eth->ethsys, ETHSYS_SYSCFG0, val);
 
+        /* Set GE2 driving and slew rate */
+        regmap_write(eth->pctl, GPIO_DRV_SEL10, 0x600);
+
+        /* Set GE2 TDSEL */
+        regmap_write(eth->pctl, GPIO_OD33_CTRL8, 0x5);
+
+        /* Set GE2 TUNE */
+        regmap_write(eth->pctl, GPIO_BIAS_CTRL, 0x0);
+
 	/* GE1, Force 1000M/FD, FC ON */
 	mtk_w32(eth, MAC_MCR_FIXED_LINK, MTK_MAC_MCR(0));
 
@@ -2045,6 +2054,13 @@ static int mtk_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no ethsys regmap found\n");
 		return PTR_ERR(eth->ethsys);
 	}
+
+        eth->pctl = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+                                                    "mediatek,pctl");
+        if (IS_ERR(eth->pctl)) {
+                dev_err(&pdev->dev, "no pctl regmap found\n");
+                return PTR_ERR(eth->pctl);
+        }
 
 	for (i = 0; i < 3; i++) {
 		eth->irq[i] = platform_get_irq(pdev, i);
