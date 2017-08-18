@@ -1,12 +1,19 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: //Department/DaVinci/TRUNK/MT6620_5931_WiFi_Driver/mgmt/wnm.c#1
+*/
+
+/*! \file   "wnm.c"
+    \brief  This file includes the 802.11v default vale and functions.
+*/
+
+/*
+** Log: wnm.c
+ *
+ * 01 05 2012 tsaiyuan.hsu
+ * [WCXRP00001157] [MT6620 Wi-Fi][FW][DRV] add timing measurement support for 802.11v
+ * add timing measurement support for 802.11v.
+ *
+ *
 */
 
 /*******************************************************************************
@@ -20,7 +27,7 @@
 */
 #include "precomp.h"
 
-#if (CFG_SUPPORT_802_11V || CFG_SUPPORT_PPR2)
+#if CFG_SUPPORT_802_11V
 
 /*******************************************************************************
 *                              C O N S T A N T S
@@ -45,7 +52,7 @@
 ********************************************************************************
 */
 
-
+static UINT_8 ucTimingMeasToken;
 
 /*******************************************************************************
 *                                 M A C R O S
@@ -81,19 +88,14 @@ VOID wnmWNMAction(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 
 	prRxFrame = (P_WLAN_ACTION_FRAME) prSwRfb->pvHeader;
 
-	switch (prRxFrame->ucAction) {
 #if CFG_SUPPORT_802_11V_TIMING_MEASUREMENT
-	case ACTION_WNM_TIMING_MEASUREMENT_REQUEST:
+	if (prRxFrame->ucAction == ACTION_WNM_TIMING_MEASUREMENT_REQUEST) {
 		wnmTimingMeasRequest(prAdapter, prSwRfb);
 		return;
-#endif
-	case ACTION_WNM_NOTIFICATION_REQUEST:
-	default:
-		DBGLOG(INIT, INFO, "WNM action frame: %d, try to send to supplicant\n", prRxFrame->ucAction);
-		if (HIF_RX_HDR_GET_NETWORK_IDX(prSwRfb->prHifRxHdr) == NETWORK_TYPE_AIS_INDEX)
-			aisFuncValidateRxActionFrame(prAdapter, prSwRfb);
-		break;
 	}
+#endif
+
+	DBGLOG(WNM, TRACE, "Unsupport WNM action frame: %d\n", prRxFrame->ucAction);
 }
 
 #if CFG_SUPPORT_802_11V_TIMING_MEASUREMENT

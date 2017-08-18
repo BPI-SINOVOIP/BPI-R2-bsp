@@ -1,27 +1,269 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/mgmt/ais_fsm.h#2
+*/
+
+/*! \file   ais_fsm.h
+    \brief  Declaration of functions and finite state machine for AIS Module.
+
+    Declaration of functions and finite state machine for AIS Module.
 */
 
 /*
- * Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/mgmt/ais_fsm.h#2
- */
-
-/*
- * ! \file   ais_fsm.h
- *  \brief  Declaration of functions and finite state machine for AIS Module.
+** Log: ais_fsm.h
+**
+** 01 06 2015 eason.tsai
+** [ALPS01886576] [A55ML][WIFI][Miracast] Group format time out
+** actiontec dongle MCC connect
+**
+** 08 12 2013 cp.wu
+** [BORA00002253] [MT6630 Wi-Fi][Driver][Firmware] Add NLO and timeout mechanism to SCN module
+** use separate SSID container for roaming scan requests
+**
+** 08 09 2013 cp.wu
+** [BORA00002253] [MT6630 Wi-Fi][Driver][Firmware] Add NLO and timeout mechanism to SCN module
+** 1. integrate scheduled scan functionality
+** 2. condition compilation for linux-3.4 & linux-3.8 compatibility
+** 3. correct CMD queue access to reduce lock scope
+**
+** 07 29 2013 cp.wu
+** [BORA00002725] [MT6630][Wi-Fi] Add MGMT TX/RX support for Linux port
+** Preparation for porting remain_on_channel support
+**
+** 02 07 2013 cp.wu
+** [BORA00002253] [MT6630 Wi-Fi][Driver][Firmware] Add NLO and timeout mechanism to SCN module
+** add join timeout check for retrying
+**
+** 01 23 2013 cp.wu
+** [BORA00002253] [MT6630 Wi-Fi][Driver][Firmware] Add NLO and timeout mechanism to SCN module
+** modify AIS behavior: stop join trial if failed
+**
+** 01 22 2013 cp.wu
+** [BORA00002253] [MT6630 Wi-Fi][Driver][Firmware] Add NLO and timeout mechanism to SCN module
+** modification for ucBssIndex migration
+**
+** 09 17 2012 cm.chang
+** [BORA00002149] [MT6630 Wi-Fi] Initial software development
+** Duplicate source from MT6620 v2.3 driver branch
+** (Davinci label: MT6620_WIFI_Driver_V2_3_120913_1942_As_MT6630_Base)
+**
+** 08 24 2012 cp.wu
+** [WCXRP00001269] [MT6620 Wi-Fi][Driver] cfg80211 porting merge back to DaVinci
+** .
+**
+** 08 24 2012 cp.wu
+** [WCXRP00001269] [MT6620 Wi-Fi][Driver] cfg80211 porting merge back to DaVinci
+** cfg80211 support merge back from ALPS.JB to DaVinci - MT6620 Driver v2.3 branch.
  *
- * Declaration of functions and finite state machine for AIS Module.
- */
+ * 11 22 2011 cp.wu
+ * [WCXRP00001120] [MT6620 Wi-Fi][Driver] Modify roaming to AIS state transition
+ * from synchronous to asynchronous approach to avoid incomplete state termination
+ * 1. change RDD related compile option brace position.
+ * 2. when roaming is triggered, ask AIS to transit immediately only when AIS
+ * is in Normal TR state without join timeout timer ticking
+ * 3. otherwise, insert AIS_REQUEST into pending request queue
+ *
+ * 04 25 2011 cp.wu
+ * [WCXRP00000676] [MT6620 Wi-Fi][Driver] AIS to reduce request channel period from 5 seconds to 2 seconds
+ * channel interval for joining is shortened to 2 seconds to avoid interruption of concurrent operating network.
+ *
+ * 02 26 2011 tsaiyuan.hsu
+ * [WCXRP00000391] [MT6620 Wi-Fi][FW] Add Roaming Support
+ * not send disassoc or deauth to leaving AP so as to improve performace of roaming.
+ *
+ * 02 22 2011 cp.wu
+ * [WCXRP00000487] [MT6620 Wi-Fi][Driver][AIS] Serve scan and connect request with
+ * a queue-based approach to improve response time for scanning request
+ * handle SCAN and RECONNECT with a FIFO approach.
+ *
+ * 01 27 2011 tsaiyuan.hsu
+ * [WCXRP00000392] [MT6620 Wi-Fi][Driver] Add Roaming Support
+ * add roaming fsm
+ * 1. not support 11r, only use strength of signal to determine roaming.
+ * 2. not enable CFG_SUPPORT_ROAMING until completion of full test.
+ * 3. in 6620, adopt work-around to avoid sign extension problem of cck of hw
+ * 4. assume that change of link quality in smooth way.
+ *
+ * 01 14 2011 cp.wu
+ * [WCXRP00000359] [MT6620 Wi-Fi][Driver] add an extra state to ensure DEAUTH frame is always sent
+ * Add an extra state to guarantee DEAUTH frame is sent then connect to new BSS.
+ * This change is due to WAPI AP needs DEAUTH frame as a necessary step in handshaking protocol.
+ *
+ * 11 25 2010 cp.wu
+ * [WCXRP00000208] [MT6620 Wi-Fi][Driver] Add scanning with specified SSID to AIS FSM
+ * add scanning with specified SSID facility to AIS-FSM
+ *
+ * 11 01 2010 cp.wu
+ * [WCXRP00000056] [MT6620 Wi-Fi][Driver] NVRAM implementation with Version Check
+ * [WCXRP00000150] [MT6620 Wi-Fi][Driver] Add implementation for querying current TX rate from firmware auto rate module
+ * 1) Query link speed (TX rate) from firmware directly with buffering mechanism to reduce overhead
+ * 2) Remove CNM CH-RECOVER event handling
+ * 3) cfg read/write API renamed with kal prefix for unified naming rules.
+ *
+ * 09 06 2010 cp.wu
+ * NULL
+ * 1) initialize for correct parameter even for disassociation.
+ * 2) AIS-FSM should have a limit on trials to build connection
+ *
+ * 09 03 2010 kevin.huang
+ * NULL
+ * Refine #include sequence and solve recursive/nested #include issue
+ *
+ * 08 25 2010 cp.wu
+ * NULL
+ * [AIS-FSM] IBSS no longer needs to acquire channel for beaconing, RLM/CNM will handle
+ * the channel switching when BSS information is updated
+ *
+ * 08 12 2010 kevin.huang
+ * NULL
+ * Refine bssProcessProbeRequest() and bssSendBeaconProbeResponse()
+ *
+ * 08 12 2010 cp.wu
+ * NULL
+ * [AIS-FSM] honor registry setting for adhoc running mode. (A/B/G)
+ *
+ * 08 03 2010 cp.wu
+ * NULL
+ * surpress compilation warning.
+ *
+ * 07 30 2010 cp.wu
+ * NULL
+ * 1) BoW wrapper: use definitions instead of hard-coded constant for error code
+ * 2) AIS-FSM: eliminate use of desired RF parameters, use prTargetBssDesc instead
+ * 3) add handling for RX_PKT_DESTINATION_HOST_WITH_FORWARD for GO-broadcast frames
+ *
+ * 07 26 2010 cp.wu
+ *
+ * AIS-FSM: when scan request is coming in the 1st 5 seconds of channel privilege period,
+ * just pend it til 5-sec. period finishes
+ *
+ * 07 26 2010 cp.wu
+ *
+ * AIS-FSM FIX: return channel privilege even when the privilege is not granted yet
+ * QM: qmGetFrameAction() won't assert when corresponding STA-REC index is not found
+ *
+ * 07 23 2010 cp.wu
+ *
+ * add AIS-FSM handling for beacon timeout event.
+ *
+ * 07 21 2010 cp.wu
+ *
+ * separate AIS-FSM states into different cases of channel request.
+ *
+ * 07 21 2010 cp.wu
+ *
+ * 1) change BG_SCAN to ONLINE_SCAN for consistent term
+ * 2) only clear scanning result when scan is permitted to do
+ *
+ * 07 19 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration.
+ * Add Ad-Hoc support to AIS-FSM
+ *
+ * 07 14 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration.
+ * Refine AIS-FSM by divided into more states
+ *
+ * 07 09 2010 cp.wu
+ *
+ * 1) separate AIS_FSM state for two kinds of scanning. (OID triggered scan, and scan-for-connection)
+ * 2) eliminate PRE_BSS_DESC_T, Beacon/PrebResp is now parsed in single pass
+ * 3) implment DRV-SCN module, currently only accepts single scan request,
+ * other request will be directly dropped by returning BUSY
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 07 01 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * AIS-FSM integration with CNM channel request messages
+ *
+ * 07 01 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * implementation of DRV-SCN and related mailbox message handling.
+ *
+ * 06 10 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * add buildable & linkable ais_fsm.c
+ *
+ * related reference are still waiting to be resolved
+ *
+ * 06 09 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * add definitions for module migration.
+ *
+ * 06 07 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * add aa_fsm.h, ais_fsm.h, bss.h, mib.h and scan.h.
+ *
+ * 05 12 2010 kevin.huang
+ * [BORA00000794][WIFISYS][New Feature]Power Management Support
+ * Add Power Management - Legacy PS-POLL support.
+ *
+ * 04 23 2010 wh.su
+ * [BORA00000605][WIFISYS] Phase3 Integration
+ * reduce the background ssid idle time min and max value
+ *
+ * 04 19 2010 kevin.huang
+ * [BORA00000714][WIFISYS][New Feature]Beacon Timeout Support
+ * Add Beacon Timeout Support
+ *  *  and will send Null frame to diagnose connection
+ *
+ * 03 16 2010 kevin.huang
+ * [BORA00000663][WIFISYS][New Feature] AdHoc Mode Support
+ * Add AdHoc Mode
+ *
+ * 03 10 2010 kevin.huang
+ * [BORA00000654][WIFISYS][New Feature] CNM Module - Ch Manager Support
+ *
+ *  * Add Channel Manager for arbitration of JOIN and SCAN Req
+ *
+ * 02 26 2010 kevin.huang
+ * [BORA00000603][WIFISYS] [New Feature] AAA Module Support
+ * Remove CFG_TEST_VIRTUAL_CMD and add support of Driver STA_RECORD_T activation
+ *
+ * 02 23 2010 kevin.huang
+ * [BORA00000603][WIFISYS] [New Feature] AAA Module Support
+ * Support dynamic channel selection
+ *
+ * 02 04 2010 kevin.huang
+ * [BORA00000603][WIFISYS] [New Feature] AAA Module Support
+ * Add AAA Module Support, Revise Net Type to Net Type Index for array lookup
+ *
+ * 01 11 2010 kevin.huang
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * Add Deauth and Disassoc Handler
+ *
+ * 01 07 2010 kevin.huang
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Add Media disconnect indication and related postpone functions
+ *
+ * Dec 3 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Add aisFsmRunEventJoinComplete()
+ *
+ * Nov 25 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Add Virtual CMD & RESP for testing CMD PATH
+ *
+ * Nov 23 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * add aisFsmInitializeConnectionSettings()
+ *
+ * Nov 20 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Add CFG_TEST_MGMT_FSM for aisFsmTest()
+ *
+ * Nov 18 2009 mtk01104
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Add function prototype of aisFsmInit()
+ *
+ * Nov 16 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ *
+*/
 
 #ifndef _AIS_FSM_H
 #define _AIS_FSM_H
@@ -43,7 +285,7 @@
 #define AIS_BG_SCAN_INTERVAL_MIN_SEC        2	/* 30 // exponential to 960 */
 #define AIS_BG_SCAN_INTERVAL_MAX_SEC        2	/* 960 // 16min */
 
-#define AIS_DELAY_TIME_OF_DISCONNECT_SEC    5	/* 10 */
+#define AIS_DELAY_TIME_OF_DISCONNECT_SEC    15	/* 10 */
 
 #define AIS_IBSS_ALONE_TIMEOUT_SEC          20	/* seconds */
 
@@ -62,11 +304,8 @@
 #define AIS_BMC_MIN_TIMEOUT_VALID           TRUE
 
 #define AIS_JOIN_CH_GRANT_THRESHOLD         10
-#define AIS_JOIN_CH_REQUEST_INTERVAL        2000
+#define AIS_JOIN_CH_REQUEST_INTERVAL        4000
 #define AIS_SCN_DONE_TIMEOUT_SEC            30 /* 30 for 2.4G + 5G */	/* 5 */
-
-#define AIS_AUTORN_MIN_INTERVAL				20
-#define AIS_BLACKLIST_TIMEOUT               15 /* seconds */
 
 /*******************************************************************************
 *                             D A T A   T Y P E S
@@ -88,18 +327,8 @@ typedef enum _ENUM_AIS_STATE_T {
 	AIS_STATE_DISCONNECTING,
 	AIS_STATE_REQ_REMAIN_ON_CHANNEL,
 	AIS_STATE_REMAIN_ON_CHANNEL,
-	AIS_STATE_COLLECT_ESS_INFO,
 	AIS_STATE_NUM
 } ENUM_AIS_STATE_T;
-
-/* reconnect level for determining if we should reconnect */
-typedef enum _ENUM_RECONNECT_LEVEL_T {
-	RECONNECT_LEVEL_MIN = 0,
-	RECONNECT_LEVEL_ROAMING_FAIL,		/* roaming failed */
-	RECONNECT_LEVEL_BEACON_TIMEOUT,		/* driver beacon timeout */
-	RECONNECT_LEVEL_USER_SET,		/* user set connect or disassociate */
-	RECONNECT_LEVEL_MAX
-} ENUM_RECONNECT_LEVEL_T;
 
 typedef struct _MSG_AIS_ABORT_T {
 	MSG_HDR_T rMsgHdr;	/* Must be the first member */
@@ -126,8 +355,6 @@ typedef enum _ENUM_AIS_REQUEST_TYPE_T {
 typedef struct _AIS_REQ_HDR_T {
 	LINK_ENTRY_T rLinkEntry;
 	ENUM_AIS_REQUEST_TYPE_T eReqType;
-	/* temp save partial scan channel info */
-	PUINT_8	pu8ChannelInfo;
 } AIS_REQ_HDR_T, *P_AIS_REQ_HDR_T;
 
 typedef struct _AIS_REQ_CHNL_INFO {
@@ -143,30 +370,6 @@ typedef struct _AIS_MGMT_TX_REQ_INFO_T {
 	P_MSDU_INFO_T prMgmtTxMsdu;
 	UINT_64 u8Cookie;
 } AIS_MGMT_TX_REQ_INFO_T, *P_AIS_MGMT_TX_REQ_INFO_T;
-
-struct AIS_BLACKLIST_ITEM {
-	LINK_ENTRY_T rLinkEntry;
-
-	UINT_8 aucBSSID[MAC_ADDR_LEN];
-	UINT_16 u2DeauthReason;
-	UINT_16 u2AuthStatus;
-	UINT_8 ucCount;
-	UINT_8 ucSSIDLen;
-	UINT_8 aucSSID[32];
-	OS_SYSTIME rAddTime;
-	UINT_64 u8DisapperTime;
-};
-
-struct AIS_BEACON_TIMEOUT_BSS {
-	LINK_ENTRY_T rLinkEntry;
-
-	UINT_64 u8Tsf;
-	UINT_64 u8AddTime;
-	UINT_8 ucReserved;
-	UINT_8 aucBSSID[MAC_ADDR_LEN];
-	UINT_8 ucSSIDLen;
-	UINT_8 aucSSID[32];
-};
 
 typedef struct _AIS_FSM_INFO_T {
 	ENUM_AIS_STATE_T ePreviousState;
@@ -204,10 +407,6 @@ typedef struct _AIS_FSM_INFO_T {
 
 	TIMER_T rDeauthDoneTimer;
 
-#if CFG_SUPPORT_DETECT_SECURITY_MODE_CHANGE
-	TIMER_T rSecModeChangeTimer;
-#endif
-
 	UINT_8 ucSeqNumOfReqMsg;
 	UINT_8 ucSeqNumOfChReq;
 	UINT_8 ucSeqNumOfScanReq;
@@ -240,9 +439,6 @@ typedef struct _AIS_FSM_INFO_T {
 	/* for roaming target */
 	PARAM_SSID_T rRoamingSSID;
 
-	struct LINK_MGMT rBcnTimeout;
-	UINT_8 ucJoinFailCntAfterScan;
-	UINT_8 aucNeighborAPChnl[CFG_NEIGHBOR_AP_CHANNEL_NUM];
 } AIS_FSM_INFO_T, *P_AIS_FSM_INFO_T;
 
 /*******************************************************************************
@@ -361,10 +557,6 @@ VOID aisFsmDisconnect(IN P_ADAPTER_T prAdapter, IN BOOLEAN fgDelayIndication);
 /*----------------------------------------------------------------------------*/
 VOID aisBssBeaconTimeout(IN P_ADAPTER_T prAdapter);
 
-#if CFG_SUPPORT_DETECT_SECURITY_MODE_CHANGE
-VOID aisBssSecurityChanged(IN P_ADAPTER_T prAdapter);
-#endif
-
 WLAN_STATUS
 aisDeauthXmitComplete(IN P_ADAPTER_T prAdapter, IN P_MSDU_INFO_T prMsduInfo, IN ENUM_TX_RESULT_CODE_T rTxDoneStatus);
 
@@ -390,10 +582,6 @@ VOID aisFsmRunEventJoinTimeout(IN P_ADAPTER_T prAdapter, ULONG ulParamPtr);
 VOID aisFsmRunEventChannelTimeout(IN P_ADAPTER_T prAdapter, ULONG ulParamPtr);
 
 VOID aisFsmRunEventDeauthTimeout(IN P_ADAPTER_T prAdapter, ULONG ulParamPtr);
-
-#if CFG_SUPPORT_DETECT_SECURITY_MODE_CHANGE
-VOID aisFsmRunEventSecModeChangeTimeout(IN P_ADAPTER_T prAdapter, ULONG ulParamPtr);
-#endif
 
 /*----------------------------------------------------------------------------*/
 /* OID/IOCTL Handling                                                         */
@@ -427,18 +615,6 @@ enum _ENUM_AIS_STATE_T aisFsmStateSearchAction(IN struct _ADAPTER_T *prAdapter, 
 #if defined(CFG_TEST_MGMT_FSM) && (CFG_TEST_MGMT_FSM != 0)
 VOID aisTest(VOID);
 #endif /* CFG_TEST_MGMT_FSM */
-
-struct AIS_BLACKLIST_ITEM *aisAddBlacklist(P_ADAPTER_T prAdapter, P_BSS_DESC_T prBssDesc);
-VOID aisRemoveBlackList(P_ADAPTER_T prAdapter, P_BSS_DESC_T prBssDesc);
-VOID aisRemoveTimeoutBlacklist(P_ADAPTER_T prAdapter);
-struct AIS_BLACKLIST_ITEM *aisQueryBlackList(P_ADAPTER_T prAdapter, P_BSS_DESC_T prBssDesc);
-VOID aisRecordBeaconTimeout(P_ADAPTER_T prAdapter, P_BSS_INFO_T prAisBssInfo);
-VOID aisRemoveBeaconTimeoutEntry(P_ADAPTER_T prAdapter, P_BSS_DESC_T prBssDesc);
-UINT_16 aisCalculateBlackListScore(P_ADAPTER_T prAdapter, P_BSS_DESC_T prBssDesc);
-VOID aisCollectNeighborAPChannel(P_ADAPTER_T prAdapter,
-				 struct IE_NEIGHBOR_REPORT_T *prNeiRep, UINT_16 u2Length);
-VOID aisRunEventChnlUtilRsp(P_ADAPTER_T prAdapter, P_MSG_HDR_T prMsgHdr);
-
 /*******************************************************************************
 *                              F U N C T I O N S
 ********************************************************************************

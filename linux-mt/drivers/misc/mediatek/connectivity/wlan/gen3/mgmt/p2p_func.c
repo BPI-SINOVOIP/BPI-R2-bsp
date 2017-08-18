@@ -1,17 +1,3 @@
-/*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #include "precomp.h"
 
 APPEND_VAR_ATTRI_ENTRY_T txAssocRspAttributesTable[] = {
@@ -53,7 +39,7 @@ static VOID
 p2pFuncProcessP2pProbeRspAction(IN P_ADAPTER_T prAdapter,
 				IN PUINT_8 pucIEBuf, IN UINT_8 ucElemIdType,
 				OUT UINT_8 *ucBssIdx, OUT P_BSS_INFO_T *prP2pBssInfo, OUT BOOLEAN *fgIsWSCIE,
-				OUT BOOLEAN *fgIsP2PIE, OUT BOOLEAN *fgIsWFDIE, OUT BOOLEAN *fgIsVenderIE);
+				OUT BOOLEAN * fgIsP2PIE, OUT BOOLEAN * fgIsWFDIE, OUT BOOLEAN * fgIsVenderIE);
 static VOID
 p2pFuncGetSpecAttriAction(IN P_IE_P2P_T prP2pIE,
 			  IN UINT_8 ucOuiType, IN UINT_8 ucAttriID, OUT P_ATTRIBUTE_HDR_T *prTargetAttri);
@@ -448,168 +434,301 @@ p2pFunMgmtFrameTxDone(IN P_ADAPTER_T prAdapter, IN P_MSDU_INFO_T prMsduInfo, IN 
 
 }				/* p2pFunMgmtFrameTxDone */
 
-const char *
-p2pToString(ENUM_P2P_ACTION_TYPE eP2pAction)
-{
-	switch (eP2pAction) {
-	case P2P_GO_NEG_REQ:
-		return "GO_NEG_REQ";
-	case P2P_GO_NEG_RESP:
-		return "GO_NEG_RESP";
-	case P2P_GO_NEG_CONF:
-		return "GO_NEG_CONF";
-	case P2P_INVITATION_REQ:
-		return "INVITATION_REQ";
-	case P2P_INVITATION_RESP:
-		return "INVITATION_RESP";
-	case P2P_DEV_DISC_REQ:
-		return "DEV_DISC_REQ";
-	case P2P_DEV_DISC_RESP:
-		return "DEV_DISC_RESP";
-	case P2P_PROV_DISC_REQ:
-		return "PROV_DISC_REQ";
-	case P2P_PROV_DISC_RESP:
-		return "PROV_DISC_RESP";
-	}
+/* Action frame categories (IEEE 802.11-2007, 7.3.1.11, Table 7-24) */
+#define WLAN_ACTION_SPECTRUM_MGMT 0
+#define WLAN_ACTION_QOS 1
+#define WLAN_ACTION_DLS 2
+#define WLAN_ACTION_BLOCK_ACK 3
+#define WLAN_ACTION_PUBLIC 4
+#define WLAN_ACTION_RADIO_MEASUREMENT 5
+#define WLAN_ACTION_FT 6
+#define WLAN_ACTION_HT 7
+#define WLAN_ACTION_SA_QUERY 8
+#define WLAN_ACTION_PROTECTED_DUAL 9
+#define WLAN_ACTION_WNM 10
+#define WLAN_ACTION_UNPROTECTED_WNM 11
+#define WLAN_ACTION_TDLS 12
+#define WLAN_ACTION_SELF_PROTECTED 15
+#define WLAN_ACTION_WMM 17 /* WMM Specification 1.1 */
+#define WLAN_ACTION_VENDOR_SPECIFIC 127
 
-	return "UNKNOWN P2P Public Action";
-}
+/* Public action codes */
+#define WLAN_PA_20_40_BSS_COEX 0
+#define WLAN_PA_VENDOR_SPECIFIC 9
+#define WLAN_PA_GAS_INITIAL_REQ 10
+#define WLAN_PA_GAS_INITIAL_RESP 11
+#define WLAN_PA_GAS_COMEBACK_REQ 12
+#define WLAN_PA_GAS_COMEBACK_RESP 13
+#define WLAN_TDLS_DISCOVERY_RESPONSE 14
 
-
-const char *
-paToString(INT_32 u4PaAction)
-{
-	switch (u4PaAction) {
-	case WLAN_PA_20_40_BSS_COEX:
-		return "PA_20_40_BSS_COEX";
-	case WLAN_PA_VENDOR_SPECIFIC:
-		return "PA_VENDOR_SPECIFIC";
-	case WLAN_PA_GAS_INITIAL_REQ:
-		return "PA_GAS_INITIAL_REQ";
-	case WLAN_PA_GAS_INITIAL_RESP:
-		return "PA_GAS_INITIAL_RESP";
-	case WLAN_PA_GAS_COMEBACK_REQ:
-		return "PA_GAS_COMEBACK_REQ";
-	case WLAN_PA_GAS_COMEBACK_RESP:
-		return "PA_GAS_COMEBACK_RESP";
-	case WLAN_TDLS_DISCOVERY_RESPONSE:
-		return "TDLS_DISCOVERY_RESPONSE";
-	}
-
-	return "UNKNOWN Public Action";
-}
-
-
-const char *
-actionToString(INT_32 u4WlanAction)
-{
-	switch (u4WlanAction) {
-	case WLAN_ACTION_SPECTRUM_MGMT:
-		return "SPECTRUM_MGMT";
-	case WLAN_ACTION_QOS:
-		return "QOS";
-	case WLAN_ACTION_DLS:
-		return "DLS";
-	case WLAN_ACTION_BLOCK_ACK:
-		return "BLOCK_ACK";
-	case WLAN_ACTION_PUBLIC:
-		return "PUBLIC";
-	case WLAN_ACTION_RADIO_MEASUREMENT:
-		return "RADIO_MEASUREMENT";
-	case WLAN_ACTION_FT:
-		return "FT";
-	case WLAN_ACTION_HT:
-		return "HT";
-	case WLAN_ACTION_SA_QUERY:
-		return "SA_QUERY";
-	case WLAN_ACTION_PROTECTED_DUAL:
-		return "PROTECTED_DUAL";
-	case WLAN_ACTION_WNM:
-		return "WNM";
-	case WLAN_ACTION_UNPROTECTED_WNM:
-		return "UNPROTECTED_WNM";
-	case WLAN_ACTION_TDLS:
-		return "TDLS";
-	case WLAN_ACTION_SELF_PROTECTED:
-		return "SELF_PROTECTED";
-	case WLAN_ACTION_WMM:
-		return "WMM";
-	case WLAN_ACTION_VENDOR_SPECIFIC:
-		return "VENDOR_SPECIFIC";
-	}
-
-	return "UNKNOWN Action Frame";
-}
-
-
+/* P2P public action frames */
+enum p2p_action_frame_type {
+	P2P_GO_NEG_REQ = 0,
+	P2P_GO_NEG_RESP = 1,
+	P2P_GO_NEG_CONF = 2,
+	P2P_INVITATION_REQ = 3,
+	P2P_INVITATION_RESP = 4,
+	P2P_DEV_DISC_REQ = 5,
+	P2P_DEV_DISC_RESP = 6,
+	P2P_PROV_DISC_REQ = 7,
+	P2P_PROV_DISC_RESP = 8
+};
 VOID p2pFuncTagActionActionP2PFrame(IN P_MSDU_INFO_T prMgmtTxMsdu,
 			P_WLAN_ACTION_FRAME prActFrame,
-			UINT_8 ucP2pAction, IN UINT_64 u8Cookie)
+			UINT_8 ucP2pAction)
 {
-	DBGLOG(P2P, INFO, "Found P2P_%s, SA: %pM - DA: %pM, cookie: 0x%llx, SeqNO: %d\n",
-		   p2pToString(ucP2pAction),
-		   prActFrame->aucSrcAddr,
-		   prActFrame->aucDestAddr,
-		   u8Cookie,
-		   prMgmtTxMsdu->ucTxSeqNum);
+	switch (ucP2pAction) {
+	case P2P_GO_NEG_REQ:
+		DBGLOG(P2P, INFO, "Found P2P_GO_NEG_REQ, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case P2P_GO_NEG_RESP:
+		DBGLOG(P2P, INFO, "Found P2P_GO_NEG_RESP, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case P2P_GO_NEG_CONF:
+		DBGLOG(P2P, INFO, "Found P2P_GO_NEG_CONF, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case P2P_INVITATION_REQ:
+		DBGLOG(P2P, INFO, "Found P2P_INVITATION_REQ, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case P2P_INVITATION_RESP:
+		DBGLOG(P2P, INFO, "Found P2P_INVITATION_RESP, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case P2P_DEV_DISC_REQ:
+		DBGLOG(P2P, INFO, "Found P2P_DEV_DISC_REQ, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case P2P_DEV_DISC_RESP:
+		DBGLOG(P2P, INFO, "Found P2P_DEV_DISC_RESP, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case P2P_PROV_DISC_REQ:
+		DBGLOG(P2P, INFO, "Found P2P_PROV_DISC_REQ, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case P2P_PROV_DISC_RESP:
+		DBGLOG(P2P, INFO, "Found P2P_PROV_DISC_RES, SA: %pM, - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	default:
+		DBGLOG(P2P, INFO, "Unknown P2P action type: 0x%x, SA: %pM - DA: %pM, SeqNo: %d\n",
+			ucP2pAction,
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	}
 }
 
 VOID p2pFuncTagActionActionFrame(IN P_MSDU_INFO_T prMgmtTxMsdu,
 			P_WLAN_ACTION_FRAME prActFrame,
-			UINT_8 ucAction, UINT_64 u8Cookie)
+			UINT_8 ucAction)
 {
 	PUINT_8 pucVendor = NULL;
 
-	DBGLOG(P2P, INFO, "Found WLAN_%s, SA: %pM - DA: %pM, cookie: 0x%llx, SeqNo: %d\n",
-		   paToString(ucAction),
-		   prActFrame->aucSrcAddr,
-		   prActFrame->aucDestAddr,
-		   u8Cookie,
-		   prMgmtTxMsdu->ucTxSeqNum);
-
-	if (ucAction != WLAN_PA_VENDOR_SPECIFIC)
-		return;
-
-	pucVendor = (PUINT_8)prActFrame + 26;
-	if (*(pucVendor + 0) == 0x50 &&
-		*(pucVendor + 1) == 0x6f &&
-		*(pucVendor + 2) == 0x9a) {
-		if (*(pucVendor + 3) == 0x09)
-			/* found p2p IE */
-			p2pFuncTagActionActionP2PFrame(prMgmtTxMsdu,
-						prActFrame, *(pucVendor + 4), u8Cookie);
-		else if (*(pucVendor + 3) == 0x0a)
-			/* found WFD IE */
-			DBGLOG(P2P, INFO, "Found WFD IE, SA: %pM - DA: %pM\n",
-				   prActFrame->aucSrcAddr,
-				   prActFrame->aucDestAddr);
-		else
-			DBGLOG(P2P, INFO, "Found Other vendor 0x%x, SA: %pM - DA: %pM\n",
-				   *(pucVendor + 3),
-				   prActFrame->aucSrcAddr,
-				   prActFrame->aucDestAddr);
+	switch (ucAction) {
+	case WLAN_PA_20_40_BSS_COEX:
+		DBGLOG(P2P, INFO, "Found WLAN_PA_20_40_BSS_COEX, SA: %pM - DA: %pM, SeqNo: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_PA_VENDOR_SPECIFIC:
+		pucVendor = (PUINT_8)prActFrame + 26;
+		if (*(pucVendor + 0) == 0x50 &&
+		    *(pucVendor + 1) == 0x6f &&
+		    *(pucVendor + 2) == 0x9a) {
+			if (*(pucVendor + 3) == 0x09)
+				/* found p2p IE */
+				p2pFuncTagActionActionP2PFrame(prMgmtTxMsdu,
+					prActFrame, *(pucVendor + 4));
+			else if (*(pucVendor + 3) == 0x0a)
+				/* found WFD IE */
+				DBGLOG(P2P, INFO, "Found WFD IE, SA: %pM - DA: %pM\n",
+					prActFrame->aucSrcAddr,
+					prActFrame->aucDestAddr);
+			else
+				DBGLOG(P2P, INFO, "Found Other vendor 0x%x, SA: %pM - DA: %pM\n",
+					*(pucVendor + 3),
+					prActFrame->aucSrcAddr,
+					prActFrame->aucDestAddr);
+		}
+		break;
+	case WLAN_PA_GAS_INITIAL_REQ:
+		DBGLOG(P2P, INFO, "Found WLAN_PA_GAS_INITIAL_REQ, SA: %pM - DA: %pM, SeqNo: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_PA_GAS_INITIAL_RESP:
+		DBGLOG(P2P, INFO, "Found WLAN_PA_GAS_INITIAL_RESP, SA: %pM - DA: %pM, SeqNo: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_PA_GAS_COMEBACK_REQ:
+		DBGLOG(P2P, INFO, "Found WLAN_PA_GAS_COMEBACK_REQ, SA: %pM - DA: %pM, SeqNo: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_PA_GAS_COMEBACK_RESP:
+		DBGLOG(P2P, INFO, "Found WLAN_PA_GAS_COMEBACK_RESP, SA: %pM - DA: %pM, SeqNo: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_TDLS_DISCOVERY_RESPONSE:
+		DBGLOG(P2P, INFO, "Found WLAN_TDLS_DISCOVERY_RESPONSE, SA: %pM - DA: %pM, SeqNo: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	default:
+		DBGLOG(P2P, INFO, "Unknown action: 0x%x, SA: %pM - DA: %pM, SeqNo: %d\n",
+			ucAction,
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
 	}
 }
-
 VOID p2pFuncTagActionCategoryFrame(IN P_MSDU_INFO_T prMgmtTxMsdu,
 			P_WLAN_ACTION_FRAME prActFrame,
-			IN UINT_8 ucCategory,
-			IN UINT_64 u8Cookie)
+			IN UINT_8 ucCategory)
 {
+
 	UINT_8 ucAction = 0;
 
-	DBGLOG(P2P, TRACE, "Found WLAN_ACTION_%s, SA: %pM BSSID: %pM DA: %pM, u8Cookie: 0x%llx, SeqNO: %d\n",
-		actionToString(ucCategory),
-		prActFrame->aucSrcAddr,
-		prActFrame->aucBSSID,
-		prActFrame->aucDestAddr,
-		u8Cookie,
-		prMgmtTxMsdu->ucTxSeqNum);
-	if (ucCategory == WLAN_ACTION_PUBLIC) {
+	switch (ucCategory) {
+
+	case WLAN_ACTION_SPECTRUM_MGMT:
+		DBGLOG(P2P, INFO, "Found WLAN_ACTION_SPECTRUM_MGMT, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_ACTION_QOS:
+		DBGLOG(P2P, INFO, "Found WLAN_ACTION_QOS, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_ACTION_DLS:
+		DBGLOG(P2P, INFO, "Found WLAN_ACTION_DLS, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_ACTION_BLOCK_ACK:
+		DBGLOG(P2P, INFO, "Found WLAN_ACTION_BLOCK_ACK, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_ACTION_PUBLIC:
+		DBGLOG(P2P, INFO, "Found WLAN_ACTION_PUBLIC, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
 		ucAction = prActFrame->ucAction;
-		p2pFuncTagActionActionFrame(prMgmtTxMsdu, prActFrame, ucAction, u8Cookie);
+		p2pFuncTagActionActionFrame(prMgmtTxMsdu, prActFrame, ucAction);
+		break;
+	case WLAN_ACTION_RADIO_MEASUREMENT:
+		DBGLOG(P2P, INFO, "Found WLAN_ACTION_RADIO_MEASUREMENT, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_ACTION_FT:
+		DBGLOG(P2P, INFO, "Found WLAN_ACTION_FT, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_ACTION_HT:
+		DBGLOG(P2P, INFO, "Found WLAN_ACTION_HT, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_ACTION_SA_QUERY:
+		DBGLOG(P2P, INFO, "Found WLAN_ACTION_SA_QUERY, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_ACTION_PROTECTED_DUAL:
+		DBGLOG(P2P, INFO, "Found WLAN_ACTION_PROTECTED_DUAL, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_ACTION_WNM:
+		DBGLOG(P2P, INFO, "Found WLAN_ACTION_WNM, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_ACTION_UNPROTECTED_WNM:
+		DBGLOG(P2P, INFO, "Found WLAN_ACTION_UNPROTECTED_WNM, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_ACTION_TDLS:
+		DBGLOG(P2P, INFO, "Found WLAN_ACTION_TDLS, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_ACTION_SELF_PROTECTED:
+		DBGLOG(P2P, INFO, "Found WLAN_ACTION_SELF_PROTECTED, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_ACTION_WMM: /* WMM Specification 1.1 */
+		DBGLOG(P2P, INFO, "Found WLAN_ACTION_WMM, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	case WLAN_ACTION_VENDOR_SPECIFIC:
+		DBGLOG(P2P, INFO, "Found WLAN_ACTION_VENDOR_SPECIFIC, SA: %pM - DA: %pM, SeqNO: %d\n",
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr,
+			prMgmtTxMsdu->ucTxSeqNum);
+		break;
+	default:
+		DBGLOG(P2P, INFO, "Unknown Category: 0x%x, SA: %pM - DA: %pM\n",
+			ucCategory,
+			prActFrame->aucSrcAddr,
+			prActFrame->aucDestAddr);
 	}
 }
+
 
 /*
  * used to debug p2p mgmt frame:
@@ -625,7 +744,7 @@ VOID p2pFuncTagActionCategoryFrame(IN P_MSDU_INFO_T prMgmtTxMsdu,
  */
 
 VOID
-p2pFuncTagMgmtFrame(IN P_MSDU_INFO_T prMgmtTxMsdu, IN UINT_64 u8Cookie)
+p2pFuncTagMgmtFrame(IN P_MSDU_INFO_T prMgmtTxMsdu)
 {
 	/* P_MSDU_INFO_T prTxMsduInfo = (P_MSDU_INFO_T)NULL; */
 	P_WLAN_MAC_HEADER_T prWlanHdr = (P_WLAN_MAC_HEADER_T) NULL;
@@ -643,24 +762,27 @@ p2pFuncTagMgmtFrame(IN P_MSDU_INFO_T prMgmtTxMsdu, IN UINT_64 u8Cookie)
 
 	switch (u2TxFrameCtrl) {
 	case MAC_FRAME_PROBE_RSP:
+
 		prProbRspHdr = (P_WLAN_PROBE_RSP_FRAME_T) prWlanHdr;
-		DBGLOG(P2P, INFO, "TX Probe Response, SA: %pM - DA: %pM, cookie: 0x%llx seqNo: %d\n",
+		DBGLOG(P2P, INFO, "TX Probe Resposne Frame, SA: %pM - DA: %pM, seqNo: %d\n",
 			prProbRspHdr->aucSrcAddr, prProbRspHdr->aucDestAddr,
-			u8Cookie,
 			prMgmtTxMsdu->ucTxSeqNum);
+
 		break;
+
 	case MAC_FRAME_ACTION:
+
 		prActFrame = (P_WLAN_ACTION_FRAME)prWlanHdr;
 		ucCategory = prActFrame->ucCategory;
-		p2pFuncTagActionCategoryFrame(prMgmtTxMsdu, prActFrame, ucCategory, u8Cookie);
+		p2pFuncTagActionCategoryFrame(prMgmtTxMsdu, prActFrame, ucCategory);
+
 		break;
 	default:
-		DBGLOG(P2P, INFO, "Unknown Type: 0x%x, A1: %pM, A2: %pM, A3: %pM cookie: 0x%llx seqNo: %d\n",
+		DBGLOG(P2P, INFO, "MGMT:, un-tagged frame type: 0x%x, A1: %pM, A2: %pM, A3: %pM seqNo: %d\n",
 			u2TxFrameCtrl,
 			prWlanHdr->aucAddr1,
 			prWlanHdr->aucAddr2,
 			prWlanHdr->aucAddr3,
-			u8Cookie,
 			prMgmtTxMsdu->ucTxSeqNum);
 		break;
 	}
@@ -677,8 +799,6 @@ p2pFuncTxMgmtFrame(IN P_ADAPTER_T prAdapter,
 	P_STA_RECORD_T prStaRec = (P_STA_RECORD_T) NULL;
 	UINT_8 ucRetryLimit = 30;	/* TX_DESC_TX_COUNT_NO_LIMIT; */
 	BOOLEAN fgDrop = FALSE;
-	PUINT_64 pu8Cookie = (PUINT_64) NULL;
-	UINT_64 u8Cookie;
 
 	do {
 		ASSERT_BREAK(prAdapter != NULL);
@@ -692,8 +812,6 @@ p2pFuncTxMgmtFrame(IN P_ADAPTER_T prAdapter,
 			break;
 		}
 
-		u8Cookie = *(PUINT_64)((ULONG) prMgmtTxMsdu->prPacket + (ULONG)prMgmtTxMsdu->u2FrameLength
-						+ MAC_TX_RESERVED_FIELD);
 		prWlanHdr = (P_WLAN_MAC_HEADER_T) ((ULONG) prMgmtTxMsdu->prPacket + MAC_TX_RESERVED_FIELD);
 		prStaRec = cnmGetStaRecByAddress(prAdapter, ucBssIndex, prWlanHdr->aucAddr1);
 		/* prMgmtTxMsdu->ucBssIndex = ucBssIndex; */
@@ -710,11 +828,6 @@ p2pFuncTxMgmtFrame(IN P_ADAPTER_T prAdapter,
 			prMgmtTxMsdu->ucStaRecIndex =
 			    (prStaRec != NULL) ? (prStaRec->ucIndex) : (STA_REC_INDEX_NOT_FOUND);
 			prMgmtTxMsdu = p2pFuncProcessP2pProbeRsp(prAdapter, ucBssIndex, prMgmtTxMsdu);
-
-			pu8Cookie = (PUINT_64)((ULONG) prMgmtTxMsdu->prPacket + (ULONG)prMgmtTxMsdu->u2FrameLength
-							+ MAC_TX_RESERVED_FIELD);
-			/* in case of prMgmtTxMsdu reallocated */
-			*pu8Cookie = u8Cookie;
 			ucRetryLimit = 2;
 			break;
 		default:
@@ -741,7 +854,7 @@ p2pFuncTxMgmtFrame(IN P_ADAPTER_T prAdapter,
 
 		nicTxConfigPktControlFlag(prMgmtTxMsdu, MSDU_CONTROL_FLAG_FORCE_TX, TRUE);
 
-		p2pFuncTagMgmtFrame(prMgmtTxMsdu, u8Cookie);
+		p2pFuncTagMgmtFrame(prMgmtTxMsdu);
 
 		nicTxSetPktLifeTime(prMgmtTxMsdu, 500);
 
@@ -857,6 +970,7 @@ p2pFuncStartGO(IN P_ADAPTER_T prAdapter,
 						     prBssInfo->aucBSSID, 0xff, CIPHER_SUITE_NONE, 0xff, 0x0, BIT(0));
 		}
 
+		nicQmUpdateWmmParms(prAdapter, prBssInfo->ucBssIndex);
 #endif /* CFG_SUPPORT_AAA */
 
 		/* 3 <3> Set MAC HW */
@@ -866,9 +980,6 @@ p2pFuncStartGO(IN P_ADAPTER_T prAdapter,
 		/* 4 <3.2> Reset HW TSF Update Mode and Beacon Mode */
 		nicUpdateBss(prAdapter, prBssInfo->ucBssIndex);
 
-#if CFG_SUPPORT_AAA
-		nicQmUpdateWmmParms(prAdapter, prBssInfo->ucBssIndex);
-#endif
 		/* 4 <3.3> Update Beacon again for network phy type confirmed. */
 		bssUpdateBeaconContent(prAdapter, prBssInfo->ucBssIndex);
 
@@ -1379,10 +1490,8 @@ p2pFuncDisassoc(IN P_ADAPTER_T prAdapter,
 					if ((UINT_32) prCliStaRec == (UINT_32) prLinkEntry) {
 						LINK_REMOVE_KNOWN_ENTRY(prStaRecOfClientList, &prCliStaRec->rLinkEntry);
 						fgIsStaFound = TRUE;
-						/*
-						 * p2pFuncDisconnect(prAdapter, prCliStaRec,
-						 *      fgSendDisassoc, u2ReasonCode);
-						 */
+						/* p2pFuncDisconnect(prAdapter, prCliStaRec,
+							fgSendDisassoc, u2ReasonCode); */
 						break;
 					}
 				}
@@ -1444,18 +1553,15 @@ p2pFuncDissolve(IN P_ADAPTER_T prAdapter,
 			if (prP2pBssInfo->prStaRecOfAP) {
 				kalP2PGCIndicateConnectionStatus(prAdapter->prGlueInfo,
 								 (UINT_8) prP2pBssInfo->u4PrivateData, NULL, NULL, 0,
-								 REASON_CODE_DEAUTH_LEAVING_BSS,
-								 WLAN_STATUS_MEDIA_DISCONNECT_LOCALLY);
+								 REASON_CODE_DEAUTH_LEAVING_BSS);
 
 				/* 2012/02/14 frog: After formation before join group, prStaRecOfAP is NULL. */
 				p2pFuncDisconnect(prAdapter,
 						  prP2pBssInfo, prP2pBssInfo->prStaRecOfAP, fgSendDeauth, u2ReasonCode);
 			}
 
-			/*
-			 * Fix possible KE when RX Beacon & call nicPmIndicateBssConnected().
-			 * hit prStaRecOfAP == NULL.
-			 */
+			/* Fix possible KE when RX Beacon & call nicPmIndicateBssConnected().
+			 * hit prStaRecOfAP == NULL. */
 			p2pChangeMediaState(prAdapter, prP2pBssInfo, PARAM_MEDIA_STATE_DISCONNECTED);
 
 			prP2pBssInfo->prStaRecOfAP = NULL;
@@ -1521,8 +1627,7 @@ p2pFuncDisconnect(IN P_ADAPTER_T prAdapter,
 {
 	ENUM_PARAM_MEDIA_STATE_T eOriMediaStatus;
 
-	DBGLOG(P2P, INFO, "p2pFuncDisconnect(), sendDeauth: %s, reason: %d\n",
-		   fgSendDeauth ? "TRUE" : "FALSE", u2ReasonCode);
+	DBGLOG(P2P, INFO, "p2pFuncDisconnect()");
 
 	do {
 		ASSERT_BREAK((prAdapter != NULL) && (prStaRec != NULL) && (prP2pBssInfo != NULL));
@@ -1542,8 +1647,6 @@ p2pFuncDisconnect(IN P_ADAPTER_T prAdapter,
 		} else {
 			scanRemoveConnFlagOfBssDescByBssid(prAdapter, prP2pBssInfo->aucBSSID);
 		}
-
-		prAdapter->prP2pInfo->fgWaitEapFailure = FALSE;
 
 		if (fgSendDeauth) {
 			/* Send deauth. */
@@ -1716,7 +1819,7 @@ p2pFuncValidateAuth(IN P_ADAPTER_T prAdapter,
 
 	DBGLOG(P2P, TRACE, "p2pValidate Authentication Frame\n");
 
-	do {
+	    do {
 		ASSERT_BREAK((prAdapter != NULL) &&
 			     (prP2pBssInfo != NULL) &&
 			     (prSwRfb != NULL) && (pprStaRec != NULL) && (pu2StatusCode != NULL));
@@ -1778,11 +1881,10 @@ p2pFuncValidateAuth(IN P_ADAPTER_T prAdapter,
 		}
 #if CFG_SUPPORT_HOTSPOT_WPS_MANAGER
 		if (bssGetClientCount(prAdapter, prP2pBssInfo) >= P2P_MAXIMUM_CLIENT_COUNT ||
-		    kalP2PMaxClients(prAdapter->prGlueInfo, bssGetClientCount(prAdapter, prP2pBssInfo)))
+		    kalP2PMaxClients(prAdapter->prGlueInfo, bssGetClientCount(prAdapter, prP2pBssInfo))) {
 #else
-		if (bssGetClientCount(prAdapter, prP2pBssInfo) >= P2P_MAXIMUM_CLIENT_COUNT)
+		if (bssGetClientCount(prAdapter, prP2pBssInfo) >= P2P_MAXIMUM_CLIENT_COUNT) {
 #endif
-		{
 			/* GROUP limit full. */
 			/* P2P 3.2.8 */
 			DBGLOG(P2P, WARN, "Group Limit Full. (%d)\n", bssGetClientCount(prAdapter, prP2pBssInfo));
@@ -1887,12 +1989,11 @@ BOOLEAN p2pFuncValidateAssocReq(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb,
 	P_STA_RECORD_T prStaRec = (P_STA_RECORD_T) NULL;
 	P_BSS_INFO_T prP2pBssInfo = (P_BSS_INFO_T) NULL;
 
-	/*
-	 * TODO(Kevin): Call P2P functions to check ..
-	 * 2. Check we can accept connection from thsi peer
-	 * a. If we are in PROVISION state, only accept the peer we do the GO formation previously.
-	 * b. If we are in OPERATION state, only accept the other peer when P2P_GROUP_LIMIT is 0.
-	 * 3. Check Black List here.
+	/* TODO(Kevin): Call P2P functions to check ..
+	   2. Check we can accept connection from thsi peer
+	   a. If we are in PROVISION state, only accept the peer we do the GO formation previously.
+	   b. If we are in OPERATION state, only accept the other peer when P2P_GROUP_LIMIT is 0.
+	   3. Check Black List here.
 	 */
 
 	do {
@@ -2100,18 +2201,17 @@ p2pFuncParseBeaconContent(IN P_ADAPTER_T prAdapter,
 					/* DBGLOG(P2P, TRACE, ("SSID update\n")); */
 					/* SSID is saved when start AP/GO */
 					/* SSID IE set in beacon from supplicant will not always be
-					 * the true since hidden SSID case
-					 */
+					 * the true since hidden SSID case */
 					/*
-					 * COPY_SSID(prP2pBssInfo->aucSSID,
-					 * prP2pBssInfo->ucSSIDLen,
-					 * SSID_IE(pucIE)->aucSSID,
-					 * SSID_IE(pucIE)->ucLength);
-					 *
-					 * COPY_SSID(prP2pSpecificBssInfo->aucGroupSsid,
-					 * prP2pSpecificBssInfo->u2GroupSsidLen,
-					 * SSID_IE(pucIE)->aucSSID,
-					 * SSID_IE(pucIE)->ucLength);
+					   COPY_SSID(prP2pBssInfo->aucSSID,
+					   prP2pBssInfo->ucSSIDLen,
+					   SSID_IE(pucIE)->aucSSID,
+					   SSID_IE(pucIE)->ucLength);
+
+					   COPY_SSID(prP2pSpecificBssInfo->aucGroupSsid,
+					   prP2pSpecificBssInfo->u2GroupSsidLen,
+					   SSID_IE(pucIE)->aucSSID,
+					   SSID_IE(pucIE)->ucLength);
 					 */
 
 				}
@@ -2242,10 +2342,8 @@ p2pFuncParseBeaconContent(IN P_ADAPTER_T prAdapter,
 				}
 				break;
 			case ELEM_ID_EXTENDED_SUP_RATES:	/* 50 *//* V */
-				/*
-				 * Be attention,
-				 * ELEM_ID_SUP_RATES should be placed before ELEM_ID_EXTENDED_SUP_RATES.
-				 */
+				/* Be attention,
+				 * ELEM_ID_SUP_RATES should be placed before ELEM_ID_EXTENDED_SUP_RATES. */
 				DBGLOG(P2P, TRACE, "Ex Support Rate IE\n");
 				kalMemCopy(&
 					   (prP2pBssInfo->aucAllSupportedRates[prP2pBssInfo->ucAllSupportedRatesLen]),
@@ -2632,7 +2730,7 @@ p2pFuncGetAttriList(IN P_ADAPTER_T prAdapter,
 		}
 
 		IE_FOR_EACH(pucIE, u2IELength, u2Offset) {
-			if (IE_ID(pucIE) == ELEM_ID_VENDOR) {
+			if (ELEM_ID_VENDOR == IE_ID(pucIE)) {
 				prIe = (P_IE_P2P_T) pucIE;
 
 				if (prIe->ucLength <= P2P_OUI_TYPE_LEN)
@@ -2700,7 +2798,7 @@ p2pFuncGetAttriListAction(IN P_ADAPTER_T prAdapter,
 			/* More than 2 attributes. */
 			UINT_16 u2CopyLen;
 
-			if (*fgBackupAttributes == FALSE) {
+			if (FALSE == *fgBackupAttributes) {
 				P_P2P_SPECIFIC_BSS_INFO_T prP2pSpecificBssInfo =
 				    prAdapter->rWifiVar.prP2pSpecificBssInfo;
 
@@ -2857,8 +2955,7 @@ P_MSDU_INFO_T p2pFuncProcessP2pProbeRsp(IN P_ADAPTER_T prAdapter, IN UINT_8 ucBs
 
 		u2EstimateSize += u2EstimatedExtraIELen;
 		if ((u2EstimateSize) > (prRetMsduInfo->u2FrameLength)) {
-			/* add buf for cookie */
-			prRetMsduInfo = cnmMgtPktAlloc(prAdapter, u2EstimateSize + sizeof(UINT_64));
+			prRetMsduInfo = cnmMgtPktAlloc(prAdapter, u2EstimateSize);
 
 			if (prRetMsduInfo == NULL) {
 				DBGLOG(P2P, WARN, "No packet for sending new probe response, use original one\n");
@@ -2988,10 +3085,8 @@ p2pFuncProcessP2pProbeRspAction(IN P_ADAPTER_T prAdapter,
 
 			} else if (p2pFuncParseCheckForP2PInfoElem(prAdapter, pucIEBuf, &ucOuiType)) {
 				if (ucOuiType == VENDOR_OUI_TYPE_P2P) {
-					/*
-					 * 2 Note(frog): I use WSC IE buffer for Probe Request
-					 * to store the P2P IE for Probe Response.
-					 */
+					/* 2 Note(frog): I use WSC IE buffer for Probe Request
+					 * to store the P2P IE for Probe Response. */
 					kalP2PUpdateWSC_IE(prAdapter->prGlueInfo, 1, pucIEBuf, IE_SIZE(pucIEBuf));
 					*fgIsP2PIE = TRUE;
 				}
@@ -3707,7 +3802,7 @@ UINT_32 wfdFuncCalculateWfdIELenForAssocRsp(IN P_ADAPTER_T prAdapter, IN UINT_8 
 	if (IS_STA_P2P_TYPE(prStaRec) && (prWfdCfgSettings->ucWfdEnable > 0)) {
 
 		u2EstimatedExtraIELen = prAdapter->prGlueInfo->prP2PInfo->u2WFDIELen;
-		ASSERT(u2EstimatedExtraIELen <= 400);
+		ASSERT(u2EstimatedExtraIELen < 128);
 	}
 	return u2EstimatedExtraIELen;
 
@@ -3737,7 +3832,7 @@ VOID wfdFuncGenerateWfdIEForAssocRsp(IN P_ADAPTER_T prAdapter, IN P_MSDU_INFO_T 
 				if (prWfdCfgSettings->ucWfdEnable > 0) {
 					u2EstimatedExtraIELen = prAdapter->prGlueInfo->prP2PInfo->u2WFDIELen;
 					if (u2EstimatedExtraIELen > 0) {
-						ASSERT(u2EstimatedExtraIELen <= 400);
+						ASSERT(u2EstimatedExtraIELen < 128);
 						ASSERT(sizeof
 						       (prAdapter->prGlueInfo->prP2PInfo->aucWFDIE) >=
 						       prAdapter->prGlueInfo->prP2PInfo->u2WFDIELen);

@@ -1,12 +1,553 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: @(#) gl_p2p.c@@
+*/
+
+/*! \file   gl_p2p.c
+    \brief  Main routines of Linux driver interface for Wi-Fi Direct
+
+    This file contains the main routines of Linux driver for MediaTek Inc. 802.11
+    Wireless LAN Adapters.
+*/
+
+/*
+** Log: gl_p2p.c
+**
+** 09 12 2012 wcpadmin
+** [ALPS00276400] Remove MTK copyright and legal header on GPL/LGPL related packages
+** .
+**
+** 08 17 2012 yuche.tsai
+** NULL
+** Fix compile warning.
+**
+** 08 16 2012 yuche.tsai
+** NULL
+** Fix compile warning.
+**
+** 08 14 2012 yuche.tsai
+** NULL
+** FPB from ALPS.JB to phase 2 release.
+**
+** 07 26 2012 yuche.tsai
+** [ALPS00324337] [ALPS.JB][Hot-Spot] Driver update for Hot-Spot
+** Update driver code of ALPS.JB for hot-spot.
+**
+** 07 19 2012 yuche.tsai
+** NULL
+** Code update for JB.
+ *
+ * 07 17 2012 yuche.tsai
+ * NULL
+ * Fix compile error for JB.
+ *
+ * 07 17 2012 yuche.tsai
+ * NULL
+ * Let netdev bring up.
+ *
+ * 07 17 2012 yuche.tsai
+ * NULL
+ * Compile no error before trial run.
+ *
+ * 01 09 2012 terry.wu
+ * [WCXRP00001166] [Wi-Fi] [Driver] cfg80211 integration for p2p newtork
+ * cfg80211 integration for p2p network.
+ *
+ * 12 19 2011 terry.wu
+ * [WCXRP00001142] [Wi-Fi] [P2P Driver] XOR local admin bit to generate p2p net device MAC
+ * XOR local administrated bit to generate net device MAC of p2p network.
+ *
+ * 12 02 2011 yuche.tsai
+ * NULL
+ * Fix possible KE when unload p2p.
+ *
+ * 11 24 2011 yuche.tsai
+ * NULL
+ * Fix P2P IOCTL of multicast address bug, add low power driver stop control.
+ *
+ * 11 22 2011 yuche.tsai
+ * NULL
+ * Update RSSI link quality of P2P Network query method. (Bug fix)
+ *
+ * 11 19 2011 yuche.tsai
+ * NULL
+ * Add RSSI support for P2P network.
+ *
+ * 11 16 2011 yuche.tsai
+ * [WCXRP00001107] [Volunteer Patch][Driver] Large Network Type index assert in FW issue.
+ * Avoid using work thread in set p2p multicast address callback.
+ *
+ * 11 11 2011 yuche.tsai
+ * NULL
+ * Fix work thread cancel issue.
+ *
+ * 11 11 2011 yuche.tsai
+ * NULL
+ * Fix default device name issue.
+ *
+ * 11 08 2011 yuche.tsai
+ * [WCXRP00001094] [Volunteer Patch][Driver] Driver version & supplicant version query & set support for service
+ * discovery version check.
+ * Add support for driver version query & p2p supplicant verseion set.
+ * For new service discovery mechanism sync.
+ *
+ * 11 07 2011 yuche.tsai
+ * NULL
+ * [ALPS 00087243] KE in worker thread.
+ * The multicast address list is scheduled in worker thread.
+ * Before the worker thread is excuted, if P2P is unloaded, a KE may occur.
+ *
+ * 10 26 2011 terry.wu
+ * [WCXRP00001066] [MT6620 Wi-Fi] [P2P Driver] Fix P2P Oid Issue
+ * Fix some P2P OID functions didn't raise its flag "fgIsP2pOid" issue.
+ *
+ * 10 25 2011 cm.chang
+ * [WCXRP00001058] [All Wi-Fi][Driver] Fix sta_rec's phyTypeSet and OBSS scan in AP mode
+ * .
+ *
+ * 10 18 2011 yuche.tsai
+ * [WCXRP00001045] [WiFi Direct][Driver] Check 2.1 branch.
+ * Support Channel Query.
+ *
+ * 10 18 2011 yuche.tsai
+ * [WCXRP00001045] [WiFi Direct][Driver] Check 2.1 branch.
+ * New 2.1 branch
+
+ *
+ * 08 26 2011 yuche.tsai
+ * NULL
+ * Fix bug of parsing secondary device list type issue.
+ *
+ * 08 24 2011 yuche.tsai
+ * [WCXRP00000919] [Volunteer Patch][WiFi Direct][Driver] Invitation New Feature.
+ * Invitation Abort.
+ *
+ * 08 23 2011 yuche.tsai
+ * NULL
+ * Fix multicast address list issue of P2P.
+ *
+ * 08 22 2011 chinglan.wang
+ * NULL
+ * Fix invitation indication bug..
+ *
+ * 08 16 2011 cp.wu
+ * [WCXRP00000934] [MT6620 Wi-Fi][Driver][P2P] Wi-Fi hot spot with auto sparse channel residence
+ * auto channel decision for 2.4GHz hot spot mode
+ *
+ * 08 16 2011 chinglan.wang
+ * NULL
+ * Add the group id information in the invitation indication.
+ *
+ * 08 09 2011 yuche.tsai
+ * [WCXRP00000919] [Volunteer Patch][WiFi Direct][Driver] Invitation New Feature.
+ * Invitation Feature add on.
+ *
+ * 08 05 2011 yuche.tsai
+ * [WCXRP00000856] [Volunteer Patch][WiFi Direct][Driver] MT6620 WiFi Direct IOT Issue with BCM solution.
+ * Add Password ID check for quick connection.
+ * Also modify some connection policy.
+ *
+ * 07 18 2011 chinglan.wang
+ * NULL
+ * Add IOC_P2P_GO_WSC_IE (p2p capability).
+ *
+ * 06 14 2011 yuche.tsai
+ * NULL
+ * Add compile flag to disable persistent group support.
+ *
+ * 05 04 2011 chinglan.wang
+ * [WCXRP00000698] [MT6620 Wi-Fi][P2P][Driver] Add p2p invitation command for the p2p driver
+ * .
+ *
+ * 05 02 2011 yuche.tsai
+ * [WCXRP00000693] [Volunteer Patch][MT6620][Driver] Clear Formation Flag after TX lifetime timeout.
+ * Clear formation flag after formation timeout.
+ *
+ * 04 22 2011 george.huang
+ * [WCXRP00000621] [MT6620 Wi-Fi][Driver] Support P2P supplicant to set power mode
+ * .
+ *
+ * 04 21 2011 george.huang
+ * [WCXRP00000621] [MT6620 Wi-Fi][Driver] Support P2P supplicant to set power mode
+ * 1. Revise P2P power mode setting.
+ * 2. Revise fast-PS for concurrent
+ *
+ * 04 19 2011 wh.su
+ * NULL
+ * Adding length check before doing WPA RSN IE parsing for scan results indicate.
+ *
+ * 04 14 2011 yuche.tsai
+ * [WCXRP00000646] [Volunteer Patch][MT6620][FW/Driver] Sigma Test Modification for some test case.
+ * Connection flow refine for Sigma test.
+ *
+ * 04 08 2011 yuche.tsai
+ * [WCXRP00000624] [Volunteer Patch][MT6620][Driver] Add device discoverability support for GO.
+ * Add device discoverability support.
+ *
+ * 04 08 2011 george.huang
+ * [WCXRP00000621] [MT6620 Wi-Fi][Driver] Support P2P supplicant to set power mode
+ * separate settings of P2P and AIS
+ *
+ * 04 07 2011 terry.wu
+ * [WCXRP00000619] [MT6620 Wi-Fi][Driver] fix kernel panic may occur when removing wlan
+ * Fix kernel panic may occur when removing wlan driver.
+ *
+ * 03 31 2011 wh.su
+ * [WCXRP00000614] [MT6620 Wi-Fi][Driver] P2P: Update beacon content while setting WSC IE
+ * Update the wsc ie to beacon content.
+ *
+ * 03 25 2011 wh.su
+ * NULL
+ * add the sample code for set power mode and get power mode.
+ *
+ * 03 25 2011 yuche.tsai
+ * NULL
+ * Improve some error handleing.
+ *
+ * 03 22 2011 george.huang
+ * [WCXRP00000504] [MT6620 Wi-Fi][FW] Support Sigma CAPI for power saving related command
+ * link with supplicant commands
+ *
+ * 03 22 2011 yuche.tsai
+ * [WCXRP00000584] [Volunteer Patch][MT6620][Driver] Add beacon timeout support for WiFi Direct.
+ * Modify formation policy.
+ *
+ * 03 22 2011 yuche.tsai
+ * NULL
+ * Modify formation policy setting.
+ *
+ * 03 18 2011 yuche.tsai
+ * [WCXRP00000574] [Volunteer Patch][MT6620][Driver] Modify P2P FSM Connection Flow
+ * Modify connection flow after Group Formation Complete, or device connect to a GO.
+ * Instead of request channel & connect directly, we use scan to allocate channel bandwidth & connect after RX BCN.
+ *
+ * 03 15 2011 wh.su
+ * [WCXRP00000563] [MT6620 Wi-Fi] [P2P] Set local config method while set password Id ready
+ * set lccal config method method while set password Id ready.
+ *
+ * 03 15 2011 yuche.tsai
+ * [WCXRP00000560] [Volunteer Patch][MT6620][Driver] P2P Connection from UI using KEY/DISPLAY issue
+ * Fix some configure method issue.
+ *
+ * 03 15 2011 jeffrey.chang
+ * [WCXRP00000558] [MT6620 Wi-Fi][MT6620 Wi-Fi][Driver] refine the queue selection algorithm for WMM
+ * refine queue_select function
+ *
+ * 03 13 2011 wh.su
+ * [WCXRP00000530] [MT6620 Wi-Fi] [Driver] skip doing p2pRunEventAAAComplete after send assoc response Tx Done
+ * add code for avoid compiling warning.
+ *
+ * 03 10 2011 yuche.tsai
+ * NULL
+ * Add P2P API.
+ *
+ * 03 10 2011 terry.wu
+ * [WCXRP00000505] [MT6620 Wi-Fi][Driver/FW] WiFi Direct Integration
+ * Remove unnecessary assert and message.
+ *
+ * 03 08 2011 wh.su
+ * [WCXRP00000488] [MT6620 Wi-Fi][Driver] Support the SIGMA set p2p parameter to driver
+ * support the power save related p2p setting.
+ *
+ * 03 07 2011 wh.su
+ * [WCXRP00000506] [MT6620 Wi-Fi][Driver][FW] Add Security check related code
+ * rename the define to anti_pviracy.
+ *
+ * 03 05 2011 wh.su
+ * [WCXRP00000506] [MT6620 Wi-Fi][Driver][FW] Add Security check related code
+ * add the code to get the check rsponse and indicate to app.
+ *
+ * 03 03 2011 jeffrey.chang
+ * [WCXRP00000512] [MT6620 Wi-Fi][Driver] modify the net device relative functions to support the H/W multiple queue
+ * support concurrent network
+ *
+ * 03 03 2011 jeffrey.chang
+ * [WCXRP00000512] [MT6620 Wi-Fi][Driver] modify the net device relative functions to support the H/W multiple queue
+ * modify P2P's netdevice  functions to support multiple H/W queues
+ *
+ * 03 03 2011 cp.wu
+ * [WCXRP00000283] [MT6620 Wi-Fi][Driver][Wi-Fi Direct] Implementation of interface for supporting Wi-Fi Direct Service
+ * Discovery
+ * for get request, the buffer length to be copied is header + payload.
+ *
+ * 03 02 2011 wh.su
+ * [WCXRP00000506] [MT6620 Wi-Fi][Driver][FW] Add Security check related code
+ * add code to let the beacon and probe response for Auto GO WSC .
+ *
+ * 03 02 2011 cp.wu
+ * [WCXRP00000283] [MT6620 Wi-Fi][Driver][Wi-Fi Direct] Implementation of interface for supporting Wi-Fi Direct Service
+ * Discovery
+ * add a missed break.
+ *
+ * 03 01 2011 yuche.tsai
+ * [WCXRP00000501] [Volunteer Patch][MT6620][Driver] No common channel issue when doing GO formation
+ * Update channel issue when doing GO formation..
+ *
+ * 02 25 2011 wh.su
+ * [WCXRP00000488] [MT6620 Wi-Fi][Driver] Support the SIGMA set p2p parameter to driver
+ * add the Operation channel setting.
+ *
+ * 02 23 2011 wh.su
+ * [WCXRP00000488] [MT6620 Wi-Fi][Driver] Support the SIGMA set p2p parameter to driver
+ * fixed the set int ioctl set index and value map to driver issue.
+ *
+ * 02 22 2011 wh.su
+ * [WCXRP00000488] [MT6620 Wi-Fi][Driver] Support the SIGMA set p2p parameter to driver
+ * adding the ioctl set int from supplicant, and can used to set the p2p parameters
+ *
+ * 02 21 2011 terry.wu
+ * [WCXRP00000476] [MT6620 Wi-Fi][Driver] Clean P2P scan list while removing P2P
+ * Clean P2P scan list while removing P2P.
+ *
+ * 02 18 2011 wh.su
+ * [WCXRP00000471] [MT6620 Wi-Fi][Driver] Add P2P Provison discovery append Config Method attribute at WSC IE
+ * fixed the ioctl setting that index not map to spec defined config method.
+ *
+ * 02 17 2011 wh.su
+ * [WCXRP00000471] [MT6620 Wi-Fi][Driver] Add P2P Provison discovery append Config Method attribute at WSC IE
+ * append the WSC IE config method attribute at provision discovery request.
+ *
+ * 02 17 2011 wh.su
+ * [WCXRP00000448] [MT6620 Wi-Fi][Driver] Fixed WSC IE not send out at probe request
+ * modify the structure pointer for set WSC IE.
+ *
+ * 02 16 2011 wh.su
+ * [WCXRP00000448] [MT6620 Wi-Fi][Driver] Fixed WSC IE not send out at probe request
+ * fixed the probe request send out without WSC IE issue (at P2P).
+ *
+ * 02 09 2011 cp.wu
+ * [WCXRP00000283] [MT6620 Wi-Fi][Driver][Wi-Fi Direct] Implementation of interface for supporting Wi-Fi Direct Service
+ * Discovery
+ * fix typo
+ *
+ * 02 09 2011 yuche.tsai
+ * [WCXRP00000431] [Volunteer Patch][MT6620][Driver] Add MLME support for deauthentication under AP(Hot-Spot) mode.
+ * Add Support for MLME deauthentication for Hot-Spot.
+ *
+ * 01 25 2011 terry.wu
+ * [WCXRP00000393] [MT6620 Wi-Fi][Driver] Add new module insert parameter
+ * Add a new module parameter to indicate current runnig mode, P2P or AP.
+ *
+ * 01 12 2011 yuche.tsai
+ * [WCXRP00000352] [Volunteer Patch][MT6620][Driver] P2P Statsion Record Client List Issue
+ * 1. Modify Channel Acquire Time of AP mode from 5s to 1s.
+ * 2. Call cnmP2pIsPermit() before active P2P network.
+ * 3. Add channel selection support for AP mode.
+ *
+ * 01 05 2011 cp.wu
+ * [WCXRP00000283] [MT6620 Wi-Fi][Driver][Wi-Fi Direct] Implementation of interface for supporting Wi-Fi Direct Service
+ * Discovery
+ * ioctl implementations for P2P Service Discovery
+ *
+ * 01 04 2011 cp.wu
+ * [WCXRP00000338] [MT6620 Wi-Fi][Driver] Separate kalMemAlloc into kmalloc and vmalloc implementations to ease
+ * physically continuous memory demands
+ * separate kalMemAlloc() into virtually-continuous and physically-continuous type to ease slab system pressure
+ *
+ * 12 22 2010 cp.wu
+ * [WCXRP00000283] [MT6620 Wi-Fi][Driver][Wi-Fi Direct] Implementation of interface for supporting Wi-Fi Direct Service
+ * Discovery
+ * 1. header file restructure for more clear module isolation
+ * 2. add function interface definition for implementing Service Discovery callbacks
+ *
+ * 12 15 2010 cp.wu
+ * NULL
+ * invoke nicEnableInterrupt() before leaving from wlanAdapterStart()
+ *
+ * 12 08 2010 yuche.tsai
+ * [WCXRP00000245] [MT6620][Driver] Invitation & Provision Discovery Feature Check-in
+ * [WCXRP000000245][MT6620][Driver] Invitation Request Feature Add
+ *
+ * 11 30 2010 yuche.tsai
+ * NULL
+ * Invitation & Provision Discovery Indication.
+ *
+ * 11 17 2010 wh.su
+ * [WCXRP00000164] [MT6620 Wi-Fi][Driver] Support the p2p random SSID[WCXRP00000179] [MT6620 Wi-Fi][FW] Set the Tx
+ * lowest rate at wlan table for normal operation
+ * fixed some ASSERT check.
+ *
+ * 11 04 2010 wh.su
+ * [WCXRP00000164] [MT6620 Wi-Fi][Driver] Support the p2p random SSID
+ * adding the p2p random ssid support.
+ *
+ * 10 20 2010 wh.su
+ * [WCXRP00000124] [MT6620 Wi-Fi] [Driver] Support the dissolve P2P Group
+ * Add the code to support disconnect p2p group
+ *
+ * 10 04 2010 wh.su
+ * [WCXRP00000081] [MT6620][Driver] Fix the compiling error at WinXP while enable P2P
+ * add a kal function for set cipher.
+ *
+ * 10 04 2010 wh.su
+ * [WCXRP00000081] [MT6620][Driver] Fix the compiling error at WinXP while enable P2P
+ * fixed compiling error while enable p2p.
+ *
+ * 09 28 2010 wh.su
+ * NULL
+ * [WCXRP00000069][MT6620 Wi-Fi][Driver] Fix some code for phase 1 P2P Demo.
+ *
+ * 09 21 2010 kevin.huang
+ * [WCXRP00000054] [MT6620 Wi-Fi][Driver] Restructure driver for second Interface
+ * Isolate P2P related function for Hardware Software Bundle
+ *
+ * 09 21 2010 kevin.huang
+ * [WCXRP00000052] [MT6620 Wi-Fi][Driver] Eliminate Linux Compile Warning
+ * Eliminate Linux Compile Warning
+ *
+ * 09 10 2010 george.huang
+ * NULL
+ * update iwpriv LP related
+ *
+ * 09 10 2010 wh.su
+ * NULL
+ * fixed the compiling error at win XP.
+ *
+ * 09 09 2010 cp.wu
+ * NULL
+ * add WPS/WPA/RSN IE for Wi-Fi Direct scanning result.
+ *
+ * 09 07 2010 wh.su
+ * NULL
+ * adding the code for beacon/probe req/ probe rsp wsc ie at p2p.
+ *
+ * 09 06 2010 wh.su
+ * NULL
+ * let the p2p can set the privacy bit at beacon and rsn ie at assoc req at key handshake state.
+ *
+ * 08 25 2010 cp.wu
+ * NULL
+ * add netdev_ops(NDO) for linux kernel 2.6.31 or greater
+ *
+ * 08 23 2010 cp.wu
+ * NULL
+ * revise constant definitions to be matched with implementation (original cmd-event definition is deprecated)
+ *
+ * 08 20 2010 cp.wu
+ * NULL
+ * correct typo.
+ *
+ * 08 20 2010 yuche.tsai
+ * NULL
+ * Invert Connection request provision status parameter.
+ *
+ * 08 19 2010 cp.wu
+ * NULL
+ * add set mac address interface for further possibilities of wpa_supplicant overriding interface address.
+ *
+ * 08 18 2010 cp.wu
+ * NULL
+ * modify pwp ioctls attribution by removing FIXED_SIZE.
+ *
+ * 08 18 2010 jeffrey.chang
+ * NULL
+ * support multi-function sdio
+ *
+ * 08 17 2010 cp.wu
+ * NULL
+ * correct p2p net device registration with NULL pointer access issue.
+ *
+ * 08 16 2010 cp.wu
+ * NULL
+ * P2P packets are now marked when being queued into driver, and identified later without checking MAC address
+ *
+ * 08 16 2010 cp.wu
+ * NULL
+ * add subroutines for P2P to set multicast list.
+ *
+ * 08 16 2010 george.huang
+ * NULL
+ * add wext handlers to link P2P set PS profile/ network address function (TBD)
+ *
+ * 08 16 2010 cp.wu
+ * NULL
+ * revised implementation of Wi-Fi Direct io controls.
+ *
+ * 08 12 2010 cp.wu
+ * NULL
+ * follow-up with ioctl interface update for Wi-Fi Direct application
+ *
+ * 08 06 2010 cp.wu
+ * NULL
+ * driver hook modifications corresponding to ioctl interface change.
+ *
+ * 08 03 2010 cp.wu
+ * NULL
+ * add basic support for ioctl of getting scan result. (only address and SSID are reporterd though)
+ *
+ * 08 03 2010 cp.wu
+ * NULL
+ * [Wi-Fi Direct Driver Hook] change event indication API to be consistent with supplicant
+ *
+ * 08 03 2010 cp.wu
+ * NULL
+ * surpress compilation warning.
+ *
+ * 08 03 2010 cp.wu
+ * NULL
+ * [Wi-Fi Direct] add framework for driver hooks
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 06 23 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * p2p interface revised to be sync. with HAL
+ *
+ * 06 06 2010 kevin.huang
+ * [WPD00003832][MT6620 5931] Create driver base
+ * [MT6620 5931] Create driver base
+ *
+ * 06 01 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * add ioctl to configure scan mode for p2p connection
+ *
+ * 05 31 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * add cfg80211 interface, which is to replace WE, for further extension
+ *
+ * 05 17 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * implement private io controls for Wi-Fi Direct
+ *
+ * 05 17 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * implement get scan result.
+ *
+ * 05 17 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * add basic handling framework for wireless extension ioctls.
+ *
+ * 05 17 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * 1) add timeout handler mechanism for pending command packets
+ * 2) add p2p add/removal key
+ *
+ * 05 14 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * implement wireless extension ioctls in iw_handler form.
+ *
+ * 05 14 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * add ioctl framework for Wi-Fi Direct by reusing wireless extension ioctls as well
+ *
+ * 05 11 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * p2p ioctls revised.
+ *
+ * 05 11 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * add ioctl for controlling p2p scan phase parameters
+ *
+ * 05 10 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * implement basic wi-fi direct framework
+ *
+ * 05 07 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * add basic framework for implementating P2P driver hook.
+ *
+**
 */
 
 /*******************************************************************************
@@ -144,27 +685,6 @@ static const struct ieee80211_txrx_stypes
 	}
 };
 
-static const struct ieee80211_iface_limit mtk_p2p_iface_limits[] = {
-	{
-		.max = 1,
-		.types = BIT(NL80211_IFTYPE_STATION) |
-			BIT(NL80211_IFTYPE_AP)
-	},
-	{
-		.max = 1,
-		.types = BIT(NL80211_IFTYPE_P2P_CLIENT) |
-		BIT(NL80211_IFTYPE_P2P_GO)
-	},
-};
-
-static const struct ieee80211_iface_combination mtk_p2p_iface_combos[] = {
-	{
-		.max_interfaces = 2,
-		.num_different_channels = 2,
-		.n_limits = ARRAY_SIZE(mtk_p2p_iface_limits),
-		.limits = mtk_p2p_iface_limits
-	}
-};
 #endif
 
 /* the legacy wireless extension stuff */
@@ -659,9 +1179,6 @@ BOOLEAN glP2pCreateWirelessDevice(P_GLUE_INFO_T prGlueInfo)
 	prWiphy->interface_modes = BIT(NL80211_IFTYPE_AP) | BIT(NL80211_IFTYPE_P2P_CLIENT) |
 						BIT(NL80211_IFTYPE_P2P_GO) | BIT(NL80211_IFTYPE_STATION);
 
-	prWiphy->iface_combinations = mtk_p2p_iface_combos;
-	prWiphy->n_iface_combinations = ARRAY_SIZE(mtk_p2p_iface_combos);
-
 	prWiphy->bands[IEEE80211_BAND_2GHZ] = &mtk_band_2ghz;
 	prWiphy->bands[IEEE80211_BAND_5GHZ] = &mtk_band_5ghz;
 
@@ -692,8 +1209,8 @@ BOOLEAN glP2pCreateWirelessDevice(P_GLUE_INFO_T prGlueInfo)
 	prWdev->wiphy = prWiphy;
 #if CFG_SUPPORT_PERSIST_NETDEV
 	/* 3. allocate netdev */
-	prNetDev = alloc_netdev_mq(sizeof(P_GLUE_INFO_T), P2P_INF_NAME, NET_NAME_PREDICTABLE,
-				   ether_setup, CFG_MAX_TXQ_NUM);
+	prNetDev = alloc_netdev_mq(sizeof(P_GLUE_INFO_T), P2P_MODE_INF_NAME, NET_NAME_PREDICTABLE,
+								ether_setup, CFG_MAX_TXQ_NUM);
 	if (!prNetDev) {
 		DBGLOG(P2P, ERROR, "unable to allocate netdevice for p2p\n");
 		goto unregister_wiphy;
@@ -704,13 +1221,11 @@ BOOLEAN glP2pCreateWirelessDevice(P_GLUE_INFO_T prGlueInfo)
 	*((P_GLUE_INFO_T *) netdev_priv(prNetDev)) = prGlueInfo;
 
 	/* 4.2 fill hardware address */
-	/*
-	 * COPY_MAC_ADDR(rMacAddr, prAdapter->rMyMacAddr);
-	 * rMacAddr[0] ^= 0x2; // change to local administrated address
-	 * memcpy(prGlueInfo->prP2PInfo->prDevHandler->dev_addr, rMacAddr, ETH_ALEN);
-	 * memcpy(prGlueInfo->prP2PInfo->prDevHandler->perm_addr,
-	 *      prGlueInfo->prP2PInfo->prDevHandler->dev_addr, ETH_ALEN);
-	 */
+	/* COPY_MAC_ADDR(rMacAddr, prAdapter->rMyMacAddr);
+	rMacAddr[0] ^= 0x2; // change to local administrated address
+	memcpy(prGlueInfo->prP2PInfo->prDevHandler->dev_addr, rMacAddr, ETH_ALEN);
+	memcpy(prGlueInfo->prP2PInfo->prDevHandler->perm_addr,
+			prGlueInfo->prP2PInfo->prDevHandler->dev_addr, ETH_ALEN);*/
 
 	/* 4.3 register callback functions */
 	prNetDev->netdev_ops = &p2p_netdev_ops;
@@ -726,7 +1241,7 @@ BOOLEAN glP2pCreateWirelessDevice(P_GLUE_INFO_T prGlueInfo)
 	netif_carrier_off(prNetDev);
 	netif_tx_stop_all_queues(prNetDev);
 
-	/* 5. register for net device */
+	/* register for net device */
 	if (register_netdev(prNetDev) < 0) {
 		DBGLOG(P2P, ERROR, "unable to register netdevice for p2p\n");
 		free_netdev(prNetDev);
@@ -797,7 +1312,7 @@ BOOLEAN glRegisterP2P(P_GLUE_INFO_T prGlueInfo, const char *prDevName, BOOLEAN f
 		return FALSE;
 	}
 #endif
-	/* 0. allocate p2pinfo */
+	/*0. allocate p2pinfo */
 	if (!p2PAllocInfo(prGlueInfo)) {
 		DBGLOG(P2P, ERROR, "Allocate memory for p2p FAILED\n");
 		ASSERT(0);
@@ -817,27 +1332,27 @@ BOOLEAN glRegisterP2P(P_GLUE_INFO_T prGlueInfo, const char *prDevName, BOOLEAN f
 	if (!prGlueInfo->prAdapter->fgEnable5GBand)
 		gprP2pWdev->wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
 
-	/* 2. set priv as pointer to glue structure */
+	/* 2 set priv as pointer to glue structure */
 	*(P_GLUE_INFO_T *) wiphy_priv(gprP2pWdev->wiphy) = prGlueInfo;
 
 	if (fgIsApMode) {
 		gprP2pWdev->iftype = NL80211_IFTYPE_AP;
 #if CFG_SUPPORT_PERSIST_NETDEV
-		if (kalStrnCmp(gprP2pWdev->netdev->name, AP_INF_NAME, 2)) {
+		if (kalStrnCmp(gprP2pWdev->netdev->name, AP_MODE_INF_NAME, 2)) {
 			rtnl_lock();
-			dev_change_name(gprP2pWdev->netdev->name, AP_INF_NAME);
+			dev_change_name(gprP2pWdev->netdev->name, AP_MODE_INF_NAME);
 			rtnl_unlock();
 		}
 #endif
 	} else {
-		gprP2pWdev->iftype = NL80211_IFTYPE_P2P_CLIENT;
 #if CFG_SUPPORT_PERSIST_NETDEV
-		if (kalStrnCmp(gprP2pWdev->netdev->name, P2P_INF_NAME, 3)) {
+		if (kalStrnCmp(gprP2pWdev->netdev->name, P2P_MODE_INF_NAME, 3)) {
 			rtnl_lock();
-			dev_change_name(gprP2pWdev->netdev->name, P2P_INF_NAME);
+			dev_change_name(gprP2pWdev->netdev->name, P2P_MODE_INF_NAME);
 			rtnl_unlock();
 		}
 #endif
+		gprP2pWdev->iftype = NL80211_IFTYPE_P2P_CLIENT;
 	}
 #endif /* CFG_ENABLE_WIFI_DIRECT_CFG_80211 */
 
@@ -845,8 +1360,8 @@ BOOLEAN glRegisterP2P(P_GLUE_INFO_T prGlueInfo, const char *prDevName, BOOLEAN f
 		prP2PInfo->prDevHandler = gprP2pWdev->netdev;
 #else /* CFG_SUPPORT_PERSIST_NETDEV */
 	/* 3. allocate netdev */
-	prDevHandler = alloc_netdev_mq(sizeof(P_GLUE_INFO_T), prDevName, NET_NAME_PREDICTABLE,
-				       ether_setup, CFG_MAX_TXQ_NUM);
+	prDevHandler =
+	    alloc_netdev_mq(sizeof(P_GLUE_INFO_T), prDevName, NET_NAME_PREDICTABLE, ether_setup, CFG_MAX_TXQ_NUM);
 	if (!prDevHandler) {
 		DBGLOG(P2P, ERROR, "unable to allocate netdevice for p2p\n");
 		return FALSE;
@@ -912,18 +1427,12 @@ BOOLEAN glRegisterP2P(P_GLUE_INFO_T prGlueInfo, const char *prDevName, BOOLEAN f
 BOOLEAN glUnregisterP2P(P_GLUE_INFO_T prGlueInfo)
 {
 	ASSERT(prGlueInfo);
-	/*
-	 * normal flow: this func will called first before wlanRemove, and it can do fsmUninit/deactivateNetwork
-	 * gracefully.
-	 */
-	/*
-	 * when reset: because tx_thread with fw has stopped, so it can't do these job and the recovery will be
-	 * dependent on chip system reset.
-	 */
-	/*
-	 * if so, just skip it by flag GLUE_FLAG_HALT(warning: when tx_thread was stop, this flag was not cleared,
-	 * and NEED TO KEEP IT NOT CLEARED!).
-	 */
+	/* normal flow: this func will called first before wlanRemove, and it can do fsmUninit/deactivateNetwork
+	gracefully. */
+	/* when reset: because tx_thread with fw has stopped, so it can't do these job and the recovery will be
+	dependent on chip system reset. */
+	/* if so, just skip it by flag GLUE_FLAG_HALT(warning: when tx_thread was stop, this flag was not cleared,
+	and NEED TO KEEP IT NOT CLEARED!). */
 	if (!(prGlueInfo->ulFlag & GLUE_FLAG_HALT)) {
 		p2pFsmUninit(prGlueInfo->prAdapter);
 		nicDeactivateNetwork(prGlueInfo->prAdapter, NETWORK_TYPE_P2P_INDEX);
@@ -1165,7 +1674,7 @@ static void p2pSetMulticastList(IN struct net_device *prDev)
 {
 	P_GLUE_INFO_T prGlueInfo = (P_GLUE_INFO_T) NULL;
 
-	prGlueInfo = (prDev != NULL) ? *((P_GLUE_INFO_T *) netdev_priv(prDev)) : NULL;
+	prGlueInfo = (NULL != prDev) ? *((P_GLUE_INFO_T *) netdev_priv(prDev)) : NULL;
 
 	ASSERT(prDev);
 	ASSERT(prGlueInfo);
@@ -1177,7 +1686,7 @@ static void p2pSetMulticastList(IN struct net_device *prDev)
 	g_P2pPrDev = prDev;
 
 	/* 4  Mark HALT, notify main thread to finish current job */
-	/* prGlueInfo->u4Flag |= GLUE_FLAG_SUB_MOD_MULTICAST; */
+/* prGlueInfo->u4Flag |= GLUE_FLAG_SUB_MOD_MULTICAST; */
 	set_bit(GLUE_FLAG_SUB_MOD_MULTICAST_BIT, &prGlueInfo->ulFlag);
 
 	/* wake up main thread */
@@ -1185,11 +1694,9 @@ static void p2pSetMulticastList(IN struct net_device *prDev)
 
 }				/* p2pSetMulticastList */
 
-/*
- * FIXME: Since we cannot sleep in the wlanSetMulticastList, we arrange
+/* FIXME: Since we cannot sleep in the wlanSetMulticastList, we arrange
  * another workqueue for sleeping. We don't want to block
- * tx_thread, so we can't let tx_thread to do this
- */
+ * tx_thread, so we can't let tx_thread to do this */
 
 void p2pSetMulticastListWorkQueueWrapper(P_GLUE_INFO_T prGlueInfo)
 {
@@ -1217,7 +1724,7 @@ void mtk_p2p_wext_set_Multicastlist(P_GLUE_INFO_T prGlueInfo)
 	UINT_32 u4SetInfoLen = 0;
 	struct net_device *prDev = g_P2pPrDev;
 
-	prGlueInfo = (prDev != NULL) ? *((P_GLUE_INFO_T *) netdev_priv(prDev)) : NULL;
+	prGlueInfo = (NULL != prDev) ? *((P_GLUE_INFO_T *) netdev_priv(prDev)) : NULL;
 
 	ASSERT(prDev);
 	ASSERT(prGlueInfo);
@@ -1265,15 +1772,15 @@ void mtk_p2p_wext_set_Multicastlist(P_GLUE_INFO_T prGlueInfo)
 }				/* end of mtk_p2p_wext_set_Multicastlist */
 
 /*----------------------------------------------------------------------------*/
-/*
- * \brief This function is TX entry point of NET DEVICE.
- *
- * \param[in] prSkb  Pointer of the sk_buff to be sent
- * \param[in] prDev  Pointer to struct net_device
- *
- * \retval NETDEV_TX_OK - on success.
- * \retval NETDEV_TX_BUSY - on failure, packet will be discarded by upper layer.
- */
+/*!
+ * * \brief This function is TX entry point of NET DEVICE.
+ * *
+ * * \param[in] prSkb  Pointer of the sk_buff to be sent
+ * * \param[in] prDev  Pointer to struct net_device
+ * *
+ * * \retval NETDEV_TX_OK - on success.
+ * * \retval NETDEV_TX_BUSY - on failure, packet will be discarded by upper layer.
+ * */
 /*----------------------------------------------------------------------------*/
 int p2pHardStartXmit(IN struct sk_buff *prSkb, IN struct net_device *prDev)
 {
@@ -1281,7 +1788,6 @@ int p2pHardStartXmit(IN struct sk_buff *prSkb, IN struct net_device *prDev)
 	P_QUE_T prTxQueue = NULL;
 	P_GLUE_INFO_T prGlueInfo = NULL;
 	UINT_16 u2QueueIdx = 0;
-	P_BSS_INFO_T prP2pBssInfo = NULL;
 
 	GLUE_SPIN_LOCK_DECLARATION();
 
@@ -1311,11 +1817,6 @@ int p2pHardStartXmit(IN struct sk_buff *prSkb, IN struct net_device *prDev)
 	prQueueEntry = (P_QUE_ENTRY_T) GLUE_GET_PKT_QUEUE_ENTRY(prSkb);
 	prTxQueue = &prGlueInfo->rTxQueue;
 
-	/* Statistic usage. */
-	prGlueInfo->prP2PInfo->rNetDevStats.tx_bytes += prSkb->len;
-	prGlueInfo->prP2PInfo->rNetDevStats.tx_packets++;
-	/* prDev->stats.tx_packets++; */
-
 	if (wlanProcessSecurityFrame(prGlueInfo->prAdapter, (P_NATIVE_PACKET) prSkb) == FALSE) {
 
 		u2QueueIdx = skb_get_queue_mapping(prSkb);
@@ -1324,8 +1825,6 @@ int p2pHardStartXmit(IN struct sk_buff *prSkb, IN struct net_device *prDev)
 		if (u2QueueIdx >= CFG_MAX_TXQ_NUM) {
 			DBGLOG(P2P, ERROR, "Incorrect queue index, skip this frame\n");
 			prGlueInfo->u8SkbFreed++;
-			prGlueInfo->prP2PInfo->rNetDevStats.tx_bytes -= prSkb->len;
-			prGlueInfo->prP2PInfo->rNetDevStats.tx_packets--;
 			dev_kfree_skb(prSkb);
 			return NETDEV_TX_OK;
 		}
@@ -1348,11 +1847,11 @@ int p2pHardStartXmit(IN struct sk_buff *prSkb, IN struct net_device *prDev)
 
 	kalSetEvent(prGlueInfo);
 
-	prP2pBssInfo = &prGlueInfo->prAdapter->rWifiVar.arBssInfo[NETWORK_TYPE_P2P_INDEX];
-	if ((prP2pBssInfo->eConnectionState == PARAM_MEDIA_STATE_CONNECTED) ||
-		(prP2pBssInfo->rStaRecOfClientList.u4NumElem > 0))
-		kalPerMonStart(prGlueInfo);
-
+	/* Statistic usage. */
+	prGlueInfo->prP2PInfo->rNetDevStats.tx_bytes += prSkb->len;
+	prGlueInfo->prP2PInfo->rNetDevStats.tx_packets++;
+	/* prDev->stats.tx_packets++; */
+	kalPerMonStart(prGlueInfo);
 	return NETDEV_TX_OK;
 }				/* end of p2pHardStartXmit() */
 
@@ -1404,10 +1903,6 @@ int p2pDoIOCTL(struct net_device *prDev, struct ifreq *prIfReq, int i4Cmd)
 		/* Set Encryption Material after 4-way handshaking is done */
 		if (prIwReq->u.encoding.pointer) {
 			u4ExtraSize = prIwReq->u.encoding.length;
-			if (u4ExtraSize > sizeof(struct iw_encode_ext)) {
-				ret = -EINVAL;
-				break;
-			}
 			prExtraBuf = kalMemAlloc(u4ExtraSize, VIR_MEM_TYPE);
 
 			if (!prExtraBuf) {
@@ -1415,7 +1910,7 @@ int p2pDoIOCTL(struct net_device *prDev, struct ifreq *prIfReq, int i4Cmd)
 				break;
 			}
 
-			if (copy_from_user(prExtraBuf, prIwReq->u.encoding.pointer, u4ExtraSize))
+			if (copy_from_user(prExtraBuf, prIwReq->u.encoding.pointer, prIwReq->u.encoding.length))
 				ret = -EFAULT;
 		} else if (prIwReq->u.encoding.length != 0) {
 			ret = -EINVAL;
@@ -2045,7 +2540,7 @@ mtk_p2p_wext_set_auth(IN struct net_device *prDev,
 
 	ASSERT(prDev);
 	ASSERT(prAuth);
-	if (GLUE_CHK_PR2(prDev, prAuth) == FALSE)
+	if (FALSE == GLUE_CHK_PR2(prDev, prAuth))
 		return -EINVAL;
 
 	prGlueInfo = *((P_GLUE_INFO_T *) netdev_priv(prDev));
@@ -2110,19 +2605,16 @@ mtk_p2p_wext_set_key(IN struct net_device *prDev,
 	do {
 		if (wrqu->encoding.pointer) {
 			u4ExtraSize = wrqu->encoding.length;
-			if (u4ExtraSize > sizeof(struct iw_encode_ext)) {
-				ret = -EINVAL;
-				break;
-			}
-
+			/*need confirm u4ExtraSize > 0 but is not very large*/
 			prExtraBuf = kalMemAlloc(u4ExtraSize, VIR_MEM_TYPE);
+
 			if (!prExtraBuf) {
 				ret = -ENOMEM;
 				break;
 			}
 			/* here should set prExtraBuf default value */
 			memset(prExtraBuf, 0, u4ExtraSize);
-			if (copy_from_user(prExtraBuf, wrqu->encoding.pointer, u4ExtraSize)) {
+			if (copy_from_user(prExtraBuf, wrqu->encoding.pointer, wrqu->encoding.length)) {
 				ret = -EFAULT;
 				break;
 			}
@@ -2132,6 +2624,7 @@ mtk_p2p_wext_set_key(IN struct net_device *prDev,
 		}
 
 		prEnc = &wrqu->encoding;
+		/* here, need confirm (struct iw_encode_ext) < u4ExtraSize */
 		prIWEncExt = (struct iw_encode_ext *)prExtraBuf;
 
 		if (GLUE_CHK_PR3(prDev, prEnc, prExtraBuf) != TRUE) {
@@ -2243,7 +2736,7 @@ mtk_p2p_wext_set_powermode(IN struct net_device *prNetDev,
 
 	ASSERT(prNetDev);
 	ASSERT(prPower);
-	if (GLUE_CHK_PR2(prNetDev, prPower) == FALSE)
+	if (FALSE == GLUE_CHK_PR2(prNetDev, prPower))
 		return -EINVAL;
 	prGlueInfo = *((P_GLUE_INFO_T *) netdev_priv(prNetDev));
 
@@ -2315,7 +2808,7 @@ mtk_p2p_wext_get_powermode(IN struct net_device *prNetDev,
 
 	ASSERT(prNetDev);
 	ASSERT(prPower);
-	if (GLUE_CHK_PR2(prNetDev, prPower) == FALSE)
+	if (FALSE == GLUE_CHK_PR2(prNetDev, prPower))
 		return -EINVAL;
 
 	prGlueInfo = *((P_GLUE_INFO_T *) netdev_priv(prNetDev));
@@ -2749,7 +3242,6 @@ mtk_p2p_wext_password_ready(IN struct net_device *prDev,
 	P_GLUE_INFO_T prGlueInfo = NULL;
 	P_IW_P2P_PASSWORD_READY prPasswordReady = (P_IW_P2P_PASSWORD_READY) extra;
 	P_P2P_CONNECTION_SETTINGS_T prConnSettings;
-	UINT_16 u2CmdLen = 0;
 
 	ASSERT(prDev);
 
@@ -2760,14 +3252,13 @@ mtk_p2p_wext_password_ready(IN struct net_device *prDev,
 	ASSERT(prAdapter);
 
 	prConnSettings = prAdapter->rWifiVar.prP2PConnSettings;
-	u2CmdLen = prPasswordReady->probe_req_len;
 
 	/* retrieve IE for Probe Request */
-	if (u2CmdLen > 0) {
-		if (u2CmdLen <= MAX_WSC_IE_LENGTH) {
+	if (prPasswordReady->probe_req_len > 0) {
+		if (prPasswordReady->probe_req_len <= MAX_WSC_IE_LENGTH) {
 			if (copy_from_user
 			    (prGlueInfo->prP2PInfo->aucWSCIE[1], prPasswordReady->probe_req_ie,
-			     u2CmdLen)) {
+			     prPasswordReady->probe_req_len)) {
 				return -EFAULT;
 			}
 		} else {
@@ -2775,14 +3266,14 @@ mtk_p2p_wext_password_ready(IN struct net_device *prDev,
 		}
 	}
 
-	prGlueInfo->prP2PInfo->u2WSCIELen[1] = u2CmdLen;
+	prGlueInfo->prP2PInfo->u2WSCIELen[1] = prPasswordReady->probe_req_len;
 
 	/* retrieve IE for Probe Response */
-	u2CmdLen = prPasswordReady->probe_rsp_len;
-	if (u2CmdLen > 0) {
-		if (u2CmdLen <= MAX_WSC_IE_LENGTH) {
+	if (prPasswordReady->probe_rsp_len > 0) {
+		if (prPasswordReady->probe_rsp_len <= MAX_WSC_IE_LENGTH) {
 			if (copy_from_user
-			    (prGlueInfo->prP2PInfo->aucWSCIE[2], prPasswordReady->probe_rsp_ie, u2CmdLen)) {
+			    (prGlueInfo->prP2PInfo->aucWSCIE[2], prPasswordReady->probe_rsp_ie,
+			     prPasswordReady->probe_rsp_len)) {
 				return -EFAULT;
 			}
 		} else {
@@ -2790,7 +3281,7 @@ mtk_p2p_wext_password_ready(IN struct net_device *prDev,
 		}
 	}
 
-	prGlueInfo->prP2PInfo->u2WSCIELen[2] = u2CmdLen;
+	prGlueInfo->prP2PInfo->u2WSCIELen[2] = prPasswordReady->probe_rsp_len;
 
 	switch (prPasswordReady->active_config_method) {
 	case 1:
@@ -3137,7 +3628,7 @@ mtk_p2p_wext_set_int(IN struct net_device *prDev,
 	/* printk("mtk_p2p_wext_set_int\n"); */
 	pu4IntBuf = (PUINT_32) extra;
 
-	if (GLUE_CHK_PR2(prDev, wrqu) == FALSE)
+	if (FALSE == GLUE_CHK_PR2(prDev, wrqu))
 		return -EINVAL;
 
 	prGlueInfo = *((P_GLUE_INFO_T *) netdev_priv(prDev));
@@ -3177,18 +3668,14 @@ mtk_p2p_wext_set_int(IN struct net_device *prDev,
 		case 4:	/* Noa duration */
 			prP2pSpecificBssInfo->rNoaParam.u4NoaDurationMs = value;
 			/* only to apply setting when setting NOA count */
-			/*
-			 * status = mtk_p2p_wext_set_noa_param(prDev, info, wrqu,
-			 * (char *)&prP2pSpecificBssInfo->rNoaParam);
-			 */
+			/* status = mtk_p2p_wext_set_noa_param(prDev, info, wrqu,
+			(char *)&prP2pSpecificBssInfo->rNoaParam); */
 			break;
 		case 5:	/* Noa interval */
 			prP2pSpecificBssInfo->rNoaParam.u4NoaIntervalMs = value;
 			/* only to apply setting when setting NOA count */
-			/*
-			 * status = mtk_p2p_wext_set_noa_param(prDev, info, wrqu,
-			 * (char *)&prP2pSpecificBssInfo->rNoaParam);
-			 */
+			/* status = mtk_p2p_wext_set_noa_param(prDev, info, wrqu,
+			(char *)&prP2pSpecificBssInfo->rNoaParam); */
 			break;
 		case 6:	/* Noa count */
 			prP2pSpecificBssInfo->rNoaParam.u4NoaCount = value;
@@ -3262,38 +3749,30 @@ mtk_p2p_wext_set_struct(IN struct net_device *prDev,
 {
 	int status = 0;
 	UINT_32 u4SubCmd = 0;
-	UINT_32 u4CmdLen = 0;
 	P_GLUE_INFO_T prGlueInfo = NULL;
 	P_IW_P2P_TRANSPORT_STRUCT prP2PReq = NULL;
 
 	ASSERT(prDev);
 	ASSERT(wrqu);
 
-	if (GLUE_CHK_PR2(prDev, wrqu) == FALSE)
+	if (FALSE == GLUE_CHK_PR2(prDev, wrqu))
 		return -EINVAL;
 
 	prGlueInfo = *((P_GLUE_INFO_T *) netdev_priv(prDev));
 	ASSERT(prGlueInfo);
 
 	u4SubCmd = (UINT_32) wrqu->data.flags;
-	u4CmdLen = (UINT_32) wrqu->data.length;
 
 	kalMemZero(&prGlueInfo->prP2PInfo->aucOidBuf[0], sizeof(prGlueInfo->prP2PInfo->aucOidBuf));
 
 	switch (u4SubCmd) {
 	case PRIV_CMD_OID:
-		if (u4CmdLen > OID_SET_GET_STRUCT_LENGTH) {
-			DBGLOG(P2P, ERROR, "input data length invalid %u\n", u4CmdLen);
-			status = -EINVAL;
-			break;
-		}
-
-		if (copy_from_user(&(prGlueInfo->prP2PInfo->aucOidBuf[0]), wrqu->data.pointer, u4CmdLen)) {
+		if (copy_from_user(&(prGlueInfo->prP2PInfo->aucOidBuf[0]), wrqu->data.pointer, wrqu->data.length)) {
 			status = -EFAULT;
 			break;
 		}
 
-		if (!kalMemCmp(&(prGlueInfo->prP2PInfo->aucOidBuf[0]), extra, u4CmdLen))
+		if (!kalMemCmp(&(prGlueInfo->prP2PInfo->aucOidBuf[0]), extra, wrqu->data.length))
 			DBGLOG(P2P, INFO, "extra buffer is valid\n");
 		else
 			DBGLOG(P2P, INFO, "extra 0x%p\n", extra);
@@ -3315,20 +3794,16 @@ mtk_p2p_wext_set_struct(IN struct net_device *prDev,
 		case P2P_CMD_ID_INVITATION:
 			if (prP2PReq->inBufferLength == sizeof(IW_P2P_IOCTL_INVITATION_STRUCT)) {
 				/* Do nothing */
-				/*
-				 * status = mtk_p2p_wext_invitation_request(prDev, info, wrqu,
-				 *    (char *)(prP2PReq->aucBuffer));
-				 */
+				/* status = mtk_p2p_wext_invitation_request(prDev, info, wrqu,
+					(char *)(prP2PReq->aucBuffer)); */
 			}
 			break;
 
 		case P2P_CMD_ID_INVITATION_ABORT:
 			if (prP2PReq->inBufferLength == sizeof(IW_P2P_IOCTL_ABORT_INVITATION)) {
 				/* Do nothing */
-				/*
-				 * status = mtk_p2p_wext_invitation_abort(prDev, info, wrqu,
-				 *     (char *)(prP2PReq->aucBuffer));
-				 */
+				/* status = mtk_p2p_wext_invitation_abort(prDev, info, wrqu,
+					(char *)(prP2PReq->aucBuffer)); */
 			}
 			break;
 
@@ -3343,16 +3818,16 @@ mtk_p2p_wext_set_struct(IN struct net_device *prDev,
 		break;
 #if CFG_SUPPORT_ANTI_PIRACY
 	case PRIV_SEC_CHECK_OID:
-		if (u4CmdLen > 256) {
+		if (wrqu->data.length > 256) {
 			status = -EOPNOTSUPP;
 			break;
 		}
-		if (copy_from_user(&(prGlueInfo->prP2PInfo->aucSecCheck[0]), wrqu->data.pointer, u4CmdLen)) {
+		if (copy_from_user(&(prGlueInfo->prP2PInfo->aucSecCheck[0]), wrqu->data.pointer, wrqu->data.length)) {
 			status = -EFAULT;
 			break;
 		}
 
-		if (!kalMemCmp(&(prGlueInfo->prP2PInfo->aucSecCheck[0]), extra, u4CmdLen))
+		if (!kalMemCmp(&(prGlueInfo->prP2PInfo->aucSecCheck[0]), extra, wrqu->data.length))
 			DBGLOG(P2P, INFO, "extra buffer is valid\n");
 		else
 			DBGLOG(P2P, INFO, "extra 0x%p\n", extra);
@@ -3368,18 +3843,12 @@ mtk_p2p_wext_set_struct(IN struct net_device *prDev,
 		break;
 #endif
 	case PRIV_CMD_P2P_VERSION:
-		if (u4CmdLen > OID_SET_GET_STRUCT_LENGTH) {
-			DBGLOG(P2P, ERROR, "input data length invalid %u\n", u4CmdLen);
-			status = -EINVAL;
-			break;
-		}
-
-		if (copy_from_user(&(prGlueInfo->prP2PInfo->aucOidBuf[0]), wrqu->data.pointer, u4CmdLen)) {
+		if (copy_from_user(&(prGlueInfo->prP2PInfo->aucOidBuf[0]), wrqu->data.pointer, wrqu->data.length)) {
 			status = -EFAULT;
 			break;
 		}
 
-		if (!kalMemCmp(&(prGlueInfo->prP2PInfo->aucOidBuf[0]), extra, u4CmdLen))
+		if (!kalMemCmp(&(prGlueInfo->prP2PInfo->aucOidBuf[0]), extra, wrqu->data.length))
 			DBGLOG(P2P, INFO, "extra buffer is valid\n");
 		else
 			DBGLOG(P2P, INFO, "extra 0x%p\n", extra);
@@ -3422,7 +3891,6 @@ mtk_p2p_wext_get_struct(IN struct net_device *prDev,
 {
 	int status = 0;
 	UINT_32 u4SubCmd = 0;
-	UINT_32 u4CmdLen = 0;
 	P_GLUE_INFO_T prGlueInfo = NULL;
 	P_IW_P2P_TRANSPORT_STRUCT prP2PReq = NULL;
 
@@ -3438,18 +3906,11 @@ mtk_p2p_wext_get_struct(IN struct net_device *prDev,
 	ASSERT(prGlueInfo);
 
 	u4SubCmd = (UINT_32) wrqu->data.flags;
-	u4CmdLen = (UINT_32) wrqu->data.length;
 
 	kalMemZero(&(prGlueInfo->prP2PInfo->aucOidBuf[0]), sizeof(prGlueInfo->prP2PInfo->aucOidBuf));
 
 	switch (u4SubCmd) {
 	case PRIV_CMD_OID:
-		if (u4CmdLen > sizeof(IW_P2P_TRANSPORT_STRUCT)) {
-			DBGLOG(P2P, ERROR, "input data length invalid %u\n", u4CmdLen);
-			status = -EINVAL;
-			break;
-		}
-
 		if (copy_from_user(&(prGlueInfo->prP2PInfo->aucOidBuf[0]),
 				   wrqu->data.pointer, sizeof(IW_P2P_TRANSPORT_STRUCT))) {
 			DBGLOG(P2P, ERROR, "%s() copy_from_user oidBuf fail\n", __func__);
@@ -3509,9 +3970,9 @@ mtk_p2p_wext_get_struct(IN struct net_device *prDev,
 				if (NumOfChannel > 50)
 					NumOfChannel = 50;
 				prP2PReq->outBufferLength = NumOfChannel;
-				/* here must confirm NumOfChannel < 16, for prP2PReq->aucBuffer 16 byte */
+				/*here must confirm NumOfChannel < 16, for prP2PReq->aucBuffer 16 byte*/
 				if (NumOfChannel >= 15) {
-					/* DBGLOG(P2P, ERROR, "channel num > 15\n", __func__); */
+					/*DBGLOG(P2P, ERROR, "channel num > 15\n", __func__);*/
 					ASSERT(FALSE);
 				}
 
@@ -3569,11 +4030,10 @@ mtk_p2p_wext_get_struct(IN struct net_device *prDev,
 		break;
 #if CFG_SUPPORT_ANTI_PIRACY
 	case PRIV_SEC_CHECK_OID:
-		if (u4CmdLen > sizeof(IW_P2P_TRANSPORT_STRUCT)) {
-			status = -EINVAL;
+		if (wrqu->data.length > 256) {
+			status = -EOPNOTSUPP;
 			break;
 		}
-
 		if (copy_from_user(&(prGlueInfo->prP2PInfo->aucSecCheck[0]),
 				   wrqu->data.pointer, sizeof(IW_P2P_TRANSPORT_STRUCT))) {
 			DBGLOG(P2P, ERROR, "%s() copy_from_user oidBuf fail\n", __func__);
@@ -3592,11 +4052,6 @@ mtk_p2p_wext_get_struct(IN struct net_device *prDev,
 		break;
 #endif
 	case PRIV_CMD_P2P_VERSION:
-		if (u4CmdLen > sizeof(IW_P2P_TRANSPORT_STRUCT)) {
-			status = -EINVAL;
-			break;
-		}
-
 		if (copy_from_user(&(prGlueInfo->prP2PInfo->aucOidBuf[0]),
 				   wrqu->data.pointer, sizeof(IW_P2P_TRANSPORT_STRUCT))) {
 			DBGLOG(P2P, ERROR, "%s() copy_from_user oidBuf fail\n", __func__);

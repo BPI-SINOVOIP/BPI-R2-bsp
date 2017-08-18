@@ -1,27 +1,447 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
 ** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/mgmt/assoc.c#5
 */
 
-/*
- * ! \file   "assoc.c"
- * \brief  This file includes the association-related functions.
+/*! \file   "assoc.c"
+    \brief  This file includes the association-related functions.
+
+    This file includes the association-related functions.
+*/
+
+/*\
+** Log: assoc.c
+**
+** 08 30 2013 yuche.tsai
+** [BORA00002761] [MT6630][Wi-Fi Direct][Driver] Group Interface formation
+** Fix Wi-Fi Direct Tx Probe Request Channel Bug.
+**
+** 08 13 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** Remove unused code
+**
+** 08 05 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** 1. Add SW rate definition
+** 2. Add HW default rate selection logic from FW
+**
+** 07 30 2013 yuche.tsai
+** [BORA00002398] [MT6630][Volunteer Patch] P2P Driver Re-Design for Multiple BSS support
+** Driver update for Hot-Spot mode.
+**
+** 07 23 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Sync the latest jb2.mp 11w code as draft version
+** Not the CM bit for avoid wapi 1x drop at re-key
+**
+** 07 12 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** 1. Update VHT IE composing function
+** 2. disable bow
+** 3. Exchange bss/sta rec update sequence for temp solution
+**
+** 03 12 2013 tsaiyuan.hsu
+** [BORA00002222] MT6630 unified MAC RXM
+** remove hif_rx_hdr usage.
+**
+** 03 12 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** Update Tx utility function for management frame
+**
+** 03 08 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Remove non-used compiling flag and code
+**
+** 03 06 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** submit some code related with security.
+**
+** 02 19 2013 cp.wu
+** [BORA00002227] [MT6630 Wi-Fi][Driver] Update for Makefile and HIFSYS modifications
+** take use of GET_BSS_INFO_BY_INDEX() and MAX_BSS_INDEX macros
+** for correctly indexing of BSS-INFO pointers
+**
+** 02 19 2013 cp.wu
+** [BORA00002227] [MT6630 Wi-Fi][Driver] Update for Makefile and HIFSYS modifications
+** correct typo and fix for compilation pass
+**
+** 02 19 2013 cp.wu
+** [BORA00002227] [MT6630 Wi-Fi][Driver] Update for Makefile and HIFSYS modifications
+** enable AIS related management modules building under Android/Linux
+**
+** 01 22 2013 cp.wu
+** [BORA00002253] [MT6630 Wi-Fi][Driver][Firmware] Add NLO and timeout mechanism to SCN module
+** modification for ucBssIndex migration
+**
+** 01 07 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** <saved by Perforce>
+** Fix reassoc req issue
+**
+** 11 06 2012 eason.tsai
+** [BORA00002255] [MT6630 Wi-Fi][Driver] develop
+** .
+**
+** 09 17 2012 cm.chang
+** [BORA00002149] [MT6630 Wi-Fi] Initial software development
+** Duplicate source from MT6620 v2.3 driver branch
+** (Davinci label: MT6620_WIFI_Driver_V2_3_120913_1942_As_MT6630_Base)
+**
+** 08 08 2012 wh.su
+** [WCXRP00001262] [MT6620 Wi-Fi][Driver] Fixed the update assoc info pkt length issue
+** fixed the assoc request update ie length.
+**
+** 07 27 2012 yuche.tsai
+** NULL
+** Fix wifi direct connection issue.
+** Assoc Req no P2P IE.
  *
- * This file includes the association-related functions.
- */
+ * 07 17 2012 yuche.tsai
+ * NULL
+ * Let netdev bring up.
+ *
+ * 07 17 2012 yuche.tsai
+ * NULL
+ * Compile no error before trial run.
+ *
+ * 06 13 2012 yuche.tsai
+ * NULL
+ * Update maintrunk driver.
+ * Add support for driver compose assoc request frame.
+ *
+ * 06 08 2012 cp.wu
+ * [WCXRP00001245] [MT6620 Wi-Fi][Driver][Firmware] NPS Software Development
+ * add a pair of brace for compilation success.
+ *
+ * 06 04 2012 cp.wu
+ * [WCXRP00001245] [MT6620 Wi-Fi][Driver][Firmware] NPS Software Development
+ *
+ *
+ * 03 14 2012 wh.su
+ * [WCXRP00001173] [MT6620 Wi-Fi][Driver] Adding the ICS Tethering WPA2-PSK supporting
+ * Add code from 2.2
+ *
+ * 03 09 2012 terry.wu
+ * NULL
+ * Fix build error.
+ *
+ * 03 02 2012 terry.wu
+ * NULL
+ * Sync CFG80211 modification from branch 2,2.
+ *
+ * 01 16 2012 yuche.tsai
+ * NULL
+ * Update Driver for wifi driect gc join IE update issue.
+ *
+ * 11 10 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * change the debug module level.
+ *
+ * 10 25 2011 cm.chang
+ * [WCXRP00001058] [All Wi-Fi][Driver] Fix sta_rec's phyTypeSet and OBSS scan in AP mode
+ * Fix PhyTypeSet in STA_REC in AP mode
+ *
+ * 10 12 2011 wh.su
+ * [WCXRP00001036] [MT6620 Wi-Fi][Driver][FW] Adding the 802.11w code for MFP
+ * adding the 802.11w related function and define .
+ *
+ * 09 19 2011 yuche.tsai
+ * NULL
+ * Fix KE when enable hot-spot & any one client connect to this hot-spot.
+ *
+ * 09 14 2011 yuche.tsai
+ * NULL
+ * Add P2P IE in assoc response.
+ *
+ * 07 15 2011 terry.wu
+ * [WCXRP00000855] [MT6620 Wi-Fi] [Driver] Workaround for Kingnet 710 AP wrong AID assignment
+ * Update workaround for Kingnet AP.
+ *
+ * 07 15 2011 terry.wu
+ * [WCXRP00000855] [MT6620 Wi-Fi] [Driver] Workaround for Kingnet 710 AP wrong AID assignment
+ * Workaround for Kingnet 710 AP wrong AID assignment.
+ *
+ * 05 02 2011 eddie.chen
+ *
+ * Check STA when rx assoc.
+ *
+ * 04 18 2011 terry.wu
+ * [WCXRP00000660] [MT6620 Wi-Fi][Driver] Remove flag CFG_WIFI_DIRECT_MOVED
+ * Remove flag CFG_WIFI_DIRECT_MOVED.
+ *
+ * 03 19 2011 yuche.tsai
+ * [WCXRP00000581] [Volunteer Patch][MT6620][Driver] P2P IE in Assoc Req Issue
+ * Make assoc req to append P2P IE if wifi direct is enabled.
+ *
+ * 03 17 2011 chinglan.wang
+ * [WCXRP00000570] [MT6620 Wi-Fi][Driver] Add Wi-Fi Protected Setup v2.0 feature
+ * .
+ *
+ * 03 16 2011 wh.su
+ * [WCXRP00000530] [MT6620 Wi-Fi] [Driver] skip doing p2pRunEventAAAComplete after send assoc response Tx Done
+ * enable the protected while at P2P start GO, and skip some security check .
+ *
+ * 03 14 2011 wh.su
+ *
+ * Modify file for avoid assert at BOW receive a assoc response frame but no p2p function.
+ *
+ * 03 08 2011 terry.wu
+ * [WCXRP00000524] [MT6620 Wi-Fi][Driver] Fix p2p assoc request containing wrong IE format
+ * Fix p2p assoc request containing wrong IE format.
+ *
+ * 03 02 2011 wh.su
+ * [WCXRP00000506] [MT6620 Wi-Fi][Driver][FW] Add Security check related code
+ * add code to let the beacon and probe response for Auto GO WSC .
+ *
+ * 02 15 2011 yuche.tsai
+ * [WCXRP00000431] [Volunteer Patch][MT6620][Driver] Add MLME support for deauthentication under AP(Hot-Spot) mode.
+ * Fix RX disassoc issue under Hot-spot mode.
+ *
+ * 02 09 2011 wh.su
+ * [WCXRP00000432] [MT6620 Wi-Fi][Driver] Add STA privacy check at hotspot mode
+ * adding the code for check STA privacy bit at AP mode, .
+ *
+ * 02 08 2011 eddie.chen
+ * [WCXRP00000426] [MT6620 Wi-Fi][FW/Driver] Add STA aging timeout and defualtHwRatein AP mode
+ * Add event STA agint timeout
+ *
+ * 01 25 2011 yuche.tsai
+ * [WCXRP00000388] [Volunteer Patch][MT6620][Driver/Fw] change Station Type in station record.
+ * Change Station Type in Station Record, Modify MACRO definition for getting station type & network type index & Role.
+ *
+ * 01 12 2011 yuche.tsai
+ *
+ * Update Phy Type Set. When legacy client is connected, it can use 11b rate,
+ * but if the P2P device is connected, 11b rate is not allowed.
+ *
+ * 01 11 2011 yuche.tsai
+ *
+ * Update Desired Non-HT Rate Set.
+ *
+ * 12 30 2010 eddie.chen
+ * [WCXRP00000322] Add WMM IE in beacon,
+
+Add per station flow control when STA is in PS
+
+ * Recover the code that was coverwritted..
+ *
+ * 12 29 2010 eddie.chen
+ * [WCXRP00000322] Add WMM IE in beacon,
+Add per station flow control when STA is in PS
+
+ * 1) PS flow control event
+ *
+ * 2) WMM IE in beacon, assoc resp, probe resp
+ *
+ * 11 04 2010 wh.su
+ * [WCXRP00000164] [MT6620 Wi-Fi][Driver] Support the p2p random SSID
+ * adding the p2p random ssid support.
+ *
+ * 10 18 2010 cp.wu
+ * [WCXRP00000052] [MT6620 Wi-Fi][Driver] Eliminate Linux Compile Warning
+ * use definition macro to replace hard-coded constant
+ *
+ * 09 28 2010 wh.su
+ * NULL
+ * [WCXRP00000069][MT6620 Wi-Fi][Driver] Fix some code for phase 1 P2P Demo.
+ *
+ * 09 27 2010 chinghwa.yu
+ * [WCXRP00000063] Update BCM CoEx design and settings[WCXRP00000065] Update BoW design and settings
+ * Update BCM/BoW design and settings.
+ *
+ * 09 16 2010 cm.chang
+ * NULL
+ * Change conditional compiling options for BOW
+ *
+ * 09 03 2010 kevin.huang
+ * NULL
+ * Refine #include sequence and solve recursive/nested #include issue
+ *
+ * 09 01 2010 wh.su
+ * NULL
+ * adding the wapi support for integration test.
+ *
+ * 08 30 2010 cp.wu
+ * NULL
+ * eliminate klockwork errors
+ *
+ * 08 16 2010 yuche.tsai
+ * NULL
+ * Add SSID IE in assoc req frame which is sent by P2P GC.
+ *
+ * 08 16 2010 kevin.huang
+ * NULL
+ * Refine AAA functions
+ *
+ * 08 03 2010 cp.wu
+ * NULL
+ * surpress compilation warning.
+ *
+ * 07 20 2010 wh.su
+ *
+ * adding the wapi code.
+ *
+ * 07 09 2010 yarco.yang
+ *
+ * [MT6620 and MT5931] SW Migration: Add ADDBA support
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 07 08 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * take use of RLM module for parsing/generating HT IEs for 11n capability
+ *
+ * 07 01 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * comment out RSN IE generation by CFG_RSN_MIGRATION compilation flag.
+ *
+ * 06 28 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * send MMPDU in basic rate.
+ *
+ * 06 21 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * add scan_fsm into building.
+ *
+ * 06 21 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * specify correct value for management frames.
+ *
+ * 06 18 2010 cm.chang
+ * [WPD00003841][LITE Driver] Migrate RLM/CNM to host driver
+ * Provide cnmMgtPktAlloc() and alloc/free function of msg/buf
+ *
+ * 06 18 2010 wh.su
+ * [WPD00003840][MT6620 5931] Security migration
+ * migration from MT6620 firmware.
+ *
+ * 06 15 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * revised.
+ *
+ * 06 14 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * add management dispatching function table.
+ *
+ * 06 11 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * auth.c is migrated.
+ *
+ * 06 11 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * 1) migrate assoc.c.
+ * 2) add ucTxSeqNum for tracking frames which needs TX-DONE awareness
+ * 3) add configuration options for CNM_MEM and RSN modules
+ * 4) add data path for management frames
+ * 5) eliminate rPacketInfo of MSDU_INFO_T
+ *
+ * 05 24 2010 kevin.huang
+ * [BORA00000794][WIFISYS][New Feature]Power Management Support
+ * Update assocProcessRxAssocReqFrame() to avoid redundant SSID IE {0,0} for IOT.
+ *
+ * 05 14 2010 kevin.huang
+ * [BORA00000794][WIFISYS][New Feature]Power Management Support
+ * Fix compile warning - macro > 10 line, initial value of an array
+ *
+ * 04 24 2010 cm.chang
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * g_aprBssInfo[] depends on CFG_SUPPORT_P2P and CFG_SUPPORT_BOW
+ *
+ * 04 22 2010 cm.chang
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * First draft code to support protection in AP mode
+ *
+ * 04 19 2010 kevin.huang
+ * [BORA00000714][WIFISYS][New Feature]Beacon Timeout Support
+ * Add Beacon Timeout Support
+ *  *  *  *  *  *  *  *  and will send Null frame to diagnose connection
+ *
+ * 04 16 2010 wh.su
+ * [BORA00000680][MT6620] Support the statistic for Microsoft os query
+ * adding the wpa-none for ibss beacon.
+ *
+ * 03 25 2010 cm.chang
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * Remove compiling warning
+ *
+ * 03 24 2010 cm.chang
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * Not carry  HT cap when being associated with b/g only AP
+ *
+ * 02 04 2010 kevin.huang
+ * [BORA00000603][WIFISYS] [New Feature] AAA Module Support
+ * Add AAA Module Support, Revise Net Type to Net Type Index for array lookup
+ *
+ * 01 28 2010 wh.su
+ * [BORA00000476][Wi-Fi][firmware] Add the security module initialize code
+ * fixed the compiling warning.u1rwduu`wvpghlqg|rm+vp
+ *
+ * 01 27 2010 wh.su
+ * [BORA00000476][Wi-Fi][firmware] Add the security module initialize code
+ * add and fixed some security function.
+ *
+ * 01 11 2010 kevin.huang
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * Add Deauth and Disassoc Handler
+ *
+ * 01 07 2010 kevin.huang
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Update Assoc ID for PS
+ *
+ * 01 04 2010 tehuang.liu
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * For working out the first connection Chariot-verified version
+ *
+ * 12 18 2009 cm.chang
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * .
+ *
+ * Dec 12 2009 mtk01104
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Use new constant definition ELEM_MAX_LEN_EXT_CAP
+ *
+ * Dec 9 2009 mtk01104
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Modify assoc req IE talbe for HT cap IE
+ *
+ * Dec 7 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * update the assocComposeReAssocReqFrameHeader() and fix the u2EstimatedFrameLen in assocSendReAssocReqFrame()
+ *
+ * Dec 7 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * remove some space line
+ *
+ * Dec 7 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adding the sending disassoc frame function
+ *
+ * Dec 4 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adding the txassocReq IE table, adding for WPA/RSN
+ *
+ * Dec 3 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Fix eNetType not init in send AssocReq function
+ *
+ * Dec 3 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Integrate the send Assoc with TXM
+ *
+ * Dec 1 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adding the code to indicate the assoc request and assoc response (now disable)
+ *
+ * Nov 24 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Remove unused variables
+ *
+ * Nov 23 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ *
+*/
 
 /*******************************************************************************
 *                         C O M P I L E R   F L A G S
@@ -388,10 +808,8 @@ assocComposeReAssocReqFrameHeaderAndFF(IN P_ADAPTER_T prAdapter,
 	/* Fill the Capability Information field. */
 	WLAN_SET_FIELD_16(&prAssocFrame->u2CapInfo, u2CapInfo);
 
-	/*
-	 * Calculate the listen interval for the maximum power mode. Currently, we
-	 * set it to the value 2 times DTIM period.
-	 */
+	/* Calculate the listen interval for the maximum power mode. Currently, we
+	   set it to the value 2 times DTIM period. */
 	if (prStaRec->ucDTIMPeriod) {
 		u2ListenInterval = prStaRec->ucDTIMPeriod * DEFAULT_LISTEN_INTERVAL_BY_DTIM_PERIOD;
 	} else {
@@ -452,21 +870,19 @@ WLAN_STATUS assocSendReAssocReqFrame(IN P_ADAPTER_T prAdapter, IN P_STA_RECORD_T
 	/* Init with MGMT Header Length + Length of Fixed Fields + Common IE Length */
 	if (fgIsReAssoc) {
 		u2EstimatedFrameLen = MAC_TX_RESERVED_FIELD +
-				      WLAN_MAC_MGMT_HEADER_LEN +
-				      CAP_INFO_FIELD_LEN +
-				      LISTEN_INTERVAL_FIELD_LEN +
-				      CURR_AP_ADDR_FIELD_LEN +
-				      (ELEM_HDR_LEN + ELEM_MAX_LEN_SSID) +
-				      (ELEM_HDR_LEN + ELEM_MAX_LEN_SUP_RATES) +
-				      (ELEM_HDR_LEN + (RATE_NUM_SW - ELEM_MAX_LEN_SUP_RATES));
+		    WLAN_MAC_MGMT_HEADER_LEN +
+		    CAP_INFO_FIELD_LEN +
+		    LISTEN_INTERVAL_FIELD_LEN +
+		    CURR_AP_ADDR_FIELD_LEN +
+		    (ELEM_HDR_LEN + ELEM_MAX_LEN_SSID) +
+		    (ELEM_HDR_LEN + ELEM_MAX_LEN_SUP_RATES) + (ELEM_HDR_LEN + (RATE_NUM_SW - ELEM_MAX_LEN_SUP_RATES));
 	} else {
 		u2EstimatedFrameLen = MAC_TX_RESERVED_FIELD +
-				      WLAN_MAC_MGMT_HEADER_LEN +
-				      CAP_INFO_FIELD_LEN +
-				      LISTEN_INTERVAL_FIELD_LEN +
-				      (ELEM_HDR_LEN + ELEM_MAX_LEN_SSID) +
-				      (ELEM_HDR_LEN + ELEM_MAX_LEN_SUP_RATES) +
-				      (ELEM_HDR_LEN + (RATE_NUM_SW - ELEM_MAX_LEN_SUP_RATES));
+		    WLAN_MAC_MGMT_HEADER_LEN +
+		    CAP_INFO_FIELD_LEN +
+		    LISTEN_INTERVAL_FIELD_LEN +
+		    (ELEM_HDR_LEN + ELEM_MAX_LEN_SSID) +
+		    (ELEM_HDR_LEN + ELEM_MAX_LEN_SUP_RATES) + (ELEM_HDR_LEN + (RATE_NUM_SW - ELEM_MAX_LEN_SUP_RATES));
 	}
 
 	/* + Extra IE Length */
@@ -511,7 +927,7 @@ WLAN_STATUS assocSendReAssocReqFrame(IN P_ADAPTER_T prAdapter, IN P_STA_RECORD_T
 	/* Allocate a MSDU_INFO_T */
 	prMsduInfo = cnmMgtPktAlloc(prAdapter, u2EstimatedFrameLen);
 	if (prMsduInfo == NULL) {
-		DBGLOG(SAA, WARN, "No MSDU_INFO_T for sending (Re)Assoc Req\n");
+		DBGLOG(SAA, WARN, "No PKT_INFO_T for sending (Re)Assoc Request.\n");
 		return WLAN_STATUS_RESOURCES;
 	}
 	/* 4 <2> Compose (Re)Association Request frame header and fixed fields in MSDU_INfO_T. */
@@ -520,7 +936,8 @@ WLAN_STATUS assocSendReAssocReqFrame(IN P_ADAPTER_T prAdapter, IN P_STA_RECORD_T
 	/* Compose Header and Fixed Field */
 	assocComposeReAssocReqFrameHeaderAndFF(prAdapter,
 					       prStaRec,
-					       (PUINT_8) ((ULONG) (prMsduInfo->prPacket) + MAC_TX_RESERVED_FIELD),
+					       (PUINT_8) ((ULONG) (prMsduInfo->prPacket) +
+							  MAC_TX_RESERVED_FIELD),
 					       prBssInfo->aucOwnMacAddr, &u2PayloadLen);
 
 	/* 4 <3> Update information of MSDU_INFO_T */
@@ -587,9 +1004,9 @@ WLAN_STATUS assocSendReAssocReqFrame(IN P_ADAPTER_T prAdapter, IN P_STA_RECORD_T
 	/* TODO(Kevin): Also release the unused tail room of the composed MMPDU */
 
 	nicTxConfigPktControlFlag(prMsduInfo, MSDU_CONTROL_FLAG_FORCE_TX, TRUE);
+	DBGLOG(SAA, INFO, "Send Assoc Req Frame, SeqNO: %d\n", prMsduInfo->ucTxSeqNum);
 
-	/* 4 <6> Enqueue the frame to send this (Re)Association Request frame. */
-	DBGLOG(SAA, TRACE, "Send (Re)Assoc Req, SeqNo: %d\n", prMsduInfo->ucTxSeqNum);
+	/* 4 <6> Enqueue the frame to send this (Re)Association request frame. */
 	nicTxEnqueueMsdu(prAdapter, prMsduInfo);
 
 	return WLAN_STATUS_SUCCESS;
@@ -693,7 +1110,7 @@ WLAN_STATUS assocCheckTxReAssocRespFrame(IN P_ADAPTER_T prAdapter, IN P_MSDU_INF
 *        the status code.
 *
 * @param[in] prSwRfb                Pointer to SW RFB data structure.
-* @param[out] pu2StatusCode         Pointer to store the Status Code from Association Response.
+* @param[out] pu2StatusCode         Pointer to store the Status Code from Authentication.
 *
 * @retval WLAN_STATUS_FAILURE   This is not the frame we should handle at current state.
 * @retval WLAN_STATUS_SUCCESS   This is the frame we should handle.
@@ -721,10 +1138,10 @@ assocCheckRxReAssocRspFrameStatus(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRf
 	DBGLOG(SAA, LOUD, "prSwRfb->u2PayloadLength = %d\n", prSwRfb->u2PacketLen - prSwRfb->u2HeaderLen);
 
 	prStaRec = cnmGetStaRecByIndex(prAdapter, prSwRfb->ucStaRecIdx);
-	if (!prStaRec) {
-		DBGLOG(SAA, ERROR, "Cannot find corresponding StaRec, invalid packet\n");
+	ASSERT(prStaRec);
+
+	if (!prStaRec)
 		return WLAN_STATUS_INVALID_PACKET;
-	}
 
 	/* 4 <1> locate the (Re)Association Resp Frame. */
 	prAssocRspFrame = (P_WLAN_ASSOC_RSP_FRAME_T) prSwRfb->pvHeader;
@@ -734,16 +1151,13 @@ assocCheckRxReAssocRspFrameStatus(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRf
 	u2RxFrameCtrl = prAssocRspFrame->u2FrameCtrl;	/* NOTE(Kevin): Optimized for ARM */
 	u2RxFrameCtrl &= MASK_FRAME_TYPE;
 	if (prStaRec->fgIsReAssoc) {
-		if (u2RxFrameCtrl != MAC_FRAME_REASSOC_RSP) {
-			DBGLOG(SAA, ERROR, "Not ReAssoc Resp frame, u2FrameCtrl: 0x%04x\n", u2RxFrameCtrl);
+		if (u2RxFrameCtrl != MAC_FRAME_REASSOC_RSP)
 			return WLAN_STATUS_FAILURE;
-		}
 
 	} else {
-		if (u2RxFrameCtrl != MAC_FRAME_ASSOC_RSP) {
-			DBGLOG(SAA, ERROR, "Not Assoc Resp frame, u2FrameCtrl: 0x%04x\n", u2RxFrameCtrl);
+		if (u2RxFrameCtrl != MAC_FRAME_ASSOC_RSP)
 			return WLAN_STATUS_FAILURE;
-		}
+
 	}
 
 	/* 4 <3> Parse the Fixed Fields of (Re)Association Resp Frame Body. */
@@ -764,8 +1178,15 @@ assocCheckRxReAssocRspFrameStatus(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRf
 			/* WAPI AP allow the customer use WZC to join mode, the privacy bit is 0 */
 			/* even at WAI & WAPI_PSK mode, but the assoc respose set the privacy bit set 1 */
 			DBGLOG(SEC, TRACE, "Workaround the WAPI AP allow the customer to use WZC to join\n");
-		}
+		} else
 #endif
+#if CFG_ENABLE_WIFI_DIRECT
+		if (prAdapter->fgIsP2PRegistered && 1) {
+			/* Todo:: Fixed this */
+		} else
+#endif
+		{
+		}
 
 #if CFG_STRICT_CHECK_CAPINFO_PRIVACY
 		if ((prStaRec->u2CapInfo & CAP_INFO_PRIVACY) ^ (u2RxCapInfo & CAP_INFO_PRIVACY))
@@ -775,31 +1196,29 @@ assocCheckRxReAssocRspFrameStatus(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRf
 	}
 
 	if (u2RxStatusCode == STATUS_CODE_SUCCESSFUL) {
-		/*
-		 * Update the information in the structure used to query and set
-		 * OID_802_11_ASSOCIATION_INFORMATION.
-		 */
+		/* Update the information in the structure used to query and set
+		   OID_802_11_ASSOCIATION_INFORMATION. */
 		kalUpdateReAssocRspInfo(prAdapter->prGlueInfo,
 					(PUINT_8)&prAssocRspFrame->u2CapInfo, (UINT_32) (prSwRfb->u2PacketLen));
-
-		/* 4 <5> Update CAP_INFO and ASSOC_ID */
+	}
+	/* 4 <5> Update CAP_INFO and ASSOC_ID */
+	if (u2RxStatusCode == STATUS_CODE_SUCCESSFUL) {
 		prStaRec->u2CapInfo = u2RxCapInfo;
 
 		/* WLAN_GET_FIELD_16(&prAssocRspFrame->u2AssocId, &u2RxAssocId); */
 		u2RxAssocId = prAssocRspFrame->u2AssocId;	/* NOTE(Kevin): Optimized for ARM */
 
-		/*
-		 * 20110715 Workaround for Kingnet 710 AP (Realtek 8186)
-		 * This AP raises the bit 6&7 not bit 14&15 in AID field.
-		 * It cause wrong AID assignment.
-		 * For AID = 2
+		/*  20110715 Workaround for Kingnet 710 AP (Realtek 8186)
+		 *   This AP raises the bit 6&7 not bit 14&15 in AID field.
+		 *   It cause wrong AID assignment.
+		 *   For AID = 2
 		 *     Normal case: 0xC002(1100 0000 0000 0010) => 2
 		 *     Kingnet 710:  0x00C2(0000 0000 1100 0010) => 194
 		 *     workaround: mask bit 6&7 for this AP
 		 */
-		if ((u2RxAssocId & BIT(6)) && (u2RxAssocId & BIT(7)) && !(u2RxAssocId & BITS(8, 15)))
+		if ((u2RxAssocId & BIT(6)) && (u2RxAssocId & BIT(7)) && !(u2RxAssocId & BITS(8, 15))) {
 			prStaRec->u2AssocId = u2RxAssocId & ~BITS(6, 7);
-		else {
+		} else {
 			prStaRec->u2AssocId = u2RxAssocId & ~AID_MSB;
 #if CFG_SUPPORT_802_11W
 			if (prStaRec->eStaType == STA_TYPE_LEGACY_AP) {
@@ -814,7 +1233,9 @@ assocCheckRxReAssocRspFrameStatus(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRf
 		}
 	}
 #if CFG_SUPPORT_802_11W
-	if (u2RxStatusCode == STATUS_CODE_ASSOC_REJECTED_TEMPORARILY) {
+	if (u2RxStatusCode == STATUS_CODE_AUTH_ALGORITHM_NOT_SUPPORTED) {
+		DBGLOG(SAA, INFO, "AP rejected due the authentication algorithm not support\n");
+	} else if (u2RxStatusCode == STATUS_CODE_ASSOC_REJECTED_TEMPORARILY) {
 		PUINT_8 pucIE, pucTime;
 		UINT_16 u2IELength;
 		UINT_16 u2Offset = 0;
@@ -823,17 +1244,17 @@ assocCheckRxReAssocRspFrameStatus(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRf
 		pucIE = (PUINT_8) ((ULONG) prSwRfb->pvHeader + prSwRfb->u2HeaderLen);
 
 		IE_FOR_EACH(pucIE, u2IELength, u2Offset) {
-			if (IE_ID(pucIE) == ELEM_ID_TIMEOUT_INTERVAL && IE_LEN(pucIE) == 5) {
+			if (ELEM_ID_TIMEOUT_INTERVAL == IE_ID(pucIE) && IE_LEN(pucIE) == 5) {
 				pucTime = ((P_IE_HDR_T) pucIE)->aucInfo;
 				if (pucTime[0] == ACTION_SA_TIMEOUT_ASSOC_COMEBACK) {
 					UINT_32 tu;
 
 					WLAN_GET_FIELD_32(pucTime + 1, &tu);
 					DBGLOG(SAA, INFO,
-					       "AP reject association temporarily, comeback duration %u TU (%u ms)\n",
+					       "AP rejected association temporarily;comeback duration %u TU (%u ms)\n",
 						tu, TU_TO_MSEC(tu));
 					if (tu > TX_ASSOCIATION_RETRY_TIMEOUT_TU) {
-						/* DBGLOG(SAA, INFO, "Update timer based on comeback duration\n"); */
+						DBGLOG(SAA, INFO, "Update timer based on comeback duration\n");
 						/* ieee80211_reschedule_timer(wpa_s, ms); */
 					}
 				}
@@ -842,8 +1263,9 @@ assocCheckRxReAssocRspFrameStatus(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRf
 		}		/* end of IE_FOR_EACH */
 	}
 #endif
-
 	*pu2StatusCode = u2RxStatusCode;
+
+	DBGLOG(SAA, INFO, "RX Assoc Response, u2RxStatusCode: %d\n", u2RxStatusCode);
 
 	return WLAN_STATUS_SUCCESS;
 
@@ -927,7 +1349,7 @@ WLAN_STATUS assocSendDisAssocFrame(IN P_ADAPTER_T prAdapter, IN P_STA_RECORD_T p
 	/* Allocate a MSDU_INFO_T */
 	prMsduInfo = cnmMgtPktAlloc(prAdapter, u2EstimatedFrameLen);
 	if (prMsduInfo == NULL) {
-		DBGLOG(SAA, WARN, "No MSDU_INFO_T for sending DisAssoc\n");
+		DBGLOG(SAA, WARN, "No PKT_INFO_T for sending DisAssoc.\n");
 		return WLAN_STATUS_RESOURCES;
 	}
 	/* 4 <2> Compose Disassociation  frame header and fixed fields in MSDU_INfO_T. */
@@ -1027,7 +1449,7 @@ assocProcessRxDisassocFrame(IN P_ADAPTER_T prAdapter,
 *
 * @param[in] prAdapter          Pointer to the Adapter structure.
 * @param[in] prSwRfb            Pointer to SW RFB data structure.
-* @param[out] pu2StatusCode     Pointer to store the Status Code carried in Association Response.
+* @param[out] pu2StatusCode     Pointer to store the Status Code for carried in Association Response.
 *
 * @retval WLAN_STATUS_FAILURE   This is not the frame we should handle at current state.
 * @retval WLAN_STATUS_SUCCESS   This is the frame we should handle.
@@ -1057,10 +1479,9 @@ WLAN_STATUS assocProcessRxAssocReqFrame(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T 
 	ASSERT(pu2StatusCode);
 
 	prStaRec = cnmGetStaRecByIndex(prAdapter, prSwRfb->ucStaRecIdx);
-	if (!prStaRec) {
-		DBGLOG(AAA, ERROR, "Cannot find corresponding StaRec, invalid packet\n");
-		return WLAN_STATUS_INVALID_PACKET;
-	}
+
+	if (prStaRec == NULL)
+		return WLAN_STATUS_FAILURE;
 
 	/* 4 <1> locate the Association Req Frame. */
 	prAssocReqFrame = (P_WLAN_ASSOC_REQ_FRAME_T) prSwRfb->pvHeader;
@@ -1070,36 +1491,34 @@ WLAN_STATUS assocProcessRxAssocReqFrame(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T 
 	u2RxFrameCtrl &= MASK_FRAME_TYPE;
 
 	/* 4 <2> Parse the Header of Association Req Frame. */
-	if (u2RxFrameCtrl == MAC_FRAME_REASSOC_REQ)
+	if (MAC_FRAME_REASSOC_REQ == u2RxFrameCtrl)
 		ucFixedFieldLength = CAP_INFO_FIELD_LEN + LISTEN_INTERVAL_FIELD_LEN + CURR_AP_ADDR_FIELD_LEN;
 	else
 		ucFixedFieldLength = CAP_INFO_FIELD_LEN + LISTEN_INTERVAL_FIELD_LEN;
 
 	if ((prSwRfb->u2PacketLen - prSwRfb->u2HeaderLen) <= ucFixedFieldLength) {
-		DBGLOG(AAA, ERROR, "Assoc Req frame with invalid length\n");
+		/* Length of this (re)association req is invalid, ignore it */
 		return WLAN_STATUS_FAILURE;
 	}
 
 	prBssInfo = GET_BSS_INFO_BY_INDEX(prAdapter, prStaRec->ucBssIndex);
 
-	/* Check if this Association Req Frame is coming from Target BSSID */
-	if (UNEQUAL_MAC_ADDR(prAssocReqFrame->aucBSSID, prBssInfo->aucBSSID)) {
-		DBGLOG(AAA, ERROR, "Assoc Req frame is not from current BSSID\n");
-		return WLAN_STATUS_FAILURE;
-	}
+	/* Check if this Disassoc Frame is coming from Target BSSID */
+	if (UNEQUAL_MAC_ADDR(prAssocReqFrame->aucBSSID, prBssInfo->aucBSSID))
+		return WLAN_STATUS_FAILURE;	/* Just Ignore this MMPDU */
 
-	if (u2RxFrameCtrl == MAC_FRAME_REASSOC_REQ) {
+	if (MAC_FRAME_REASSOC_REQ == u2RxFrameCtrl) {
 		prStaRec->fgIsReAssoc = TRUE;
 
-		u2IELength = prSwRfb->u2PacketLen -
-		    (UINT_16) OFFSET_OF(WLAN_REASSOC_REQ_FRAME_T, aucInfoElem[0]);
+		u2IELength = (prSwRfb->u2PacketLen - prSwRfb->u2HeaderLen) -
+		    (UINT_16) (OFFSET_OF(WLAN_REASSOC_REQ_FRAME_T, aucInfoElem[0]) - WLAN_MAC_MGMT_HEADER_LEN);
 
 		pucIEStart = pucIE = ((P_WLAN_REASSOC_REQ_FRAME_T) (prSwRfb->pvHeader))->aucInfoElem;
 	} else {
 		prStaRec->fgIsReAssoc = FALSE;
 
-		u2IELength = prSwRfb->u2PacketLen -
-		    (UINT_16) OFFSET_OF(WLAN_ASSOC_REQ_FRAME_T, aucInfoElem[0]);
+		u2IELength = (prSwRfb->u2PacketLen - prSwRfb->u2HeaderLen) -
+		    (UINT_16) (OFFSET_OF(WLAN_ASSOC_REQ_FRAME_T, aucInfoElem[0]) - WLAN_MAC_MGMT_HEADER_LEN);
 
 		pucIEStart = pucIE = prAssocReqFrame->aucInfoElem;
 	}
@@ -1234,35 +1653,36 @@ WLAN_STATUS assocProcessRxAssocReqFrame(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T 
 
 			prStaRec->u2DesiredNonHTRateSet = (prStaRec->u2OperationalRateSet & RATE_SET_ALL_ABG);
 
-			if (HAL_RX_STATUS_GET_RF_BAND(prSwRfb->prRxStatus) == BAND_2G4) {
-				/* Marked by CMC 20111024 */
-				/* check if support 11n
-				 * if (!(u2BSSBasicRateSet & RATE_SET_BIT_HT_PHY)) {
-				 *
-				 *     if (prStaRec->u2OperationalRateSet & RATE_SET_OFDM)
-				 *         prStaRec->ucPhyTypeSet |= PHY_TYPE_BIT_ERP;
-				 *
-				 *     if ((!(u2BSSBasicRateSet & RATE_SET_OFDM)) &&
-				 *         (prStaRec->u2OperationalRateSet & RATE_SET_HR_DSSS)) {
-				 *         prStaRec->ucPhyTypeSet |= PHY_TYPE_BIT_HR_DSSS;
-				 *     }
-				 *
-				 * }
-				 */
+			if (BAND_2G4 == HAL_RX_STATUS_GET_RF_BAND(prSwRfb->prRxStatus)) {
+#if 0				/* Marked by CMC 20111024 */
+				/* check if support 11n */
+				if (!(u2BSSBasicRateSet & RATE_SET_BIT_HT_PHY)) {
+
+					if (prStaRec->u2OperationalRateSet & RATE_SET_OFDM)
+						prStaRec->ucPhyTypeSet |= PHY_TYPE_BIT_ERP;
+
+					if ((!(u2BSSBasicRateSet & RATE_SET_OFDM)) &&
+					    (prStaRec->u2OperationalRateSet & RATE_SET_HR_DSSS)) {
+						prStaRec->ucPhyTypeSet |= PHY_TYPE_BIT_HR_DSSS;
+					}
+
+				}
+#else
 				if (prStaRec->u2OperationalRateSet & RATE_SET_OFDM)
 					prStaRec->ucPhyTypeSet |= PHY_TYPE_BIT_ERP;
 				if (prStaRec->u2OperationalRateSet & RATE_SET_HR_DSSS)
 					prStaRec->ucPhyTypeSet |= PHY_TYPE_BIT_HR_DSSS;
+#endif
 			} else {	/* (BAND_5G == prBssDesc->eBande) */
-				/*
-				 * Marked by CMC 20111024
-				 * if (!(u2BSSBasicRateSet & RATE_SET_BIT_HT_PHY))
-				 *     prStaRec->ucPhyTypeSet |= PHY_TYPE_BIT_OFDM;
-				 * ASSERT((prStaRec->u2OperationalRateSet & RATE_SET_HR_DSSS) == 0);
-				 */
+#if 0				/* Marked by CMC 20111024 */
+				if (!(u2BSSBasicRateSet & RATE_SET_BIT_HT_PHY))
+					prStaRec->ucPhyTypeSet |= PHY_TYPE_BIT_OFDM;
+				ASSERT((prStaRec->u2OperationalRateSet & RATE_SET_HR_DSSS) == 0);
+#else
 				if (prStaRec->u2OperationalRateSet & RATE_SET_OFDM)
 					prStaRec->ucPhyTypeSet |= PHY_TYPE_BIT_OFDM;
 
+#endif
 			}
 
 			/* Update default Tx rate */
@@ -1295,33 +1715,37 @@ WLAN_STATUS assocProcessRxAssocReqFrame(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T 
 
 #if CFG_ENABLE_WIFI_DIRECT
 	if (prAdapter->fgIsP2PRegistered && IS_STA_IN_P2P(prStaRec)) {
-		PUINT_8 cp = (PUINT_8) &prAssocReqFrame->u2CapInfo;
+#if 1				/* ICS */
+		{
+			PUINT_8 cp = (PUINT_8) &prAssocReqFrame->u2CapInfo;
 
-		if (prStaRec->fgIsReAssoc)
-			cp += 10;
-		else
-			cp += 4;
-		if (prStaRec->pucAssocReqIe) {
-			kalMemFree(prStaRec->pucAssocReqIe, VIR_MEM_TYPE, prStaRec->u2AssocReqIeLen);
-			prStaRec->pucAssocReqIe = NULL;
-		}
-		prStaRec->u2AssocReqIeLen = u2IELength;
-		if (u2IELength) {
-			prStaRec->pucAssocReqIe = kalMemAlloc(u2IELength, VIR_MEM_TYPE);
-			if (prStaRec->pucAssocReqIe == NULL) {
-				DBGLOG(AAA, WARN, "Allocate memory for (Re)assocReqIe fail!\n");
-				*pu2StatusCode = STATUS_CODE_INVALID_INFO_ELEMENT;
-				return WLAN_STATUS_FAILURE;
+			if (prStaRec->fgIsReAssoc)
+				cp += 10;
+			else
+				cp += 4;
+			if (prStaRec->pucAssocReqIe) {
+				kalMemFree(prStaRec->pucAssocReqIe, VIR_MEM_TYPE, prStaRec->u2AssocReqIeLen);
+				prStaRec->pucAssocReqIe = NULL;
 			}
-			kalMemCopy(prStaRec->pucAssocReqIe, cp, u2IELength);
+			prStaRec->u2AssocReqIeLen = u2IELength;
+			if (u2IELength) {
+				prStaRec->pucAssocReqIe = kalMemAlloc(u2IELength, VIR_MEM_TYPE);
+				if (prStaRec->pucAssocReqIe == NULL) {
+					DBGLOG(AIS, WARN, "allocate memory for (Re)assocReqIe fail!\n");
+					*pu2StatusCode = STATUS_CODE_INVALID_INFO_ELEMENT;
+					return WLAN_STATUS_FAILURE;
+				}
+				kalMemCopy(prStaRec->pucAssocReqIe, cp, u2IELength);
+			}
 		}
-
+#endif
 		kalP2PUpdateAssocInfo(prAdapter->prGlueInfo, (PUINT_8) &prAssocReqFrame->u2CapInfo,
 				      u2IELength + (prStaRec->fgIsReAssoc ? 10 : 4), prStaRec->fgIsReAssoc);
 	}
 #endif
 
 	*pu2StatusCode = u2StatusCode;
+	DBGLOG(AAA, INFO, "RX assoc req, u2StatusCode: %d\n", u2StatusCode);
 
 	return WLAN_STATUS_SUCCESS;
 
@@ -1486,12 +1910,11 @@ WLAN_STATUS assocSendReAssocRespFrame(IN P_ADAPTER_T prAdapter, IN P_STA_RECORD_
 
 	/* Init with MGMT Header Length + Length of Fixed Fields + Common IE Length */
 	u2EstimatedFrameLen = MAC_TX_RESERVED_FIELD +
-			      WLAN_MAC_MGMT_HEADER_LEN +
-			      CAP_INFO_FIELD_LEN +
-			      STATUS_CODE_FIELD_LEN +
-			      AID_FIELD_LEN +
-			      (ELEM_HDR_LEN + ELEM_MAX_LEN_SUP_RATES) +
-			      (ELEM_HDR_LEN + (RATE_NUM_SW - ELEM_MAX_LEN_SUP_RATES));
+	    WLAN_MAC_MGMT_HEADER_LEN +
+	    CAP_INFO_FIELD_LEN +
+	    STATUS_CODE_FIELD_LEN +
+	    AID_FIELD_LEN +
+	    (ELEM_HDR_LEN + ELEM_MAX_LEN_SUP_RATES) + (ELEM_HDR_LEN + (RATE_NUM_SW - ELEM_MAX_LEN_SUP_RATES));
 
 	/* + Extra IE Length */
 	u2EstimatedExtraIELen = 0;
@@ -1512,7 +1935,7 @@ WLAN_STATUS assocSendReAssocRespFrame(IN P_ADAPTER_T prAdapter, IN P_STA_RECORD_
 	/* Allocate a MSDU_INFO_T */
 	prMsduInfo = cnmMgtPktAlloc(prAdapter, u2EstimatedFrameLen);
 	if (prMsduInfo == NULL) {
-		DBGLOG(AAA, WARN, "No MSDU_INFO_T for sending (Re)Assoc Resp\n");
+		DBGLOG(AAA, WARN, "No PKT_INFO_T for sending (Re)Assoc Response.\n");
 		return WLAN_STATUS_RESOURCES;
 	}
 	/* 4 <2> Compose (Re)Association Request frame header and fixed fields in MSDU_INfO_T. */
@@ -1521,7 +1944,8 @@ WLAN_STATUS assocSendReAssocRespFrame(IN P_ADAPTER_T prAdapter, IN P_STA_RECORD_
 
 	/* Compose Header and Fixed Field */
 	assocComposeReAssocRespFrameHeaderAndFF(prStaRec,
-						(PUINT_8) ((ULONG) (prMsduInfo->prPacket) + MAC_TX_RESERVED_FIELD),
+						(PUINT_8) ((ULONG) (prMsduInfo->prPacket) +
+							   MAC_TX_RESERVED_FIELD),
 						prBssInfo->aucBSSID, prBssInfo->u2CapInfo, &u2PayloadLen);
 
 	/* 4 <3> Update information of MSDU_INFO_T */
@@ -1552,9 +1976,8 @@ WLAN_STATUS assocSendReAssocRespFrame(IN P_ADAPTER_T prAdapter, IN P_STA_RECORD_
 	/* TODO(Kevin): Also release the unused tail room of the composed MMPDU */
 
 	nicTxConfigPktControlFlag(prMsduInfo, MSDU_CONTROL_FLAG_FORCE_TX, TRUE);
-
-	/* 4 <6> Enqueue the frame to send this (Re)Association Response frame. */
-	DBGLOG(AAA, TRACE, "Send (Re)Assoc Resp, SeqNo: %d\n", prMsduInfo->ucTxSeqNum);
+	DBGLOG(AAA, INFO, "Send Assoc Response, SeqNo: %d\n", prMsduInfo->ucTxSeqNum);
+	/* 4 <6> Enqueue the frame to send this (Re)Association request frame. */
 	nicTxEnqueueMsdu(prAdapter, prMsduInfo);
 
 	return WLAN_STATUS_SUCCESS;

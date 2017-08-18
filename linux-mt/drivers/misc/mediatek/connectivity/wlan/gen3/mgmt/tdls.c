@@ -1,24 +1,17 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
+** Id: tdls.c#1
+*/
+
+/*! \file tdls.c
+    \brief This file includes IEEE802.11z TDLS support.
 */
 
 /*
- * Id: tdls.c#1
- */
-
-/*
- * ! \file tdls.c
- * \brief This file includes IEEE802.11z TDLS support.
+** Log: tdls.c
+ *
+ * 11 13 2013 vend_samp.lin
+ * NULL
+ * Initial version.
  */
 
 /*******************************************************************************
@@ -155,10 +148,8 @@ UINT_32 TdlsexLinkMgt(P_ADAPTER_T prAdapter, PVOID pvSetBuffer, UINT_32 u4SetBuf
 
 	case TDLS_FRM_ACTION_SETUP_RSP:
 
-		/*
-		 * fix sigma bug 5.2.4.2, 5.2.4.7, we sent Status code decline,
-		 * but the sigma recogniezis it as scucess, and it will fail
-		 */
+		/* fix sigma bug 5.2.4.2, 5.2.4.7, we sent Status code decline,
+		 * but the sigma recogniezis it as scucess, and it will fail */
 		/* if(prCmd->u2StatusCode != 0) */
 		if (prBssInfo->fgTdlsIsProhibited)
 			return 0;
@@ -640,17 +631,17 @@ TdlsDataFrameSend_SETUP_REQ(ADAPTER_T *prAdapter,
 
 	if (ucActionCode != TDLS_FRM_ACTION_TEARDOWN) {
 		/*
-		 * bit0 = 1: The Information Request field is used to indicate that a
-		 * transmitting STA is requesting the recipient to transmit a 20/40 BSS
-		 * Coexistence Management frame with the transmitting STA as the
-		 * recipient.
-		 *
-		 * bit1 = 0: The Forty MHz Intolerant field is set to 1 to prohibit an AP
-		 * that receives this information or reports of this information from
-		 * operating a 20/40 MHz BSS.
-		 *
-		 * bit2 = 0: The 20 MHz BSS Width Request field is set to 1 to prohibit
-		 * a receiving AP from operating its BSS as a 20/40 MHz BSS.
+		   bit0 = 1: The Information Request field is used to indicate that a
+		   transmitting STA is requesting the recipient to transmit a 20/40 BSS
+		   Coexistence Management frame with the transmitting STA as the
+		   recipient.
+
+		   bit1 = 0: The Forty MHz Intolerant field is set to 1 to prohibit an AP
+		   that receives this information or reports of this information from
+		   operating a 20/40 MHz BSS.
+
+		   bit2 = 0: The 20 MHz BSS Width Request field is set to 1 to prohibit
+		   a receiving AP from operating its BSS as a 20/40 MHz BSS.
 		 */
 		BSS_20_40_COEXIST_IE(pPkt)->ucId = ELEM_ID_20_40_BSS_COEXISTENCE;
 		BSS_20_40_COEXIST_IE(pPkt)->ucLength = 1;
@@ -853,17 +844,17 @@ TdlsDataFrameSend_SETUP_RSP(ADAPTER_T *prAdapter,
 
 	if (ucActionCode != TDLS_FRM_ACTION_TEARDOWN) {
 		/*
-		 * bit0 = 1: The Information Request field is used to indicate that a
-		 * transmitting STA is requesting the recipient to transmit a 20/40 BSS
-		 * Coexistence Management frame with the transmitting STA as the
-		 * recipient.
-		 *
-		 * bit1 = 0: The Forty MHz Intolerant field is set to 1 to prohibit an AP
-		 * that receives this information or reports of this information from
-		 * operating a 20/40 MHz BSS.
-		 *
-		 * bit2 = 0: The 20 MHz BSS Width Request field is set to 1 to prohibit
-		 * a receiving AP from operating its BSS as a 20/40 MHz BSS.
+		   bit0 = 1: The Information Request field is used to indicate that a
+		   transmitting STA is requesting the recipient to transmit a 20/40 BSS
+		   Coexistence Management frame with the transmitting STA as the
+		   recipient.
+
+		   bit1 = 0: The Forty MHz Intolerant field is set to 1 to prohibit an AP
+		   that receives this information or reports of this information from
+		   operating a 20/40 MHz BSS.
+
+		   bit2 = 0: The 20 MHz BSS Width Request field is set to 1 to prohibit
+		   a receiving AP from operating its BSS as a 20/40 MHz BSS.
 		 */
 		BSS_20_40_COEXIST_IE(pPkt)->ucId = ELEM_ID_20_40_BSS_COEXISTENCE;
 		BSS_20_40_COEXIST_IE(pPkt)->ucLength = 1;
@@ -1016,17 +1007,17 @@ TdlsDataFrameSend_CONFIRM(ADAPTER_T *prAdapter,
 
 	if (ucActionCode != TDLS_FRM_ACTION_TEARDOWN) {
 		/*
-		 * bit0 = 1: The Information Request field is used to indicate that a
-		 * transmitting STA is requesting the recipient to transmit a 20/40 BSS
-		 * Coexistence Management frame with the transmitting STA as the
-		 * recipient.
-		 *
-		 * bit1 = 0: The Forty MHz Intolerant field is set to 1 to prohibit an AP
-		 * that receives this information or reports of this information from
-		 * operating a 20/40 MHz BSS.
-		 *
-		 * bit2 = 0: The 20 MHz BSS Width Request field is set to 1 to prohibit
-		 * a receiving AP from operating its BSS as a 20/40 MHz BSS.
+		   bit0 = 1: The Information Request field is used to indicate that a
+		   transmitting STA is requesting the recipient to transmit a 20/40 BSS
+		   Coexistence Management frame with the transmitting STA as the
+		   recipient.
+
+		   bit1 = 0: The Forty MHz Intolerant field is set to 1 to prohibit an AP
+		   that receives this information or reports of this information from
+		   operating a 20/40 MHz BSS.
+
+		   bit2 = 0: The 20 MHz BSS Width Request field is set to 1 to prohibit
+		   a receiving AP from operating its BSS as a 20/40 MHz BSS.
 		 */
 		BSS_20_40_COEXIST_IE(pPkt)->ucId = ELEM_ID_20_40_BSS_COEXISTENCE;
 		BSS_20_40_COEXIST_IE(pPkt)->ucLength = 1;
@@ -1203,20 +1194,20 @@ TdlsDataFrameSend_DISCOVERY_REQ(ADAPTER_T *prAdapter,
 	/* Fill elements */
 	if (ucActionCode != TDLS_FRM_ACTION_TEARDOWN) {
 		/*
-		 * Capability
-		 *
-		 * Support Rates
-		 * Extended Support Rates
-		 * Supported Channels
-		 * HT Capabilities
-		 * WMM Information Element
-		 *
-		 * Extended Capabilities
-		 * Link Identifier
-		 *
-		 * RSNIE
-		 * FTIE
-		 * Timeout Interval
+		   Capability
+
+		   Support Rates
+		   Extended Support Rates
+		   Supported Channels
+		   HT Capabilities
+		   WMM Information Element
+
+		   Extended Capabilities
+		   Link Identifier
+
+		   RSNIE
+		   FTIE
+		   Timeout Interval
 		 */
 		if (ucActionCode != TDLS_FRM_ACTION_CONFIRM) {
 			/* 3. Frame Formation - (4) Capability: 0x31 0x04, privacy bit will be set */
@@ -1226,11 +1217,11 @@ TdlsDataFrameSend_DISCOVERY_REQ(ADAPTER_T *prAdapter,
 
 			/* 4. Append general IEs */
 			/*
-			 * TODO check HT: prAdapter->rWifiVar.rConnSettings.uc2G4BandwidthMode
-			 * must be CONFIG_BW_20_40M.
-			 *
-			 * TODO check HT: HT_CAP_INFO_40M_INTOLERANT must be clear if
-			 * Tdls 20/40 is enabled.
+			   TODO check HT: prAdapter->rWifiVar.rConnSettings.uc2G4BandwidthMode
+			   must be CONFIG_BW_20_40M.
+
+			   TODO check HT: HT_CAP_INFO_40M_INTOLERANT must be clear if
+			   Tdls 20/40 is enabled.
 			 */
 			u4IeLen = TdlsFrameGeneralIeAppend(prAdapter, prStaRec, pPkt);
 			LR_TDLS_FME_FIELD_FILL(u4IeLen);
@@ -1269,22 +1260,22 @@ TdlsDataFrameSend_DISCOVERY_REQ(ADAPTER_T *prAdapter,
 
 	/* 6. Frame Formation - 20/40 BSS Coexistence */
 	/*
-	 * Follow WiFi test plan, add 20/40 element to request/response/confirm.
+	   Follow WiFi test plan, add 20/40 element to request/response/confirm.
 	 */
 #if 0
 	if (prGlueInfo->fgTdlsIs2040Supported == TRUE) {
 		/*
-		 * bit0 = 1: The Information Request field is used to indicate that a
-		 * transmitting STA is requesting the recipient to transmit a 20/40 BSS
-		 * Coexistence Management frame with the transmitting STA as the
-		 * recipient.
-		 *
-		 * bit1 = 0: The Forty MHz Intolerant field is set to 1 to prohibit an AP
-		 * that receives this information or reports of this information from
-		 * operating a 20/40 MHz BSS.
-		 *
-		 * bit2 = 0: The 20 MHz BSS Width Request field is set to 1 to prohibit
-		 * a receiving AP from operating its BSS as a 20/40 MHz BSS.
+		   bit0 = 1: The Information Request field is used to indicate that a
+		   transmitting STA is requesting the recipient to transmit a 20/40 BSS
+		   Coexistence Management frame with the transmitting STA as the
+		   recipient.
+
+		   bit1 = 0: The Forty MHz Intolerant field is set to 1 to prohibit an AP
+		   that receives this information or reports of this information from
+		   operating a 20/40 MHz BSS.
+
+		   bit2 = 0: The 20 MHz BSS Width Request field is set to 1 to prohibit
+		   a receiving AP from operating its BSS as a 20/40 MHz BSS.
 		 */
 		BSS_20_40_COEXIST_IE(pPkt)->ucId = ELEM_ID_20_40_BSS_COEXISTENCE;
 		BSS_20_40_COEXIST_IE(pPkt)->ucLength = 1;
@@ -1487,20 +1478,20 @@ TdlsDataFrameSend_DISCOVERY_RSP(ADAPTER_T *prAdapter,
 	/* Fill elements */
 	if (ucActionCode != TDLS_FRM_ACTION_TEARDOWN) {
 		/*
-		 * Capability
-		 *
-		 * Support Rates
-		 * Extended Support Rates
-		 * Supported Channels
-		 * HT Capabilities
-		 * WMM Information Element
-		 *
-		 * Extended Capabilities
-		 * Link Identifier
-		 *
-		 * RSNIE
-		 * FTIE
-		 * Timeout Interval
+		   Capability
+
+		   Support Rates
+		   Extended Support Rates
+		   Supported Channels
+		   HT Capabilities
+		   WMM Information Element
+
+		   Extended Capabilities
+		   Link Identifier
+
+		   RSNIE
+		   FTIE
+		   Timeout Interval
 		 */
 		if (ucActionCode != TDLS_FRM_ACTION_CONFIRM) {
 			/* 3. Frame Formation - (4) Capability: 0x31 0x04, privacy bit will be set */
@@ -1510,11 +1501,11 @@ TdlsDataFrameSend_DISCOVERY_RSP(ADAPTER_T *prAdapter,
 
 			/* 4. Append general IEs */
 			/*
-			 * TODO check HT: prAdapter->rWifiVar.rConnSettings.uc2G4BandwidthMode
-			 * must be CONFIG_BW_20_40M.
-			 *
-			 * TODO check HT: HT_CAP_INFO_40M_INTOLERANT must be clear if
-			 * Tdls 20/40 is enabled.
+			   TODO check HT: prAdapter->rWifiVar.rConnSettings.uc2G4BandwidthMode
+			   must be CONFIG_BW_20_40M.
+
+			   TODO check HT: HT_CAP_INFO_40M_INTOLERANT must be clear if
+			   Tdls 20/40 is enabled.
 			 */
 			u4IeLen = TdlsFrameGeneralIeAppend(prAdapter, prStaRec, pPkt);
 			LR_TDLS_FME_FIELD_FILL(u4IeLen);
@@ -1553,22 +1544,22 @@ TdlsDataFrameSend_DISCOVERY_RSP(ADAPTER_T *prAdapter,
 
 	/* 6. Frame Formation - 20/40 BSS Coexistence */
 	/*
-	 * Follow WiFi test plan, add 20/40 element to request/response/confirm.
+	   Follow WiFi test plan, add 20/40 element to request/response/confirm.
 	 */
 #if 0
 	if (prGlueInfo->fgTdlsIs2040Supported == TRUE) {
 		/*
-		 * bit0 = 1: The Information Request field is used to indicate that a
-		 * transmitting STA is requesting the recipient to transmit a 20/40 BSS
-		 * Coexistence Management frame with the transmitting STA as the
-		 * recipient.
-		 *
-		 * bit1 = 0: The Forty MHz Intolerant field is set to 1 to prohibit an AP
-		 * that receives this information or reports of this information from
-		 * operating a 20/40 MHz BSS.
-		 *
-		 * bit2 = 0: The 20 MHz BSS Width Request field is set to 1 to prohibit
-		 * a receiving AP from operating its BSS as a 20/40 MHz BSS.
+		   bit0 = 1: The Information Request field is used to indicate that a
+		   transmitting STA is requesting the recipient to transmit a 20/40 BSS
+		   Coexistence Management frame with the transmitting STA as the
+		   recipient.
+
+		   bit1 = 0: The Forty MHz Intolerant field is set to 1 to prohibit an AP
+		   that receives this information or reports of this information from
+		   operating a 20/40 MHz BSS.
+
+		   bit2 = 0: The 20 MHz BSS Width Request field is set to 1 to prohibit
+		   a receiving AP from operating its BSS as a 20/40 MHz BSS.
 		 */
 		BSS_20_40_COEXIST_IE(pPkt)->ucId = ELEM_ID_20_40_BSS_COEXISTENCE;
 		BSS_20_40_COEXIST_IE(pPkt)->ucLength = 1;
@@ -1639,17 +1630,17 @@ TdlsDataFrameSend_DISCOVERY_RSP(ADAPTER_T *prAdapter,
 
 	if (ucActionCode != TDLS_FRM_ACTION_TEARDOWN) {
 		/*
-		 * bit0 = 1: The Information Request field is used to indicate that a
-		 * transmitting STA is requesting the recipient to transmit a 20/40 BSS
-		 * Coexistence Management frame with the transmitting STA as the
-		 * recipient.
-		 *
-		 * bit1 = 0: The Forty MHz Intolerant field is set to 1 to prohibit an AP
-		 * that receives this information or reports of this information from
-		 * operating a 20/40 MHz BSS.
-		 *
-		 * bit2 = 0: The 20 MHz BSS Width Request field is set to 1 to prohibit
-		 * a receiving AP from operating its BSS as a 20/40 MHz BSS.
+		   bit0 = 1: The Information Request field is used to indicate that a
+		   transmitting STA is requesting the recipient to transmit a 20/40 BSS
+		   Coexistence Management frame with the transmitting STA as the
+		   recipient.
+
+		   bit1 = 0: The Forty MHz Intolerant field is set to 1 to prohibit an AP
+		   that receives this information or reports of this information from
+		   operating a 20/40 MHz BSS.
+
+		   bit2 = 0: The 20 MHz BSS Width Request field is set to 1 to prohibit
+		   a receiving AP from operating its BSS as a 20/40 MHz BSS.
 		 */
 		BSS_20_40_COEXIST_IE(pPkt)->ucId = ELEM_ID_20_40_BSS_COEXISTENCE;
 		BSS_20_40_COEXIST_IE(pPkt)->ucLength = 1;
@@ -1828,8 +1819,8 @@ VOID TdlsEventTearDown(GLUE_INFO_T *prGlueInfo, UINT_8 *prInBuf, UINT_32 u4InBuf
 	DBGLOG(TDLS, INFO, "\n\n u2ReasonCode = %u\n\n", u2ReasonCode);
 
 	/*
-	 * modify the value when supplicant sends tear down to us in TdlsexMgmtCtrl(), not here
-	 * we want to send tear down to AP (not peer) if PTI timeout or AGE timeout.
+	   modify the value when supplicant sends tear down to us in TdlsexMgmtCtrl(), not here
+	   we want to send tear down to AP (not peer) if PTI timeout or AGE timeout.
 	 */
 
 	/* 16 Nov 21:49 2012 http://permalink.gmane.org/gmane.linux.kernel.wireless.general/99712 */
@@ -1958,12 +1949,12 @@ VOID TdlsBssExtCapParse(P_STA_RECORD_T prStaRec, P_UINT_8 pucIE)
 		return;
 
 	/*
-	 * from bit0 ~
-	 *
-	 * bit 38: TDLS Prohibited
-	 * The TDLS Prohibited subfield indicates whether the use of TDLS is prohibited. The
-	 * field is set to 1 to indicate that TDLS is prohibited and to 0 to indicate that TDLS is
-	 * allowed.
+	   from bit0 ~
+
+	   bit 38: TDLS Prohibited
+	   The TDLS Prohibited subfield indicates whether the use of TDLS is prohibited. The
+	   field is set to 1 to indicate that TDLS is prohibited and to 0 to indicate that TDLS is
+	   allowed.
 	 */
 	if (IE_LEN(pucIE) < 5)
 		return;		/* we need 39/8 = 5 bytes */

@@ -1,25 +1,11 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
+** Id: @(#) gl_p2p_cfg80211.c@@
 */
 
-/*
- * Id: @(#) gl_p2p_cfg80211.c@@
- */
+/*! \file   gl_p2p_kal.c
+    \brief
 
-/*
- * ! \file   gl_p2p_kal.c
- *   \brief
- */
+*/
 
 /*******************************************************************************
 *                         C O M P I L E R   F L A G S
@@ -289,10 +275,10 @@ kalP2PSetRole(IN P_GLUE_INFO_T prGlueInfo,
 
 	if (pucSSID)
 		snprintf(aucBuffer, IW_CUSTOM_MAX - 1, "P2P_FORMATION_RST=%d%d%d%c%c", ucResult,
-			 ucRole, 1 /* persistence or not */, pucSSID[7], pucSSID[8]);
+			 ucRole, 1 /* persistence or not */ , pucSSID[7], pucSSID[8]);
 	else
 		snprintf(aucBuffer, IW_CUSTOM_MAX - 1, "P2P_FORMATION_RST=%d%d%d%c%c", ucResult,
-			 ucRole, 1 /* persistence or not */, '0', '0');
+			 ucRole, 1 /* persistence or not */ , '0', '0');
 
 	evt.data.length = strlen(aucBuffer);
 
@@ -910,10 +896,8 @@ VOID kalP2PIndicateScanDone(IN P_GLUE_INFO_T prGlueInfo, IN UINT_8 ucRoleIndex, 
 
 		if (prScanRequest != NULL) {
 			/* report all queued beacon/probe response frames  to upper layer */
-			/*
-			 * do not indicate again for getting last scan results
-			 * scanReportBss2Cfg80211(prGlueInfo->prAdapter, BSS_TYPE_P2P_DEVICE, NULL);
-			 */
+			scanReportBss2Cfg80211(prGlueInfo->prAdapter, BSS_TYPE_P2P_DEVICE, NULL);
+
 			cfg80211_scan_done(prScanRequest, fgIsAbort);
 		}
 
@@ -947,7 +931,7 @@ kalP2PIndicateBssInfo(IN P_GLUE_INFO_T prGlueInfo,
 		prChannelEntry = kalP2pFuncGetChannelEntry(prGlueP2pInfo, prChannelInfo);
 
 		if (prChannelEntry == NULL) {
-			DBGLOG(P2P, WARN, "Unknown channel info\n");
+			DBGLOG(P2P, TRACE, "Unknown channel info\n");
 			break;
 		}
 
@@ -957,15 +941,8 @@ kalP2PIndicateBssInfo(IN P_GLUE_INFO_T prGlueInfo,
 							  prChannelEntry,
 							  prBcnProbeRspFrame, u4BufLen, i4SignalStrength, GFP_KERNEL);
 
-		if (!prCfg80211Bss) {
-			DBGLOG(P2P, INFO, "inform bss[%pM] failed\n", prBcnProbeRspFrame->bssid);
-			break;
-		}
 		/* Return this structure. */
-		if (prCfg80211Bss)
-			cfg80211_put_bss(prGlueP2pInfo->prWdev->wiphy, prCfg80211Bss);
-		else
-			DBGLOG(P2P, WARN, "Indicate bss to cfg80211 failed\n");
+		cfg80211_put_bss(prGlueP2pInfo->prWdev->wiphy, prCfg80211Bss);
 
 	} while (FALSE);
 
@@ -1078,8 +1055,7 @@ VOID
 kalP2PGCIndicateConnectionStatus(IN P_GLUE_INFO_T prGlueInfo,
 				 IN UINT_8 ucRoleIndex,
 				 IN P_P2P_CONNECTION_REQ_INFO_T prP2pConnInfo,
-				 IN PUINT_8 pucRxIEBuf, IN UINT_16 u2RxIELen, IN UINT_16 u2StatusReason,
-				 IN WLAN_STATUS eStatus)
+				 IN PUINT_8 pucRxIEBuf, IN UINT_16 u2RxIELen, IN UINT_16 u2StatusReason)
 {
 	P_GL_P2P_INFO_T prGlueP2pInfo = (P_GL_P2P_INFO_T) NULL;
 
@@ -1107,9 +1083,7 @@ kalP2PGCIndicateConnectionStatus(IN P_GLUE_INFO_T prGlueInfo,
 			/* Disconnect, what if u2StatusReason == 0? */
 			cfg80211_disconnected(prGlueP2pInfo->aprRoleHandler[ucRoleIndex],
 						/* struct net_device * dev, */
-					      u2StatusReason, pucRxIEBuf, u2RxIELen,
-					      eStatus == WLAN_STATUS_MEDIA_DISCONNECT_LOCALLY ? true : false,
-					      GFP_KERNEL);
+					      u2StatusReason, pucRxIEBuf, u2RxIELen, GFP_KERNEL);
 		}
 
 	} while (FALSE);
@@ -1133,6 +1107,7 @@ kalP2PGOStationUpdate(IN P_GLUE_INFO_T prGlueInfo,
 
 			kalMemZero(&rStationInfo, sizeof(rStationInfo));
 
+			rStationInfo.filled = STATION_INFO_ASSOC_REQ_IES;
 			rStationInfo.generation = ++prP2pGlueInfo->i4Generation;
 
 			rStationInfo.assoc_req_ies = prCliStaRec->pucAssocReqIe;

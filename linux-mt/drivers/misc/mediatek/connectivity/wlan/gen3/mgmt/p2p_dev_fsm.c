@@ -1,17 +1,3 @@
-/*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #include "precomp.h"
 #include "p2p_dev_state.h"
 #if CFG_ENABLE_WIFI_DIRECT
@@ -362,9 +348,8 @@ VOID p2pDevFsmRunEventTimeout(IN P_ADAPTER_T prAdapter, IN ULONG ulParamPtr)
 	do {
 		ASSERT_BREAK((prAdapter != NULL) && (prP2pDevFsmInfo != NULL));
 
-		DBGLOG(P2P, INFO, "p2p dev fsm timeout, current state: %d:%d:%s\n",
+		DBGLOG(P2P, INFO, "p2p dev fsm timeout, current state: %d:%s\n",
 			prP2pDevFsmInfo->eCurrentState,
-			prP2pDevFsmInfo->eListenExted,
 			apucDebugP2pDevState[prP2pDevFsmInfo->eCurrentState]);
 
 		switch (prP2pDevFsmInfo->eCurrentState) {
@@ -375,13 +360,13 @@ VOID p2pDevFsmRunEventTimeout(IN P_ADAPTER_T prAdapter, IN ULONG ulParamPtr)
 			switch (prP2pDevFsmInfo->eListenExted) {
 			case P2P_DEV_NOT_EXT_LISTEN:
 			case P2P_DEV_EXT_LISTEN_WAITFOR_TIMEOUT:
-				DBGLOG(P2P, TRACE, "p2p timeout, state==P2P_DEV_STATE_CHNL_ON_HAND, eListenExted: %d\n",
+				DBGLOG(P2P, INFO, "p2p timeout, state==P2P_DEV_STATE_CHNL_ON_HAND, eListenExted: %d\n",
 					prP2pDevFsmInfo->eListenExted);
 			p2pDevFsmStateTransition(prAdapter, prP2pDevFsmInfo, P2P_DEV_STATE_IDLE);
 				prP2pDevFsmInfo->eListenExted = P2P_DEV_NOT_EXT_LISTEN;
 				break;
 			case P2P_DEV_EXT_LISTEN_ING:
-				DBGLOG(P2P, TRACE, "p2p timeout, state==P2P_DEV_STATE_CHNL_ON_HAND, eListenExted: %d\n",
+				DBGLOG(P2P, INFO, "p2p timeout, state==P2P_DEV_STATE_CHNL_ON_HAND, eListenExted: %d\n",
 					prP2pDevFsmInfo->eListenExted);
 				p2pDevFsmStateTransition(prAdapter, prP2pDevFsmInfo, P2P_DEV_STATE_CHNL_ON_HAND);
 				prP2pDevFsmInfo->eListenExted = P2P_DEV_EXT_LISTEN_WAITFOR_TIMEOUT;
@@ -585,7 +570,7 @@ VOID p2pDevFsmRunEventChannelRequest(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T pr
 
 		if (prP2pDevFsmInfo->eCurrentState == P2P_DEV_STATE_IDLE) {
 			/* Re-enter IDLE state would trigger channel request. */
-			DBGLOG(P2P, TRACE, "prepare to enter idle to trigger channel req\n");
+			DBGLOG(P2P, INFO, "prepare to enter idle to trigger channel req\n");
 			p2pDevFsmStateTransition(prAdapter, prP2pDevFsmInfo, P2P_DEV_STATE_IDLE);
 		}
 	} while (FALSE);
@@ -649,7 +634,7 @@ VOID p2pDevFsmRunEventChannelAbort(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T prMs
 
 				if (prP2pMsgChnlReq->u8Cookie == prChnlAbortMsg->u8Cookie) {
 					LINK_REMOVE_KNOWN_ENTRY(&prChnlReqInfo->rP2pChnlReqLink, prLinkEntry);
-					DBGLOG(P2P, INFO, "Channel Abort. Indicating event, cookie found: 0x%llx\n",
+					DBGLOG(P2P, INFO, "Channel Abort. Indicating event, cookie found: 0x%llu\n",
 						prChnlAbortMsg->u8Cookie);
 
 					kalP2PIndicateChannelReady(prAdapter->prGlueInfo,
@@ -816,18 +801,9 @@ p2pDevFsmRunEventMgmtFrameTxDone(IN P_ADAPTER_T prAdapter,
 {
 	BOOLEAN fgIsSuccess = FALSE;
 	P_P2P_DEV_FSM_INFO_T prP2pDevFsmInfo = (P_P2P_DEV_FSM_INFO_T) NULL;
-	UINT_64 u8Cookie;
 
 	do {
 		ASSERT_BREAK((prAdapter != NULL) && (prMsduInfo != NULL));
-
-		if (!prMsduInfo->prPacket) {
-			DBGLOG(P2P, WARN, "Buffer Cookie freed\n");
-			break;
-		}
-
-		u8Cookie = *(PUINT_64)((ULONG) prMsduInfo->prPacket + (ULONG)prMsduInfo->u2FrameLength
-						+ MAC_TX_RESERVED_FIELD);
 
 		prP2pDevFsmInfo = prAdapter->rWifiVar.prP2pDevFsmInfo;
 
@@ -835,12 +811,11 @@ p2pDevFsmRunEventMgmtFrameTxDone(IN P_ADAPTER_T prAdapter,
 			p2pDevFsmStateTransition(prAdapter, prP2pDevFsmInfo, P2P_DEV_STATE_OFF_CHNL_TX);
 
 		if (rTxDoneStatus != TX_RESULT_SUCCESS) {
-			DBGLOG(P2P, INFO, "Mgmt Frame TX Fail, Status: %d, cookie: 0x%llx SeqNO: %d.\n",
-				rTxDoneStatus, u8Cookie, prMsduInfo->ucTxSeqNum);
+			DBGLOG(P2P, INFO, "Mgmt Frame TX Fail, Status: %d, SeqNO: %d.\n",
+				rTxDoneStatus, prMsduInfo->ucTxSeqNum);
 		} else {
 			fgIsSuccess = TRUE;
-			DBGLOG(P2P, INFO, "Mgmt Frame TX Done, cookie: 0x%llx SeqNO: %d.\n",
-				   u8Cookie, prMsduInfo->ucTxSeqNum);
+			DBGLOG(P2P, INFO, "Mgmt Frame TX Done, SeqNO: %d.\n", prMsduInfo->ucTxSeqNum);
 		}
 
 		kalP2PIndicateMgmtTxStatus(prAdapter->prGlueInfo, prMsduInfo, fgIsSuccess);
@@ -1053,7 +1028,7 @@ VOID p2pFsmRunEventExtendListen(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T prMsgHd
 	}
 
 	if (prP2pDevFsmInfo && (prP2pDevFsmInfo->eListenExted == P2P_DEV_NOT_EXT_LISTEN)) {
-		DBGLOG(P2P, TRACE, "try to ext listen, p2p state: %d\n", prP2pDevFsmInfo->eCurrentState);
+		DBGLOG(P2P, INFO, "try to ext listen, p2p state: %d\n", prP2pDevFsmInfo->eCurrentState);
 		if (prP2pDevFsmInfo->eCurrentState == P2P_DEV_STATE_CHNL_ON_HAND) {
 			DBGLOG(P2P, INFO, "here to ext listen interval\n");
 			prP2pDevFsmInfo->eListenExted = P2P_DEV_EXT_LISTEN_ING;

@@ -1,17 +1,3 @@
-/*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #include "precomp.h"
 
 #if (CFG_SUPPORT_TRACE_TC4 == 1)
@@ -178,37 +164,3 @@ VOID wlanDumpTcResAndTxedCmd(PUINT_8 pucBuf, UINT_32 maxLen)
 	}
 }
 #endif
-
-VOID wlanPrintFwLog(PUINT_8 pucLogContent, UINT_16 u2MsgSize, UINT_8 ucMsgType)
-{
-#define OLD_KBUILD_MODNAME KBUILD_MODNAME
-#define OLD_LOG_FUNC LOG_FUNC
-#undef KBUILD_MODNAME
-#undef LOG_FUNC
-#define KBUILD_MODNAME "wlan_gen3_fw"
-#define LOG_FUNC pr_debug
-
-	if (u2MsgSize > DEBUG_MSG_SIZE_MAX - 1) {
-		LOG_FUNC("Firmware Log Size(%d) is too large, type %d\n", u2MsgSize, ucMsgType);
-		return;
-	}
-	switch (ucMsgType) {
-	case DEBUG_MSG_TYPE_ASCII:
-		pucLogContent[u2MsgSize] = '\0';
-		LOG_FUNC("%s\n", pucLogContent);
-		break;
-	case DEBUG_MSG_TYPE_MEM8:
-		DBGLOG_MEM8(RX, INFO, pucLogContent, u2MsgSize);
-		break;
-	default:
-		DBGLOG_MEM32(RX, INFO, (PUINT_32)pucLogContent, u2MsgSize);
-		break;
-	}
-
-#undef KBUILD_MODNAME
-#undef LOG_FUNC
-#define KBUILD_MODNAME OLD_KBUILD_MODNAME
-#define LOG_FUNC OLD_LOG_FUNC
-#undef OLD_KBUILD_MODNAME
-#undef OLD_LOG_FUNC
-}

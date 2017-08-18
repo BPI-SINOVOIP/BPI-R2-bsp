@@ -1,27 +1,158 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/nic/mac.h#1
+*/
+
+/*! \file   "mac.h"
+    \brief  Brief description.
+
+    Detail description.
 */
 
 /*
- * Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/nic/mac.h#1
- */
-
-/*
- * file   "mac.h"
- * brief  Brief description.
+** Log: mac.h
+**
+** 09 16 2014 eason.tsai
+** [ALPS01728937] [Need Patch] [Volunteer Patch] MET support
+** support MET
+**
+** 07 23 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Sync the latest jb2.mp 11w code as draft version
+** Not the CM bit for avoid wapi 1x drop at re-key
+**
+** 07 16 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** Fix VHT CAP IE parsing error
+**
+** 07 12 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** 1. Update VHT IE composing function
+** 2. disable bow
+** 3. Exchange bss/sta rec update sequence for temp solution
+**
+** 06 14 2013 eddie.chen
+** [BORA00002450] [WIFISYS][MT6630] New design for mt6630
+** Add full mcsset. Add more vht info in sta update
+**
+** 03 13 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** .
+**
+** 03 12 2013 tsaiyuan.hsu
+** [BORA00002222] MT6630 unified MAC RXM
+** add rx data and management processing.
+**
+** 11 06 2012 eason.tsai
+** [BORA00002255] [MT6630 Wi-Fi][Driver] develop
+** .
+**
+** 09 17 2012 cm.chang
+** [BORA00002149] [MT6630 Wi-Fi] Initial software development
+** Duplicate source from MT6620 v2.3 driver branch
+** (Davinci label: MT6620_WIFI_Driver_V2_3_120913_1942_As_MT6630_Base)
  *
- * Detail description.
- */
+ * 03 02 2012 terry.wu
+ * NULL
+ * Sync CFG80211 modification from branch 2,2.
+ *
+ * 01 05 2012 tsaiyuan.hsu
+ * [WCXRP00001157] [MT6620 Wi-Fi][FW][DRV] add timing measurement support for 802.11v
+ * add timing measurement support for 802.11v.
+ *
+ * 10 12 2011 wh.su
+ * [WCXRP00001036] [MT6620 Wi-Fi][Driver][FW] Adding the 802.11w code for MFP
+ * adding the 802.11w related function and define .
+ *
+ * 06 22 2011 wh.su
+ * [WCXRP00000806] [MT6620 Wi-Fi][Driver] Move the WPA/RSN IE and WAPI IE structure to mac.h
+ * and let the sw structure not align at byte
+ * Move the WAPI/RSN IE to mac.h and SW structure not align to byte,
+ * Notice needed update P2P.ko.
+ *
+ * 05 06 2011 wh.su
+ * [WCXRP00000699] [MT6620 Wi-Fi][Driver] Add the ie pointer check for avoid TP-LINK AP send
+ * the wrong beacon make driver got incorrect support rate set
+ * Add the length check before access the ie length filed.
+ *
+ * 05 06 2011 wh.su
+ * [WCXRP00000699] [MT6620 Wi-Fi][Driver] Add the ie pointer check for avoid TP-LINK AP send
+ * the wrong beacon make driver got incorrect support rate set
+ * adding the length check before processing next ie..
+ *
+ * 04 18 2011 terry.wu
+ * [WCXRP00000660] [MT6620 Wi-Fi][Driver] Remove flag CFG_WIFI_DIRECT_MOVED
+ * Remove flag CFG_WIFI_DIRECT_MOVED.
+ *
+ * 04 12 2011 cm.chang
+ * [WCXRP00000634] [MT6620 Wi-Fi][Driver][FW] 2nd BSS will not support 40MHz bandwidth for concurrency
+ * .
+ *
+ * 04 08 2011 yuche.tsai
+ * [WCXRP00000624] [Volunteer Patch][MT6620][Driver] Add device discoverability support for GO.
+ * Add device discover ability support.
+ *
+ * 03 17 2011 chinglan.wang
+ * [WCXRP00000570] [MT6620 Wi-Fi][Driver] Add Wi-Fi Protected Setup v2.0 feature
+ * .
+ *
+ * 01 25 2011 yuche.tsai
+ * [WCXRP00000388] [Volunteer Patch][MT6620][Driver/Fw] change Station Type in station record.
+ * Some action frame define is not belong to P2P.
+ *
+ * 01 25 2011 yuche.tsai
+ * [WCXRP00000388] [Volunteer Patch][MT6620][Driver/Fw] change Station Type in station record.
+ * Add some service discovery MAC define, phase I.
+ *
+ * 12 13 2010 cp.wu
+ * [WCXRP00000260] [MT6620 Wi-Fi][Driver][Firmware] Create V1.1 branch for both firmware and driver
+ * create branch for Wi-Fi driver v1.1
+ *
+ * 12 13 2010 cp.wu
+ * [WCXRP00000256] [MT6620 Wi-Fi][Driver] Eliminate potential issues which is identified by Klockwork
+ * suppress warning reported by Klockwork.
+ *
+ * 11 01 2010 cp.wu
+ * [WCXRP00000122] [MT6620 Wi-Fi][Driver] Preparation for YuSu source tree integration
+ * revert to previous revision. (this file is not necessary to be changed)
+ *
+ * 08 20 2010 cm.chang
+ * NULL
+ * Migrate RLM code to host from FW
+ *
+ * 08 02 2010 yuche.tsai
+ * NULL
+ * 1. Add P2P MAC define.
+ * 2. Add scan device found event
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 06 21 2010 yuche.tsai
+ * [WPD00003839][MT6620 5931][P2P] Feature migration
+ * Add WFA specific OUI.
+ *
+ * 06 17 2010 yuche.tsai
+ * [WPD00003839][MT6620 5931][P2P] Feature migration
+ * Add P2P IE ID & Vendor OUI TYPE for P2P.
+ *
+ * 06 07 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * merge MAC.h.
+ *
+ * 06 06 2010 kevin.huang
+ * [WPD00003832][MT6620 5931] Create driver base
+ * [MT6620 5931] Create driver base
+ *
+ * 01 13 2010 tehuang.liu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * Added OFFSET_BAR_SSC_SN
+**  \main\maintrunk.MT6620WiFiDriver_Prj\3 2009-12-09 14:00:24 GMT MTK02468
+**  Added offsets and masks for the BA Parameter Set filed
+**  \main\maintrunk.MT6620WiFiDriver_Prj\2 2009-03-10 20:16:26 GMT mtk01426
+**  Init for develop
+**
+*/
 
 #ifndef _MAC_H
 #define _MAC_H
@@ -55,11 +186,9 @@
 
 #define IP_PRO_ICMP				0x01
 #define IP_PRO_UDP				0x11
-#define IP_PRO_TCP				0x06
 
 #define UDP_PORT_DHCPS				0x43
 #define UDP_PORT_DHCPC				0x44
-#define UDP_PORT_DNS				0x35
 
 #define ETH_P_1X                                0x888E
 #define ETH_P_PRE_1X                            0x88C7
@@ -197,7 +326,7 @@
 #define ETH_SNAP_BT_SIG_OUI_0                   0x00
 #define ETH_SNAP_BT_SIG_OUI_1                   0x19
 #define ETH_SNAP_BT_SIG_OUI_2                   0x58
-#define ETH_SNAP_BT_SIG_OUI                     {ETH_SNAP_BT_SIG_OUI_0, ETH_SNAP_BT_SIG_OUI_1, ETH_SNAP_BT_SIG_OUI_2}
+#define ETH_SNAP_BT_SIG_OUI                     {ETH_SNAP_BT_SIG_OUI_0 , ETH_SNAP_BT_SIG_OUI_1, ETH_SNAP_BT_SIG_OUI_2}
 
 #define BOW_PROTOCOL_ID_SECURITY_FRAME          0x0003
 
@@ -591,22 +720,16 @@
 #define REASON_CODE_CLASS_3_ERR                     7	/* Class 3 frame rx from nonassoc STA */
 #define REASON_CODE_DISASSOC_LEAVING_BSS            8	/* Disassoc because sending STA is leaving BSS */
 #define REASON_CODE_ASSOC_BEFORE_AUTH               9	/* STA requesting (re)assoc is not auth with responding STA */
-#define REASON_CODE_DISASSOC_PWR_CAP_UNACCEPTABLE   10	/*
-							 * Disassoc because the info in Power Capability is
-							 * unacceptable
-							 */
-#define REASON_CODE_DISASSOC_SUP_CHS_UNACCEPTABLE   11	/*
-							 * Disassoc because the info in Supported Channels is
-							 * unacceptable
-							 */
+#define REASON_CODE_DISASSOC_PWR_CAP_UNACCEPTABLE   10	/* Disassoc because the info in Power Capability is
+							unacceptable */
+#define REASON_CODE_DISASSOC_SUP_CHS_UNACCEPTABLE   11	/* Disassoc because the info in Supported Channels is
+							unacceptable */
 #define REASON_CODE_INVALID_INFO_ELEM               13	/* Invalid information element */
 #define REASON_CODE_MIC_FAILURE                     14	/* MIC failure */
 #define REASON_CODE_4_WAY_HANDSHAKE_TIMEOUT         15	/* 4-way handshake timeout */
 #define REASON_CODE_GROUP_KEY_UPDATE_TIMEOUT        16	/* Group key update timeout */
-#define REASON_CODE_DIFFERENT_INFO_ELEM             17	/*
-							 * Info element in 4-way handshake different from
-							 * (Re-)associate request/Probe response/Beacon
-							 */
+#define REASON_CODE_DIFFERENT_INFO_ELEM             17	/* Info element in 4-way handshake different from
+							(Re-)associate request/Probe response/Beacon */
 #define REASON_CODE_MULTICAST_CIPHER_NOT_VALID      18	/* Multicast Cipher is not valid */
 #define REASON_CODE_UNICAST_CIPHER_NOT_VALID        19	/* Unicast Cipher is not valid */
 #define REASON_CODE_AKMP_NOT_VALID                  20	/* AKMP is not valid */
@@ -615,18 +738,12 @@
 #define REASON_CODE_IEEE_802_1X_AUTH_FAILED         23	/* IEEE 802.1X Authentication failed */
 #define REASON_CODE_CIPHER_REJECT_SEC_POLICY        24	/* Cipher suite rejected because of the security policy */
 #define REASON_CODE_DISASSOC_UNSPECIFIED_QOS        32	/* Disassoc for unspecified, QoS-related reason */
-#define REASON_CODE_DISASSOC_LACK_OF_BANDWIDTH      33	/*
-							 * Disassoc because QAP lacks sufficient bandwidth
-							 * for this QSTA
-							 */
-#define REASON_CODE_DISASSOC_ACK_LOST_POOR_CHANNEL  34	/*
-							 * Disassoc because of too many ACKs lost for AP transmissions
-							 * and/or poor channel conditions
-							 */
-#define REASON_CODE_DISASSOC_TX_OUTSIDE_TXOP_LIMIT  35	/*
-							 * Disassoc because QSTA is transmitting outside the limits of
-							 * its TXOPs
-							 */
+#define REASON_CODE_DISASSOC_LACK_OF_BANDWIDTH      33	/* Disassoc because QAP lacks sufficient bandwidth
+							for this QSTA */
+#define REASON_CODE_DISASSOC_ACK_LOST_POOR_CHANNEL  34	/* Disassoc because of too many ACKs lost for AP transmissions
+							and/or poor channel conditions */
+#define REASON_CODE_DISASSOC_TX_OUTSIDE_TXOP_LIMIT  35	/* Disassoc because QSTA is transmitting outside the limits of
+							its TXOPs */
 #define REASON_CODE_PEER_WHILE_LEAVING              36	/* QSTA is leaving the QBSS or resetting */
 #define REASON_CODE_PEER_REFUSE_DLP                 37	/* Peer does not want to use this mechanism */
 #define REASON_CODE_PEER_SETUP_REQUIRED             38	/* Frames received but a setup is reqired */
@@ -647,87 +764,51 @@
 #define STATUS_CODE_SUCCESSFUL                      0	/* Successful */
 #define STATUS_CODE_UNSPECIFIED_FAILURE             1	/* Unspecified failure */
 #define STATUS_CODE_CAP_NOT_SUPPORTED               10	/* Cannot support all requested cap in the Cap Info field */
-#define STATUS_CODE_REASSOC_DENIED_WITHOUT_ASSOC    11	/*
-							 * Reassoc denied due to inability to confirm that
-							 * assoc exists
-							 */
+#define STATUS_CODE_REASSOC_DENIED_WITHOUT_ASSOC    11	/* Reassoc denied due to inability to confirm that
+							assoc exists */
 #define STATUS_CODE_ASSOC_DENIED_OUTSIDE_STANDARD   12	/* Assoc denied due to reason outside the scope of this std. */
-#define STATUS_CODE_AUTH_ALGORITHM_NOT_SUPPORTED    13	/*
-							 * Responding STA does not support the specified
-							 * auth algorithm
-							 */
-#define STATUS_CODE_AUTH_OUT_OF_SEQ                 14	/*
-							 * Rx an auth frame with auth transaction seq num
-							 * out of expected seq
-							 */
+#define STATUS_CODE_AUTH_ALGORITHM_NOT_SUPPORTED    13	/* Responding STA does not support the specified
+							auth algorithm */
+#define STATUS_CODE_AUTH_OUT_OF_SEQ                 14	/* Rx an auth frame with auth transaction seq num
+							out of expected seq */
 #define STATUS_CODE_AUTH_REJECTED_CHAL_FAIL         15	/* Auth rejected because of challenge failure */
-#define STATUS_CODE_AUTH_REJECTED_TIMEOUT           16	/*
-							 * Auth rejected due to timeout waiting for next frame
-							 * in sequence
-							 */
-#define STATUS_CODE_ASSOC_DENIED_AP_OVERLOAD        17	/*
-							 * Assoc denied because AP is unable to handle additional
-							 * assoc STAs
-							 */
-#define STATUS_CODE_ASSOC_DENIED_RATE_NOT_SUPPORTED 18	/*
-							 * Assoc denied due to requesting STA not supporting
-							 * all of basic rates
-							 */
-#define STATUS_CODE_ASSOC_DENIED_NO_SHORT_PREAMBLE  19	/*
-							 * Assoc denied due to requesting STA not supporting short
-							 * preamble
-							 */
+#define STATUS_CODE_AUTH_REJECTED_TIMEOUT           16	/* Auth rejected due to timeout waiting for next frame
+							in sequence */
+#define STATUS_CODE_ASSOC_DENIED_AP_OVERLOAD        17	/* Assoc denied because AP is unable to handle additional
+							assoc STAs */
+#define STATUS_CODE_ASSOC_DENIED_RATE_NOT_SUPPORTED 18	/* Assoc denied due to requesting STA not supporting
+							all of basic rates */
+#define STATUS_CODE_ASSOC_DENIED_NO_SHORT_PREAMBLE  19	/* Assoc denied due to requesting STA not supporting short
+							preamble */
 #define STATUS_CODE_ASSOC_DENIED_NO_PBCC            20	/* Assoc denied due to requesting STA not supporting PBCC */
-#define STATUS_CODE_ASSOC_DENIED_NO_CH_AGILITY      21	/*
-							 * Assoc denied due to requesting STA not supporting channel
-							 * agility
-							 */
+#define STATUS_CODE_ASSOC_DENIED_NO_CH_AGILITY      21	/* Assoc denied due to requesting STA not supporting channel
+							agility */
 #define STATUS_CODE_ASSOC_REJECTED_NO_SPEC_MGT      22	/* Assoc rejected because Spectrum Mgt capability is required */
-#define STATUS_CODE_ASSOC_REJECTED_PWR_CAP          23	/*
-							 * Assoc rejected because the info in Power Capability
-							 * is unacceptable
-							 */
-#define STATUS_CODE_ASSOC_REJECTED_SUP_CHS          24	/*
-							 * Assoc rejected because the info in Supported Channels
-							 * is unacceptable
-							 */
-#define STATUS_CODE_ASSOC_DENIED_NO_SHORT_SLOT_TIME 25	/*
-							 * Assoc denied due to requesting STA not supporting
-							 * short slot time
-							 */
-#define STATUS_CODE_ASSOC_DENIED_NO_DSSS_OFDM       26	/*
-							 * Assoc denied due to requesting STA not supporting
-							 * DSSS-OFDM
-							 */
+#define STATUS_CODE_ASSOC_REJECTED_PWR_CAP          23	/* Assoc rejected because the info in Power Capability
+							is unacceptable */
+#define STATUS_CODE_ASSOC_REJECTED_SUP_CHS          24	/* Assoc rejected because the info in Supported Channels
+							is unacceptable */
+#define STATUS_CODE_ASSOC_DENIED_NO_SHORT_SLOT_TIME 25	/* Assoc denied due to requesting STA not supporting
+							short slot time */
+#define STATUS_CODE_ASSOC_DENIED_NO_DSSS_OFDM       26	/* Assoc denied due to requesting STA not supporting
+							DSSS-OFDM */
 #if CFG_SUPPORT_802_11W
 #define STATUS_CODE_ASSOC_REJECTED_TEMPORARILY      30	/*  IEEE 802.11w, Assoc denied due to the SA query */
-#define STATUS_CODE_ROBUST_MGMT_FRAME_POLICY_VIOLATION 31	/*
-								 * IEEE 802.11w, Assoc denied due to the MFP select
-								 * policy
-								 */
+#define STATUS_CODE_ROBUST_MGMT_FRAME_POLICY_VIOLATION 31	/* IEEE 802.11w, Assoc denied due to the MFP select
+								policy */
 #endif
 #define STATUS_CODE_UNSPECIFIED_QOS_FAILURE         32	/* Unspecified, QoS-related failure */
-#define STATUS_CODE_ASSOC_DENIED_BANDWIDTH          33	/*
-							 * Assoc denied due to insufficient bandwidth to handle another
-							 * QSTA
-							 */
-#define STATUS_CODE_ASSOC_DENIED_POOR_CHANNEL       34	/*
-							 * Assoc denied due to excessive frame loss rates and/or poor
-							 * channel conditions
-							 */
-#define STATUS_CODE_ASSOC_DENIED_NO_QOS_FACILITY    35	/*
-							 * Assoc denied due to requesting STA not supporting QoS
-							 * facility
-							 */
+#define STATUS_CODE_ASSOC_DENIED_BANDWIDTH          33	/* Assoc denied due to insufficient bandwidth to handle another
+							QSTA */
+#define STATUS_CODE_ASSOC_DENIED_POOR_CHANNEL       34	/* Assoc denied due to excessive frame loss rates and/or poor
+							channel conditions */
+#define STATUS_CODE_ASSOC_DENIED_NO_QOS_FACILITY    35	/* Assoc denied due to requesting STA not supporting QoS
+							facility */
 #define STATUS_CODE_REQ_DECLINED                    37	/* Request has been declined */
-#define STATUS_CODE_REQ_INVALID_PARAMETER_VALUE     38	/*
-							 * Request has not been successful as one or more parameters
-							 * have invalid values
-							 */
-#define STATUS_CODE_REQ_NOT_HONORED_TSPEC           39	/*
-							 * TS not created because request cannot be honored.
-							 * Suggested TSPEC provided.
-							 */
+#define STATUS_CODE_REQ_INVALID_PARAMETER_VALUE     38	/* Request has not been successful as one or more parameters
+							have invalid values */
+#define STATUS_CODE_REQ_NOT_HONORED_TSPEC           39	/* TS not created because request cannot be honored.
+							Suggested TSPEC provided. */
 #define STATUS_CODE_INVALID_INFO_ELEMENT            40	/* Invalid information element */
 #define STATUS_CODE_INVALID_GROUP_CIPHER            41	/* Invalid group cipher */
 #define STATUS_CODE_INVALID_PAIRWISE_CIPHER         42	/* Invalid pairwise cipher */
@@ -735,10 +816,8 @@
 #define STATUS_CODE_UNSUPPORTED_RSN_IE_VERSION      44	/* Unsupported RSN information element version */
 #define STATUS_CODE_INVALID_RSN_IE_CAP              45	/* Invalid RSN information element capabilities */
 #define STATUS_CODE_CIPHER_SUITE_REJECTED           46	/* Cipher suite rejected because of security policy */
-#define STATUS_CODE_REQ_NOT_HONORED_TS_DELAY        47	/*
-							 * TS not created because request cannot be honored.
-							 * Attempt to create a TS later.
-							 */
+#define STATUS_CODE_REQ_NOT_HONORED_TS_DELAY        47	/* TS not created because request cannot be honored.
+							Attempt to create a TS later. */
 #define STATUS_CODE_DIRECT_LINK_NOT_ALLOWED         48	/* Direct Link is not allowed in the BSS by policy */
 #define STATUS_CODE_DESTINATION_STA_NOT_PRESENT     49	/* Destination STA is not present within this QBSS */
 #define STATUS_CODE_DESTINATION_STA_NOT_QSTA        50	/* Destination STA is not a QSTA */
@@ -838,7 +917,6 @@
 #define ELEM_ID_20_40_BSS_COEXISTENCE               72	/* 20/40 BSS Coexistence */
 #define ELEM_ID_20_40_INTOLERANT_CHNL_REPORT        73	/* 20/40 BSS Intolerant Channel Report */
 #define ELEM_ID_OBSS_SCAN_PARAMS                    74	/* Overlapping BSS Scan Parameters */
-#define ELEM_ID_BSS_MAX_IDLE_PERIOD                 90	/* AP Keep-Alive parameters */
 #define ELEM_ID_EXTENDED_CAP                        127	/* Extended capabilities */
 
 #define ELEM_ID_INTERWORKING                        107	/* Interworking with External Network */
@@ -854,7 +932,7 @@
 
 #define ELEM_ID_VHT_CAP                             191	/* VHT Capabilities subelement */
 #define ELEM_ID_VHT_OP                              192	/* VHT Operation information */
-#define ELEM_ID_WIDE_BAND_CHANNEL_SWITCH            194	/* Wide Bandwidth Channel Switch */
+#define ELEM_ID_WIDE_BAND_CHANNEL_SWITCH            194	/*Wide Bandwidth Channel Switch */
 #define ELEM_ID_OP_MODE                             199	/* Operation Mode Notification */
 #define ELEM_ID_RESERVED                            255	/* Reserved */
 
@@ -994,70 +1072,70 @@
 /* 8.4.2.161 VHT Operation element */
 #define ELEM_MAX_LEN_VHT_OP                          (7 - ELEM_HDR_LEN)	/* sizeof(IE_VHT_OP_T)-2 */
 
-/* 8.4.2.160.3 VHT Supported MCS Set field*/
+/*8.4.2.160.3 VHT Supported MCS Set field*/
 
-/* 8.4.2.160.2 VHT Capabilities Info field*/
-#define VHT_CAP_INFO_MAX_MPDU_LEN_3K			0
-#define VHT_CAP_INFO_MAX_MPDU_LEN_8K			BIT(0)
-#define VHT_CAP_INFO_MAX_MPDU_LEN_11K			BIT(1)
+/*8.4.2.160.2 VHT Capabilities Info field*/
+#define VHT_CAP_INFO_MAX_MPDU_LEN_3K							0
+#define VHT_CAP_INFO_MAX_MPDU_LEN_8K							BIT(0)
+#define VHT_CAP_INFO_MAX_MPDU_LEN_11K						    BIT(1)
 
-#define VHT_CAP_INFO_MAX_SUP_CHANNEL_WIDTH_SET_NONE	0
-#define VHT_CAP_INFO_MAX_SUP_CHANNEL_WIDTH_SET_160	BIT(2)
-#define VHT_CAP_INFO_MAX_SUP_CHANNEL_WIDTH_SET_160_80P80	BIT(3)
+#define VHT_CAP_INFO_MAX_SUP_CHANNEL_WIDTH_SET_NONE			0
+#define VHT_CAP_INFO_MAX_SUP_CHANNEL_WIDTH_SET_160				BIT(2)
+#define VHT_CAP_INFO_MAX_SUP_CHANNEL_WIDTH_SET_160_80P80		BIT(3)
 
-#define VHT_CAP_INFO_RX_LDPC				BIT(4)
-#define VHT_CAP_INFO_SHORT_GI_80			BIT(5)
-#define VHT_CAP_INFO_SHORT_GI_160_80P80			BIT(6)
-#define VHT_CAP_INFO_TX_STBC				BIT(7)
+#define VHT_CAP_INFO_RX_LDPC									BIT(4)
+#define VHT_CAP_INFO_SHORT_GI_80								BIT(5)
+#define VHT_CAP_INFO_SHORT_GI_160_80P80							BIT(6)
+#define VHT_CAP_INFO_TX_STBC									BIT(7)
 
-#define VHT_CAP_INFO_RX_STBC_NONE			0
-#define VHT_CAP_INFO_RX_STBC_ONE_STREAM			BIT(8)
-#define VHT_CAP_INFO_RX_STBC_TWO_STREAM			BIT(9)
-#define VHT_CAP_INFO_RX_STBC_THREE_STREAM		BITS(8, 9)
-#define VHT_CAP_INFO_RX_STBC_FOUR_STREAM		BIT(10)
+#define VHT_CAP_INFO_RX_STBC_NONE								0
+#define VHT_CAP_INFO_RX_STBC_ONE_STREAM							BIT(8)
+#define VHT_CAP_INFO_RX_STBC_TWO_STREAM							BIT(9)
+#define VHT_CAP_INFO_RX_STBC_THREE_STREAM						BITS(8, 9)
+#define VHT_CAP_INFO_RX_STBC_FOUR_STREAM						BIT(10)
 
-#define VHT_CAP_INFO_SU_BEAMFORMER_CAPABLE		BIT(11)
-#define VHT_CAP_INFO_SU_BEAMFORMEE_CAPABLE		BIT(12)
+#define VHT_CAP_INFO_SU_BEAMFORMER_CAPABLE						BIT(11)
+#define VHT_CAP_INFO_SU_BEAMFORMEE_CAPABLE						BIT(12)
 
 #define VHT_CAP_INFO_COMPRESSED_STEERING_NUMBER_OF_BEAMFORMER_ANTENNAS_SUPPOERTED BITS(13, 15)
 #define VHT_CAP_INFO_COMPRESSED_STEERING_NUMBER_OF_BEAMFORMER_ANTENNAS_4_SUPPOERTED BITS(13, 14)
 
-#define VHT_CAP_INFO_NUMBER_OF_SOUNDING_DIMENSIONS	BITS(16, 18)
+#define VHT_CAP_INFO_NUMBER_OF_SOUNDING_DIMENSIONS				BITS(16, 18)
 
-#define	VHT_CAP_INFO_MU_BEAMFOMER_CAPABLE		BIT(19)
-#define VHT_CAP_INFO_MU_BEAMFOMEE_CAPABLE		BIT(20)
-#define VHT_CAP_INFO_VHT_TXOP_PS			BIT(21)
-#define VHT_CAP_INFO_HTC_VHT_CAPABLE			BIT(22)
+#define	VHT_CAP_INFO_MU_BEAMFOMER_CAPABLE						BIT(19)
+#define VHT_CAP_INFO_MU_BEAMFOMEE_CAPABLE						BIT(20)
+#define VHT_CAP_INFO_VHT_TXOP_PS								BIT(21)
+#define VHT_CAP_INFO_HTC_VHT_CAPABLE							BIT(22)
 
 #define VHT_CAP_INFO_MAX_AMPDU_LENGTH_OFFSET                    23
 
-#define VHT_CAP_INFO_VHT_LINK_ADAPTATION_CAPABLE_NOFEEDBACK	0
-#define VHT_CAP_INFO_VHT_LINK_ADAPTATION_CAPABLE_UNSOLICITED	BITS(27)
-#define VHT_CAP_INFO_VHT_LINK_ADAPTATION_CAPABLE_BOTH		BITS(26, 27)
+#define VHT_CAP_INFO_VHT_LINK_ADAPTATION_CAPABLE_NOFEEDBACK				0
+#define VHT_CAP_INFO_VHT_LINK_ADAPTATION_CAPABLE_UNSOLICITED				BITS(27)
+#define VHT_CAP_INFO_VHT_LINK_ADAPTATION_CAPABLE_BOTH						BITS(26, 27)
 
-#define VHT_CAP_INFO_RX_ANTENNA_PATTERN_CONSISTENCY		BIT(28)
-#define VHT_CAP_INFO_TX_ANTENNA_PATTERN_CONSISTENCY		BIT(29)
+#define VHT_CAP_INFO_RX_ANTENNA_PATTERN_CONSISTENCY			BIT(28)
+#define VHT_CAP_INFO_TX_ANTENNA_PATTERN_CONSISTENCY			BIT(29)
 
-#define VHT_CAP_INFO_MCS_MAP_MCS7		0
-#define VHT_CAP_INFO_MCS_MAP_MCS8		BIT(0)
-#define VHT_CAP_INFO_MCS_MAP_MCS9		(BIT(1) | ~BIT(0))
-#define VHT_CPA_INFO_MCS_NOT_SUPPORTED		BITS(0, 1)
+#define VHT_CAP_INFO_MCS_MAP_MCS7								0
+#define VHT_CAP_INFO_MCS_MAP_MCS8								BIT(0)
+#define VHT_CAP_INFO_MCS_MAP_MCS9								(BIT(1) | ~BIT(0))
+#define VHT_CPA_INFO_MCS_NOT_SUPPORTED							BITS(0, 1)
 
-#define VHT_CAP_INFO_MCS_1SS_OFFSET		0
-#define VHT_CAP_INFO_MCS_2SS_OFFSET		2
-#define VHT_CAP_INFO_MCS_3SS_OFFSET		4
-#define VHT_CAP_INFO_MCS_4SS_OFFSET		6
-#define VHT_CAP_INFO_MCS_5SS_OFFSET		8
-#define VHT_CAP_INFO_MCS_6SS_OFFSET		10
-#define VHT_CAP_INFO_MCS_7SS_OFFSET		12
-#define VHT_CAP_INFO_MCS_8SS_OFFSET		14
+#define VHT_CAP_INFO_MCS_1SS_OFFSET						0
+#define VHT_CAP_INFO_MCS_2SS_OFFSET						2
+#define VHT_CAP_INFO_MCS_3SS_OFFSET						4
+#define VHT_CAP_INFO_MCS_4SS_OFFSET						6
+#define VHT_CAP_INFO_MCS_5SS_OFFSET						8
+#define VHT_CAP_INFO_MCS_6SS_OFFSET						10
+#define VHT_CAP_INFO_MCS_7SS_OFFSET						12
+#define VHT_CAP_INFO_MCS_8SS_OFFSET						14
 
-#define VHT_OP_CHANNEL_WIDTH_20_40		0
-#define VHT_OP_CHANNEL_WIDTH_80			1
-#define VHT_OP_CHANNEL_WIDTH_160		2
-#define VHT_OP_CHANNEL_WIDTH_80P80		3
+#define VHT_OP_CHANNEL_WIDTH_20_40						0
+#define VHT_OP_CHANNEL_WIDTH_80							1
+#define VHT_OP_CHANNEL_WIDTH_160						2
+#define VHT_OP_CHANNEL_WIDTH_80P80						3
 
-/* 8.4.1.50 Operating Mode Field */
+/*8.4.1.50 Operating Mode Field*/
 #define VHT_OP_MODE_CHANNEL_WIDTH                   BITS(0, 1)
 #define VHT_OP_MODE_RX_NSS                          BITS(4, 6)
 #define VHT_OP_MODE_RX_NSS_TYPE                     BIT(7)
@@ -1349,11 +1427,6 @@
 #define CTRL_BAR_BAR_INFORMATION_OFFSET             18
 #define CTRL_BAR_BAR_INFORMATION_SSN_OFFSET         4
 
-/* 802.11-2012, 8.5.7 Radio Measurement action fields, table 8-206 */
-#if CFG_SUPPORT_802_11K
-#define RM_ACTION_NEIGHBOR_REQUEST                  4
-#define RM_ACTION_REIGHBOR_RESPONSE                 5
-#endif
 /*******************************************************************************
 *                             D A T A   T Y P E S
 ********************************************************************************
@@ -1580,10 +1653,8 @@ typedef struct _WLAN_ASSOC_RSP_FRAME_T {
 	UINT_16 u2CapInfo;	/* Capability information */
 	UINT_16 u2StatusCode;	/* Status code */
 	UINT_16 u2AssocId;	/* Association ID */
-	UINT_8 aucInfoElem[1];	/*
-				 * Information elements, such as
-				 * supported rates, and etc.
-				 */
+	UINT_8 aucInfoElem[1];	/* Information elements, such as
+				   supported rates, and etc. */
 } __KAL_ATTRIB_PACKED__ WLAN_ASSOC_RSP_FRAME_T, *P_WLAN_ASSOC_RSP_FRAME_T;
 
 /* 7.2.3.6 WLAN Management Frame - Reassociation Request frame */
@@ -1602,10 +1673,8 @@ typedef struct _WLAN_REASSOC_REQ_FRAME_T {
 	UINT_8 aucInfoElem[1];	/* Information elements, include WPA IE */
 } __KAL_ATTRIB_PACKED__ WLAN_REASSOC_REQ_FRAME_T, *P_WLAN_REASSOC_REQ_FRAME_T;
 
-/*
- * 7.2.3.7 WLAN Management Frame - Reassociation Response frame
- * (the same as Association Response frame)
- */
+/* 7.2.3.7 WLAN Management Frame - Reassociation Response frame
+   (the same as Association Response frame) */
 typedef WLAN_ASSOC_RSP_FRAME_T WLAN_REASSOC_RSP_FRAME_T, *P_WLAN_REASSOC_RSP_FRAME_T;
 
 /* 7.2.3.9 WLAN Management Frame - Probe Response Frame */
@@ -1708,30 +1777,24 @@ typedef struct _IE_CHALLENGE_TEXT_T {
 #if CFG_SUPPORT_802_11D
 /*! \brief COUNTRY_INFO_TRIPLET is defined for the COUNTRY_INFO_ELEM structure. */
 typedef struct _COUNTRY_INFO_TRIPLET_T {
-	UINT_8 ucParam1;	/*
-				 * !< If param1 >= 201, this triplet is referred to as
-				 * Regulatory Triplet in 802_11J.
-				 */
+	UINT_8 ucParam1;	/*!< If param1 >= 201, this triplet is referred to as
+				   Regulatory Triplet in 802_11J. */
 	UINT_8 ucParam2;
 	UINT_8 ucParam3;
 } __KAL_ATTRIB_PACKED__ COUNTRY_INFO_TRIPLET_T, *P_COUNTRY_INFO_TRIPLET_T;
 
 typedef struct _COUNTRY_INFO_SUBBAND_TRIPLET_T {
-	UINT_8 ucFirstChnlNum;	/* !< First Channel Number */
-	UINT_8 ucNumOfChnl;	/* !< Number of Channels */
-	INT_8 cMaxTxPwrLv;	/* !< Maximum Transmit Power Level */
+	UINT_8 ucFirstChnlNum;	/*!< First Channel Number */
+	UINT_8 ucNumOfChnl;	/*!< Number of Channels */
+	INT_8 cMaxTxPwrLv;	/*!< Maximum Transmit Power Level */
 } __KAL_ATTRIB_PACKED__ COUNTRY_INFO_SUBBAND_TRIPLET_T, *P_COUNTRY_INFO_SUBBAND_TRIPLET_T;
 
 typedef struct _COUNTRY_INFO_REGULATORY_TRIPLET_T {
-	UINT_8 ucRegExtId;	/*
-				 * !< Regulatory Extension Identifier, should
-				 * be greater than or equal to 201
-				 */
-	UINT_8 ucRegClass;	/* !< Regulatory Class */
-	UINT_8 ucCoverageClass;	/*
-				 * !< Coverage Class, unsigned 1-octet value 0~31,
-				 * 32~255 reserved
-				 */
+	UINT_8 ucRegExtId;	/*!< Regulatory Extension Identifier, should
+				   be greater than or equal to 201 */
+	UINT_8 ucRegClass;	/*!< Regulatory Class */
+	UINT_8 ucCoverageClass;	/*!< Coverage Class, unsigned 1-octet value 0~31
+				   , 32~255 reserved */
 } __KAL_ATTRIB_PACKED__ COUNTRY_INFO_REGULATORY_TRIPLET_T, *P_COUNTRY_INFO_REGULATORY_TRIPLET_T;
 
 typedef struct _IE_COUNTRY_T {
@@ -1785,14 +1848,14 @@ typedef struct _IE_TPC_REPORT_T {
 	INT_8 cLinkMargin;	/* Unit: dB */
 } __KAL_ATTRIB_PACKED__ IE_TPC_REPORT_T, *P_IE_TPC_REPORT_T;
 
-/* 7.3.2.19 Supported Channels element */
+/* 7.3.2.19 Supported Channels element*/
 typedef struct _IE_SUPPORTED_CHANNELS_T {
 	UINT_8 ucId;
 	UINT_8 ucLength;
 	UINT_8 ucChannelNum[ELEM_MAX_LEN_SUPPORTED_CHANNELS * 2];
 } __KAL_ATTRIB_PACKED__ IE_SUPPORTED_CHANNELS_T, *P_IE_SUPPORTED_CHANNELS_T;
 
-/* 7.3.2.20 Channel Switch Announcement element */
+/* 7.3.2.20 Channel Switch Announcement element*/
 typedef struct _IE_CHANNEL_SWITCH_T {
 	UINT_8 ucId;
 	UINT_8 ucLength;
@@ -1838,41 +1901,6 @@ typedef struct _IE_SUP_OPERATING_CLASS_T {
 	UINT_8 ucCur;
 	UINT_8 ucSup[255];
 } __KAL_ATTRIB_PACKED__ IE_SUP_OPERATING_CLASS_T, *P_IE_SUP_OPERATING_CLASS_T;
-
-/* 8.4.2.30 BSS Load element */
-struct IE_BSS_LOAD {
-	UINT_8 ucId;
-	UINT_8 ucLength;
-	UINT_16 u2StaCnt;
-	UINT_8 ucChnlUtilizaion;
-	UINT_16 u2AvailabeAC;
-};
-
-/* 8.4.2.81 Bss Max Idle Period */
-struct IE_BSS_MAX_IDLE_PERIOD {
-	UINT_8 ucId;
-	UINT_8 ucLength;
-	UINT_16 u2MaxIdlePeriod; /* unit is 1000 TUs, 1024ms */
-	UINT_8 ucIdleOption; /* BIT(0) is now means Protected Keep-Alive Required, other bits are reserved */
-};
-
-/* 8.4.2.39 Neighbor Report Element */
-struct IE_NEIGHBOR_REPORT_T {
-	UINT_8 ucId;		/* Element ID */
-	UINT_8 ucLength;	/* Length */
-	UINT_8 aucBSSID[MAC_ADDR_LEN];	/* OUI */
-	UINT_8 aucBSSIDInfo[4];		/* Type */
-	UINT_8 ucOperClass; /* Hotspot Configuration */
-	UINT_8 ucChnlNumber;
-	UINT_8 ucPhyType;
-	UINT_8 aucSubElem[0];
-};
-
-struct SUB_ELEMENT_T {
-	UINT_8 ucSubID;
-	UINT_8 ucLength;
-	UINT_8 aucOptInfo[1];
-};
 
 typedef struct _SM_BASIC_REQ_T {
 	UINT_8 ucChannel;
@@ -2047,7 +2075,7 @@ typedef struct _IE_HT_OP_T {
 	UINT_8 aucBasicMcsSet[16];
 } __KAL_ATTRIB_PACKED__ IE_HT_OP_T, *P_IE_HT_OP_T;
 
-/* 8.4.2.160.3 VHT Supported MCS Set field */
+/*8.4.2.160.3 VHT Supported MCS Set field*/
 typedef struct _VHT_SUPPORTED_MCS_FIELD {
 	UINT_16 u2RxMcsMap;
 	UINT_16 u2RxHighestSupportedDataRate;
@@ -2062,7 +2090,7 @@ typedef struct _IE_VHT_CAP_T {
 	VHT_SUPPORTED_MCS_FIELD rVhtSupportedMcsSet;
 } __KAL_ATTRIB_PACKED__ IE_VHT_CAP_T, *P_IE_VHT_CAP_T;
 
-/* 8.4.2.161 VHT Operation element */
+/*8.4.2.161 VHT Operation element*/
 typedef struct _IE_VHT_OP_T {
 	UINT_8 ucId;
 	UINT_8 ucLength;
@@ -2070,14 +2098,14 @@ typedef struct _IE_VHT_OP_T {
 	UINT_16 u2VhtBasicMcsSet;
 } __KAL_ATTRIB_PACKED__ IE_VHT_OP_T, *P_IE_VHT_OP_T;
 
-/* 8.4.2.22 Secondary Channel Offset element */
+/*8.4.2.22 Secondary Channel Offset element*/
 typedef struct _IE_SECONDARY_OFFSET_T {
 	UINT_8 ucId;
 	UINT_8 ucLength;
 	UINT_8 ucSecondaryOffset;
 } __KAL_ATTRIB_PACKED__ IE_SECONDARY_OFFSET_T, *P_IE_SECONDARY_OFFSET_T;
 
-/* 8.4.2.105 Mesh Channel Switch Parameters element */
+/*8.4.2.105 Mesh Channel Switch Parameters element*/
 typedef struct _IE_MESH_CHANNEL_T {
 	UINT_8 ucId;
 	UINT_8 ucLength;
@@ -2087,7 +2115,7 @@ typedef struct _IE_MESH_CHANNEL_T {
 	UINT_16 u2ProcedenceValue;
 } __KAL_ATTRIB_PACKED__ IE_MESH_CHANNEL_T, *P_IE_MESH_CHANNEL_T;
 
-/* 8.4.2.163 Wide Bandwidth Channel Switch element */
+/*8.4.2.163 Wide Bandwidth Channel Switch element*/
 typedef struct _IE_WIDE_BAND_CHANNEL_T {
 	UINT_8 ucId;
 	UINT_8 ucLength;
@@ -2096,7 +2124,7 @@ typedef struct _IE_WIDE_BAND_CHANNEL_T {
 	UINT_8 ucChannelS2;
 } __KAL_ATTRIB_PACKED__ IE_WIDE_BAND_CHANNEL_T, *P_IE_WIDE_BAND_CHANNEL_T;
 
-/* 8.4.2.168 Operating Mode Notification element */
+/*8.4.2.168 Operating Mode Notification element*/
 typedef struct _IE_OP_MODE_NOTIFICATION_T {
 	UINT_8 ucId;
 	UINT_8 ucLength;
@@ -2216,10 +2244,8 @@ typedef struct _ACTION_ADDTS_REQ_FRAME {
 	UINT_8 ucCategory;	/* Category */
 	UINT_8 ucAction;	/* Action Value */
 	UINT_8 ucDialogToken;	/* Dialog Token */
-	UINT_8 aucInfoElem[1];	/*
-				 * Information elements, such as
-				 * TS Delay, and etc.
-				 */
+	UINT_8 aucInfoElem[1];	/* Information elements, such as
+				   TS Delay, and etc. */
 } __KAL_ATTRIB_PACKED__ ACTION_ADDTS_REQ_FRAME, *P_ACTION_ADDTS_REQ_FRAME;
 
 /* 7.4.2.2 ADDTS Response frame format */
@@ -2236,10 +2262,8 @@ typedef struct _ACTION_ADDTS_RSP_FRAME {
 	UINT_8 ucAction;	/* Action Value */
 	UINT_8 ucDialogToken;	/* Dialog Token */
 	UINT_8 ucStatusCode;	/* WMM Status Code is of one byte */
-	UINT_8 aucInfoElem[1];	/*
-				 * Information elements, such as
-				 * TS Delay, and etc.
-				 */
+	UINT_8 aucInfoElem[1];	/* Information elements, such as
+				   TS Delay, and etc. */
 } __KAL_ATTRIB_PACKED__ ACTION_ADDTS_RSP_FRAME, *P_ACTION_ADDTS_RSP_FRAME;
 
 /* 7.4.2.3 DELTS frame format */
@@ -2335,10 +2359,8 @@ typedef struct _ACTION_RM_REQ_FRAME {
 	UINT_8 ucAction;	/* Action Value */
 	UINT_8 ucDialogToken;	/* Dialog Token */
 	UINT_16 u2Repetitions;	/* Number of repetitions */
-	UINT_8 aucInfoElem[1];	/*
-				 * Measurement Request elements, such as
-				 * channel load request, and etc.
-				 */
+	UINT_8 aucInfoElem[1];	/* Measurement Request elements, such as
+				   channel load request, and etc. */
 } __KAL_ATTRIB_PACKED__ ACTION_RM_REQ_FRAME, *P_ACTION_RM_REQ_FRAME;
 
 /* 7.4.6.2 Radio Measurement Report frame format */
@@ -2354,10 +2376,8 @@ typedef struct _ACTION_RM_REPORT_FRAME {
 	UINT_8 ucCategory;	/* Category */
 	UINT_8 ucAction;	/* Action Value */
 	UINT_8 ucDialogToken;	/* Dialog Token */
-	UINT_8 aucInfoElem[1];	/*
-				 * Measurement Report elements, such as
-				 * channel load report, and etc.
-				 */
+	UINT_8 aucInfoElem[1];	/* Measurement Report elements, such as
+				   channel load report, and etc. */
 } __KAL_ATTRIB_PACKED__ ACTION_RM_REPORT_FRAME, *P_ACTION_RM_REPORT_FRAME;
 
 /* 7.4.7.1a 20/40 BSS Coexistence Management frame format */
@@ -2462,22 +2482,6 @@ typedef struct _ACTION_OP_MODE_NOTIFICATION_FRAME {
 	UINT_8 ucOperatingMode;	/* Operating Mode */
 } __KAL_ATTRIB_PACKED__ ACTION_OP_MODE_NOTIFICATION_FRAME, *P_ACTION_OP_MODE_NOTIFICATION_FRAME;
 
-/* 8.5.7.6/8.5.7.7 Neighbor Report Request/Response frame format */
-struct ACTION_NEIGHBOR_REPORT_FRAME {
-	/* Neighbor Report Request/Response MAC header */
-	UINT_16 u2FrameCtrl;	/* Frame Control */
-	UINT_16 u2Duration;	/* Duration */
-	UINT_8 aucDestAddr[MAC_ADDR_LEN];	/* DA */
-	UINT_8 aucSrcAddr[MAC_ADDR_LEN];	/* SA */
-	UINT_8 aucBSSID[MAC_ADDR_LEN];	/* BSSID */
-	UINT_16 u2SeqCtrl;	/* Sequence Control */
-	/* Neighbor Report Request/Response frame body */
-	UINT_8 ucCategory;	/* Category */
-	UINT_8 ucAction;	/* Action Value */
-	UINT_8 ucDialogToken;	/* Dialog Token */
-	UINT_8 aucInfoElem[1];	/* subelements */
-};
-
 /* 3 Information Elements from WFA. */
 typedef struct _IE_WFA_T {
 	UINT_8 ucId;
@@ -2485,10 +2489,8 @@ typedef struct _IE_WFA_T {
 	UINT_8 aucOui[3];
 	UINT_8 ucOuiType;
 	UINT_8 aucOuiSubTypeVersion[2];
-	/*
-	 * !< Please be noted. WPA defines a 16 bit field version
-	 * instead of one subtype field and one version field
-	 */
+	/*!< Please be noted. WPA defines a 16 bit field version
+	   instead of one subtype field and one version field */
 } __KAL_ATTRIB_PACKED__ IE_WFA_T, *P_IE_WFA_T;
 
 #if CFG_SUPPORT_PASSPOINT

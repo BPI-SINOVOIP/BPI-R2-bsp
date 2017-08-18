@@ -1,26 +1,11 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
 ** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/nic_init_cmd_event.h#1
 */
 
-/*
- * ! \file   "nic_init_cmd_event.h"
- *   \brief This file contains the declairation file of the WLAN initialization routines
- *   for MediaTek Inc. 802.11 Wireless LAN Adapters.
- */
+/*! \file   "nic_init_cmd_event.h"
+    \brief This file contains the declairation file of the WLAN initialization routines
+	   for MediaTek Inc. 802.11 Wireless LAN Adapters.
+*/
 
 #ifndef _NIC_INIT_CMD_EVENT_H
 #define _NIC_INIT_CMD_EVENT_H
@@ -96,8 +81,8 @@ typedef struct _INIT_HIF_TX_HEADER_T {
 } INIT_HIF_TX_HEADER_T, *P_INIT_HIF_TX_HEADER_T;
 
 #define DOWNLOAD_CONFIG_ENCRYPTION_MODE     BIT(0)
-#if defined(MT6631)
-#define DOWNLOAD_CONFIG_ENCRYPT_IDX_MASK    BITS(1, 2)
+#if defined(MT6797)
+#define DOWNLOAD_CONFIG_ENCRYPT_IDX_MASK    BITS(1,2)
 #define DOWNLOAD_CONFIG_ENCRYPT_IDX_OFFSET  1
 #endif
 #define DOWNLOAD_CONFIG_RESET_OPTION        BIT(3)
@@ -137,22 +122,26 @@ typedef struct _INIT_HIF_RX_HEADER_T {
 	INIT_WIFI_EVENT_T rInitWifiEvent;
 } INIT_HIF_RX_HEADER_T, *P_INIT_HIF_RX_HEADER_T;
 
+#if defined(MT6797)
 typedef struct _INIT_EVENT_CMD_RESULT {
-	UINT_8  ucStatus;		/* 0: success, others: failure */
+	UINT_8		ucStatus;		/* 0: success, others: failure */
+	UINT_8		aucReserved[3];
+	UINT_16 	u2PseFid;
+	UINT_8		ucKeyIndex;
+	UINT_8		aucReserved1;
+	INIT_CMD_DOWNLOAD_CONFIG rSrc;
+}INIT_EVENT_CMD_RESULT, *P_INIT_EVENT_CMD_RESULT, INIT_EVENT_PENDING_ERROR, *P_INIT_EVENT_PENDING_ERROR;
+#else
+typedef struct _INIT_EVENT_CMD_RESULT {
+	UINT_8 ucStatus;	/* 0: success */
 	/* 1: rejected by invalid param */
 	/* 2: rejected by incorrect CRC */
 	/* 3: rejected by decryption failure */
 	/* 4: unknown CMD */
 	/* 5: timeout */
 	UINT_8 aucReserved[3];
-#if defined(MT6631)
-	UINT_16 u2PseFid;
-	UINT_8  ucKeyIndex;
-	UINT_8  aucReserved1;
-	INIT_CMD_DOWNLOAD_CONFIG rSrc;
-#endif
 } INIT_EVENT_CMD_RESULT, *P_INIT_EVENT_CMD_RESULT, INIT_EVENT_PENDING_ERROR, *P_INIT_EVENT_PENDING_ERROR;
-
+#endif
 typedef struct _INIT_EVENT_ACCESS_REG {
 	UINT_32 u4Address;
 	UINT_32 u4Data;

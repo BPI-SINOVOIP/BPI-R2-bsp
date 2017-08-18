@@ -1,28 +1,45 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
+** Id: @(#) gl_rst.c@@
+*/
+
+/*! \file   gl_rst.c
+    \brief  Main routines for supporintg MT6620 whole-chip reset mechanism
+
+    This file contains the support routines of Linux driver for MediaTek Inc. 802.11
+    Wireless LAN Adapters.
 */
 
 /*
- * Id: @(#) gl_rst.c@@
- */
-
-/*
- * ! \file   gl_rst.c
- *  \brief  Main routines for supporintg MT6620 whole-chip reset mechanism
+** Log: gl_rst.c
+**
+** 09 17 2012 cm.chang
+** [BORA00002149] [MT6630 Wi-Fi] Initial software development
+** Duplicate source from MT6620 v2.3 driver branch
+** (Davinci label: MT6620_WIFI_Driver_V2_3_120913_1942_As_MT6630_Base)
  *
- *   This file contains the support routines of Linux driver for MediaTek Inc. 802.11
- *   Wireless LAN Adapters.
- */
+ * 11 10 2011 cp.wu
+ * [WCXRP00001098] [MT6620 Wi-Fi][Driver] Replace printk by DBG LOG macros in linux porting layer
+ * 1. eliminaite direct calls to printk in porting layer.
+ * 2. replaced by DBGLOG, which would be XLOG on ALPS platforms.
+ *
+ * 04 22 2011 cp.wu
+ * [WCXRP00000598] [MT6620 Wi-Fi][Driver] Implementation of interface for communicating with user space process for
+ * RESET_START and RESET_END events
+ * skip power-off handshaking when RESET indication is received.
+ *
+ * 04 14 2011 cp.wu
+ * [WCXRP00000598] [MT6620 Wi-Fi][Driver] Implementation of interface for communicating with user space process for
+ * RESET_START and RESET_END events
+ * 1. add code to put whole-chip resetting trigger when abnormal firmware assertion is detected
+ * 2. add dummy function for both Win32 and Linux part.
+ *
+ * 03 30 2011 cp.wu
+ * [WCXRP00000598] [MT6620 Wi-Fi][Driver] Implementation of interface for communicating with user space process for
+ * RESET_START and RESET_END events
+ * use netlink unicast instead of broadcast
+ *
+**
+*/
 
 /*******************************************************************************
 *                         C O M P I L E R   F L A G S
@@ -50,7 +67,6 @@
 *                            P U B L I C   D A T A
 ********************************************************************************
 */
-static BOOLEAN fgResetTriggered = FALSE;
 BOOLEAN fgIsResetting = FALSE;
 UINT32 g_IsNeedDoChipReset;
 
@@ -61,7 +77,6 @@ UINT32 g_IsNeedDoChipReset;
 static RESET_STRUCT_T wifi_rst;
 
 static void mtk_wifi_reset(struct work_struct *work);
-static void mtk_wifi_trigger_reset(struct work_struct *work);
 
 /*******************************************************************************
 *                   F U N C T I O N   D E C L A R A T I O N S
@@ -88,12 +103,12 @@ static void *glResetCallback(ENUM_WMTDRV_TYPE_T eSrcType,
 /*----------------------------------------------------------------------------*/
 VOID glResetInit(VOID)
 {
+#if (defined(MT6797) && (MTK_WCN_SINGLE_MODULE == 0)) || defined(MT6630)
 	/* 1. Register reset callback */
 	mtk_wcn_wmt_msgcb_reg(WMTDRV_TYPE_WIFI, (PF_WMT_CB) glResetCallback);
-
+#endif
 	/* 2. Initialize reset work */
 	INIT_WORK(&(wifi_rst.rst_work), mtk_wifi_reset);
-	INIT_WORK(&(wifi_rst.rst_trigger_work), mtk_wifi_trigger_reset);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -108,8 +123,10 @@ VOID glResetInit(VOID)
 /*----------------------------------------------------------------------------*/
 VOID glResetUninit(VOID)
 {
+#if (defined(MT6797) && (MTK_WCN_SINGLE_MODULE == 0)) || defined(MT6630)
 	/* 1. Deregister reset callback */
 	mtk_wcn_wmt_msgcb_unreg(WMTDRV_TYPE_WIFI);
+#endif
 }
 
 /*----------------------------------------------------------------------------*/
@@ -138,7 +155,6 @@ static void *glResetCallback(ENUM_WMTDRV_TYPE_T eSrcType,
 			case WMTRSTMSG_RESET_START:
 				DBGLOG(INIT, WARN, "Whole chip reset start!\n");
 				fgIsResetting = TRUE;
-				fgResetTriggered = FALSE;
 				wifi_reset_start();
 				break;
 
@@ -216,65 +232,43 @@ BOOLEAN kalIsResetting(VOID)
 	return fgIsResetting;
 }
 
-static void mtk_wifi_trigger_reset(struct work_struct *work)
-{
-	BOOLEAN fgResult = FALSE;
-
-	fgResetTriggered = TRUE;
-	fgResult = mtk_wcn_wmt_assert(WMTDRV_TYPE_WIFI, 0x40);
-	DBGLOG(INIT, INFO, "reset result %d\n", fgResult);
-}
-
 BOOLEAN glResetTrigger(P_ADAPTER_T prAdapter)
 {
 	BOOLEAN fgResult = TRUE;
 
-	if (kalIsResetting() || fgResetTriggered) {
+#if CFG_WMT_RESET_API_SUPPORT
+	if (kalIsResetting()) {
 		DBGLOG(INIT, ERROR,
-		       "Skip triggering whole-chip reset during resetting! Chip[%04X E%u]\n",
-		       nicGetChipID(prAdapter),
-		       wlanGetEcoVersion(prAdapter));
+			"Skip triggering whole-chip reset during resetting! Chip[%04X E%u]\n",
+			MTK_CHIP_REV,
+			wlanGetEcoVersion(prAdapter));
 		DBGLOG(INIT, ERROR,
-		       "FW Ver DEC[%u.%u] HEX[%x.%x], Driver Ver[%u.%u]\n",
-		       (prAdapter->rVerInfo.u2FwOwnVersion >> 8),
-		       (prAdapter->rVerInfo.u2FwOwnVersion & BITS(0, 7)),
-		       (prAdapter->rVerInfo.u2FwOwnVersion >> 8),
-		       (prAdapter->rVerInfo.u2FwOwnVersion & BITS(0, 7)),
-		       (prAdapter->rVerInfo.u2FwPeerVersion >> 8),
-		       (prAdapter->rVerInfo.u2FwPeerVersion & BITS(0, 7)));
+			"FW Ver DEC[%u.%u] HEX[%x.%x], Driver Ver[%u.%u]\n",
+			(prAdapter->rVerInfo.u2FwOwnVersion >> 8),
+			(prAdapter->rVerInfo.u2FwOwnVersion & BITS(0, 7)),
+			(prAdapter->rVerInfo.u2FwOwnVersion >> 8),
+			(prAdapter->rVerInfo.u2FwOwnVersion & BITS(0, 7)),
+			(prAdapter->rVerInfo.u2FwPeerVersion >> 8),
+			(prAdapter->rVerInfo.u2FwPeerVersion & BITS(0, 7)));
 
 		fgResult = TRUE;
 	} else {
 		DBGLOG(INIT, ERROR,
 		"Trigger whole-chip reset! Chip[%04X E%u] FW Ver DEC[%u.%u] HEX[%x.%x], Driver Ver[%u.%u]\n",
-		       nicGetChipID(prAdapter),
-		       wlanGetEcoVersion(prAdapter),
-		       (prAdapter->rVerInfo.u2FwOwnVersion >> 8),
-		       (prAdapter->rVerInfo.u2FwOwnVersion & BITS(0, 7)),
-		       (prAdapter->rVerInfo.u2FwOwnVersion >> 8),
-		       (prAdapter->rVerInfo.u2FwOwnVersion & BITS(0, 7)),
-		       (prAdapter->rVerInfo.u2FwPeerVersion >> 8),
-		       (prAdapter->rVerInfo.u2FwPeerVersion & BITS(0, 7)));
+			     MTK_CHIP_REV,
+			     wlanGetEcoVersion(prAdapter),
+			     (prAdapter->rVerInfo.u2FwOwnVersion >> 8),
+			     (prAdapter->rVerInfo.u2FwOwnVersion & BITS(0, 7)),
+			     (prAdapter->rVerInfo.u2FwOwnVersion >> 8),
+			     (prAdapter->rVerInfo.u2FwOwnVersion & BITS(0, 7)),
+			     (prAdapter->rVerInfo.u2FwPeerVersion >> 8),
+			     (prAdapter->rVerInfo.u2FwPeerVersion & BITS(0, 7)));
 
-		schedule_work(&(wifi_rst.rst_trigger_work));
+		fgResult = mtk_wcn_wmt_assert(WMTDRV_TYPE_WIFI, 0x40);
 	}
+#endif
 
 	return fgResult;
 }
 
 #endif /* CFG_CHIP_RESET_SUPPORT */
-
-UINT32 wlanPollingCpupcr(UINT32 u4Times, UINT32 u4Sleep)
-{
-#if defined(MT6631)
-	UINT32 u4Count;
-
-	for (u4Count = 0; u4Count < u4Times; u4Count++) {
-		DBGLOG(INIT, ERROR, "i:%d,cpupcr:%08x\n", u4Count, wmt_plat_read_cpupcr());
-		kalMsleep(u4Sleep);
-	}
-#else
-	DBGLOG(INIT, ERROR, "This chip don't support polling cpupcr\n");
-#endif
-	return 0;
-}

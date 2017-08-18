@@ -1,28 +1,70 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
 ** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/mgmt/wapi.c#1
 */
 
+/*! \file   "wapi.c"
+    \brief  This file including the WAPI related function.
+
+    This file provided the macros and functions library support the wapi ie parsing,
+    cipher and AKM check to help the AP seleced deciding.
+*/
+
 /*
- * ! \file   "wapi.c"
- * \brief  This file including the WAPI related function.
+** Log: wapi.c
+**
+** 03 06 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** submit some code related with security.
+**
+** 02 19 2013 cp.wu
+** [BORA00002227] [MT6630 Wi-Fi][Driver] Update for Makefile and HIFSYS modifications
+** enable AIS related management modules building under Android/Linux
+**
+** 09 17 2012 cm.chang
+** [BORA00002149] [MT6630 Wi-Fi] Initial software development
+** Duplicate source from MT6620 v2.3 driver branch
+** (Davinci label: MT6620_WIFI_Driver_V2_3_120913_1942_As_MT6630_Base)
  *
- *  This file provided the macros and functions library support the wapi ie parsing,
- *  cipher and AKM check to help the AP seleced deciding.
- */
+ * 11 10 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * change the debug module level.
+ *
+ * 10 20 2010 wh.su
+ * [WCXRP00000067] [MT6620 Wi-Fi][Driver] Support the android+ WAPI function
+ * fixed the network type
+ *
+ * 09 01 2010 wh.su
+ * NULL
+ * adding the wapi support for integration test.
+ *
+ * 07 20 2010 wh.su
+ *
+ * .
+ *
+ * 04 06 2010 wh.su
+ * [BORA00000680][MT6620] Support the statistic for Microsoft os query
+ * fixed the firmware return the broadcast frame at wrong tc.
+ *
+ * 03 03 2010 wh.su
+ * [BORA00000637][MT6620 Wi-Fi] [Bug] WPA2 pre-authentication timer not correctly initialize
+ * move the AIS specific variable for security to AIS specific structure.
+ *
+ * 12 18 2009 cm.chang
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * .
+ *
+ * Dec 8 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adding the function to check and update the default wapi tx
+ *
+ * Dec 7 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adding the generate wapi ie function, and replace the tabe by space
+ *
+ * Nov 23 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ *
+*/
 
 /*******************************************************************************
 *                         C O M P I L E R   F L A G S
@@ -158,18 +200,15 @@ BOOLEAN wapiParseWapiIE(IN P_WAPI_INFO_ELEM_T prInfoElem, OUT P_WAPI_INFO_T prWa
 			break;
 
 		/*
-		 * AuthCount    : 2
-		 * AuthSuite    : 4 * authSuiteCount
-		 * PairwiseCount: 2
-		 * PairwiseSuite: 4 * pairSuiteCount
-		 * GroupSuite   : 4
-		 * Cap          : 2
-		 */
+		   AuthCount    : 2
+		   AuthSuite    : 4 * authSuiteCount
+		   PairwiseCount: 2
+		   PairwiseSuite: 4 * pairSuiteCount
+		   GroupSuite   : 4
+		   Cap          : 2 */
 
-		/*
-		 * Parse the Authentication and Key Management Cipher Suite Count
-		 * field.
-		 */
+		/* Parse the Authentication and Key Management Cipher Suite Count
+		   field. */
 		if (u4RemainWapiIeLen < 2) {
 			DBGLOG(SEC, TRACE,
 			       "Fail to parse WAPI IE in auth & key mgt suite count (IE len: %d)\n",
@@ -181,10 +220,8 @@ BOOLEAN wapiParseWapiIE(IN P_WAPI_INFO_ELEM_T prInfoElem, OUT P_WAPI_INFO_T prWa
 		cp += 2;
 		u4RemainWapiIeLen -= 2;
 
-		/*
-		 * Parse the Authentication and Key Management Cipher Suite List
-		 * field.
-		 */
+		/* Parse the Authentication and Key Management Cipher Suite List
+		   field. */
 		i = (UINT_32) u2AuthSuiteCount * 4;
 		if (u4RemainWapiIeLen < (INT_32) i) {
 			DBGLOG(SEC, TRACE,
@@ -284,10 +321,8 @@ BOOLEAN wapiParseWapiIE(IN P_WAPI_INFO_ELEM_T prInfoElem, OUT P_WAPI_INFO_T prWa
 				(UCHAR) ((prWapiInfo->au4PairwiseKeyCipherSuite[i] >> 24) & 0x000000FF));
 		}
 	} else {
-		/*
-		 * The information about the pairwise key cipher suites is not present.
-		 * Use the default chipher suite for WAPI: WPI.
-		 */
+		/* The information about the pairwise key cipher suites is not present.
+		   Use the default chipher suite for WAPI: WPI. */
 		prWapiInfo->u4PairwiseKeyCipherSuiteCount = 1;
 		prWapiInfo->au4PairwiseKeyCipherSuite[0] = WAPI_CIPHER_SUITE_WPI;
 
@@ -300,10 +335,8 @@ BOOLEAN wapiParseWapiIE(IN P_WAPI_INFO_ELEM_T prInfoElem, OUT P_WAPI_INFO_T prWa
 	}
 
 	if (pucAuthSuite) {
-		/*
-		 * The information about the authentication and key management suites
-		 * is present.
-		 */
+		/* The information about the authentication and key management suites
+		   is present. */
 		if (u2AuthSuiteCount > MAX_NUM_SUPPORTED_WAPI_AKM_SUITES)
 			u2AuthSuiteCount = MAX_NUM_SUPPORTED_WAPI_AKM_SUITES;
 
@@ -321,10 +354,8 @@ BOOLEAN wapiParseWapiIE(IN P_WAPI_INFO_ELEM_T prInfoElem, OUT P_WAPI_INFO_T prWa
 					   (UCHAR) ((prWapiInfo->au4AuthKeyMgtSuite[i] >> 24) & 0x000000FF));
 		}
 	} else {
-		/*
-		 * The information about the authentication and key management suites
-		 * is not present. Use the default AKM suite for WAPI.
-		 */
+		/* The information about the authentication and key management suites
+		   is not present. Use the default AKM suite for WAPI. */
 		prWapiInfo->u4AuthKeyMgtSuiteCount = 1;
 		prWapiInfo->au4AuthKeyMgtSuite[0] = WAPI_AKM_SUITE_802_1X;
 
@@ -396,10 +427,8 @@ BOOLEAN wapiPerformPolicySelection(IN P_ADAPTER_T prAdapter, IN P_BSS_DESC_T prB
 		u4GroupCipher = prBssWapiInfo->u4GroupKeyCipherSuite;
 
 	/* Exception handler */
-	/*
-	 * If we cannot find proper pairwise and group cipher suites to join the
-	 * BSS, do not check the supported AKM suites.
-	 */
+	/* If we cannot find proper pairwise and group cipher suites to join the
+	   BSS, do not check the supported AKM suites. */
 	if (u4PairwiseCipher == 0 || u4GroupCipher == 0) {
 		DBGLOG(SEC, TRACE, "Failed to select pairwise/group cipher (0x%08lx/0x%08lx)\n",
 				    u4PairwiseCipher, u4GroupCipher);
@@ -407,10 +436,8 @@ BOOLEAN wapiPerformPolicySelection(IN P_ADAPTER_T prAdapter, IN P_BSS_DESC_T prB
 	}
 
 	/* Select AKM */
-	/*
-	 * If the driver cannot support any authentication suites advertised in
-	 * the given BSS, we fail to perform RSNA policy selection.
-	 */
+	/* If the driver cannot support any authentication suites advertised in
+	   the given BSS, we fail to perform RSNA policy selection. */
 	/* Attempt to find any overlapping supported AKM suite. */
 	for (i = 0; i < prBssWapiInfo->u4AuthKeyMgtSuiteCount; i++) {
 		if (prBssWapiInfo->au4AuthKeyMgtSuite[i] == prAdapter->rWifiVar.rConnSettings.u4WapiSelectedAKMSuite) {

@@ -1,25 +1,119 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
 ** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/os/version.h#1
 */
 
+/*! \file   "version.h"
+    \brief  Driver's version definition
+
+*/
+
 /*
- * ! \file   "version.h"
- *  \brief  Driver's version definition
- */
+** Log: version.h
+**
+** 02 01 2013 cp.wu
+** [BORA00002227] [MT6630 Wi-Fi][Driver] Update for Makefile and HIFSYS modifications
+** 1. eliminate MT5931/MT6620/MT6628 logic
+** 2. add firmware download control sequence
+**
+** 01 22 2013 cp.wu
+** [BORA00002253] [MT6630 Wi-Fi][Driver][Firmware] Add NLO and timeout mechanism to SCN module
+** modification for ucBssIndex migration
+**
+** 09 17 2012 cm.chang
+** [BORA00002149] [MT6630 Wi-Fi] Initial software development
+** Duplicate source from MT6620 v2.3 driver branch
+** (Davinci label: MT6620_WIFI_Driver_V2_3_120913_1942_As_MT6630_Base)
+ *
+ * 11 01 2011 chinglan.wang
+ * NULL
+ * Change the version number to v2.0.1.1.
+ *
+ * 08 26 2011 chinglan.wang
+ * NULL
+ * Change the version number to v2.0.0.9..
+ *
+ * 08 23 2011 chinglan.wang
+ * NULL
+ * Change the version number to v2.0.0.8.
+ *
+ * 08 15 2011 cp.wu
+ * [WCXRP00000851] [MT6628 Wi-Fi][Driver] Add HIFSYS related definition to driver source tree
+ * correct typo.
+ *
+ * 08 15 2011 cp.wu
+ * [WCXRP00000851] [MT6628 Wi-Fi][Driver] Add HIFSYS related definition to driver source tree
+ * for building MT6628 Win32 driver environment
+ *
+ * 08 03 2011 chinglan.wang
+ * NULL
+ * Change the version number to v2.0.0.7.
+ *
+ * 07 24 2011 puff.wen
+ * NULL
+ * [MT5931][Beta 5]Change the version number to v0.2.2.0
+ *
+ * 06 01 2011 chinglan.wang
+ * NULL
+ * Change the version number to v2.0.0.6..
+ *
+ * 05 09 2011 chinglan.wang
+ * NULL
+ * Change the version number to v2.0.0.5..
+ *
+ * 04 19 2011 chinglan.wang
+ * NULL
+ * Change the version number to v2.0.0.4.
+ *
+ * 04 18 2011 chinglan.wang
+ * NULL
+ * Change the version number to v2.0.0.3.
+ *
+ * 03 25 2011 chinglan.wang
+ * NULL
+ * Change the version number to v2.0.0.2.
+ *
+ * 03 21 2011 chinglan.wang
+ * NULL
+ * Change the version number to 2.0.0.1.
+ *
+ * 03 18 2011 chinglan.wang
+ * NULL
+ * Change the version number to v2.0.0.0.
+ *
+ * 02 11 2011 chinglan.wang
+ * NULL
+ * Change to the version 1.2.0.2.
+ *
+ * 02 10 2011 chinglan.wang
+ * NULL
+ * Change the version to 1.2.0.1.
+ *
+ * 02 08 2011 cp.wu
+ * [WCXRP00000427] [MT6620 Wi-Fi][Driver] Modify veresion information to match with release revision number
+ * change version number to v1.2.0.0 for preparing v1.2 software package release.
+ *
+ * 12 10 2010 kevin.huang
+ * [WCXRP00000128] [MT6620 Wi-Fi][Driver] Add proc support to Android Driver for debug and driver status check
+ * Add Linux Proc Support
+ *
+ * 10 07 2010 cp.wu
+ * [WCXRP00000083] [MT5931][Driver][FW] Add necessary logic for MT5931 first connection
+ * [WINDDK] build system changes for MT5931
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 06 06 2010 kevin.huang
+ * [WPD00003832][MT6620 5931] Create driver base
+ * [MT6620 5931] Create driver base
+**  \main\maintrunk.MT6620WiFiDriver_Prj\5 2009-12-14 14:10:55 GMT mtk01084
+**  \main\maintrunk.MT6620WiFiDriver_Prj\4 2009-11-17 22:41:00 GMT mtk01084
+**  \main\maintrunk.MT6620WiFiDriver_Prj\3 2009-11-13 16:20:33 GMT mtk01084
+**  \main\maintrunk.MT6620WiFiDriver_Prj\2 2009-03-10 20:27:13 GMT mtk01426
+**  Init for develop
+**
+*/
 
 #ifndef _VERSION_H
 #define _VERSION_H
@@ -48,17 +142,26 @@
 #ifndef NIC_NAME
 #if defined(MT6630)
 #define NIC_NAME            "MT6630"
-#elif defined(MT6631)
-#define NIC_NAME            "MT6631"
+#define NIC_DEVICE_ID       "MT6630"
+#define NIC_DEVICE_ID_LOW   "mt6630"
 #endif
+
+#if defined(MT6797)
+#define NIC_NAME            "MT6797"
+#define NIC_DEVICE_ID       "MT6797"
+#define NIC_DEVICE_ID_LOW   "MT6797"
+#endif
+
 #endif
 
 /* NIC driver information */
 #define NIC_VENDOR                      "MediaTek Inc."
 #define NIC_VENDOR_OUI                  {0x00, 0x0C, 0xE7}
 
-#define NIC_PRODUCT_NAME                NIC_VENDOR " " NIC_NAME " Wireless LAN Adapter"
-#define NIC_DRIVER_NAME                 NIC_VENDOR " " NIC_NAME " Wireless LAN Adapter Driver"
+#if defined(MT6630)
+#define NIC_PRODUCT_NAME                "MediaTek Inc. MT6630 Wireless LAN Adapter"
+#define NIC_DRIVER_NAME                 "MediaTek Inc. MT6630 Wireless LAN Adapter Driver"
+#endif
 
 /* Define our driver version */
 #define NIC_DRIVER_MAJOR_VERSION        2

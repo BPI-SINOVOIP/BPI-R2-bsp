@@ -1,12 +1,526 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/os/linux/include/gl_kal.h#1
+*/
+
+/*! \file   gl_kal.h
+    \brief  Declaration of KAL functions - kal*() which is provided by GLUE Layer.
+
+    Any definitions in this file will be shared among GLUE Layer and internal Driver Stack.
+*/
+
+/*
+** Log: gl_kal.h
+ *
+ * 06 13 2012 yuche.tsai
+ * NULL
+ * Update maintrunk driver.
+ * Add support for driver compose assoc request frame.
+ *
+ * 04 12 2012 terry.wu
+ * NULL
+ * Add AEE message support
+ * 1) Show AEE warning(red screen) if SDIO access error occurs
+
+ *
+ * 03 02 2012 terry.wu
+ * NULL
+ * Snc CFG80211 modification for ICS migration from branch 2.2.
+ *
+ * 02 06 2012 wh.su
+ * [WCXRP00001177] [MT6620 Wi-Fi][Driver][2.2] Adding the query channel filter for AP mode
+ * adding the channel query filter for AP mode.
+ *
+ * 01 02 2012 wh.su
+ * [WCXRP00001153] [MT6620 Wi-Fi][Driver] Adding the get_ch_list and set_tx_power proto type function
+ * Adding the proto type function for set_int set_tx_power and get int get_ch_list.
+ *
+ * 12 13 2011 cm.chang
+ * [WCXRP00001136] [All Wi-Fi][Driver] Add wake lock for pending timer
+ * Add wake lock if timer timeout value is smaller than 5 seconds
+ *
+ * 11 24 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * adjust the code for Non-DBG and no XLOG.
+ *
+ * 11 22 2011 cp.wu
+ * [WCXRP00001120] [MT6620 Wi-Fi][Driver] Modify roaming to AIS state transition from synchronous to asynchronous
+ * approach to avoid incomplete state termination
+ * 1. change RDD related compile option brace position.
+ * 2. when roaming is triggered, ask AIS to transit immediately only when AIS is in Normal TR state without join
+ * timeout timer ticking
+ * 3. otherwise, insert AIS_REQUEST into pending request queue
+ *
+ * 11 11 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * modify the xlog related code.
+ *
+ * 11 10 2011 eddie.chen
+ * [WCXRP00001096] [MT6620 Wi-Fi][Driver/FW] Enhance the log function (xlog)
+ * Modify the QM xlog level and remove LOG_FUNC.
+ *
+ * 11 10 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * Using the new XLOG define for dum Memory.
+ *
+ * 11 08 2011 eddie.chen
+ * [WCXRP00001096] [MT6620 Wi-Fi][Driver/FW] Enhance the log function (xlog)
+ * Add xlog function.
+ *
+ * 11 08 2011 tsaiyuan.hsu
+ * [WCXRP00001083] [MT6620 Wi-Fi][DRV]] dump debug counter or frames when debugging is triggered
+ * add debug counters, eCurPsProf, for PS.
+ *
+ * 11 08 2011 cm.chang
+ * NULL
+ * Add RLM and CNM debug message for XLOG
+ *
+ * 11 07 2011 tsaiyuan.hsu
+ * [WCXRP00001083] [MT6620 Wi-Fi][DRV]] dump debug counter or frames when debugging is triggered
+ * add debug counters and periodically dump counters for debugging.
+ *
+ * 11 03 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * Add dumpMemory8 at XLOG support.
+ *
+ * 11 02 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * adding the code for XLOG.
+ *
+ * 10 12 2011 wh.su
+ * [WCXRP00001036] [MT6620 Wi-Fi][Driver][FW] Adding the 802.11w code for MFP
+ * adding the 802.11w related function and define .
+ *
+ * 04 18 2011 terry.wu
+ * [WCXRP00000660] [MT6620 Wi-Fi][Driver] Remove flag CFG_WIFI_DIRECT_MOVED
+ * Remove flag CFG_WIFI_DIRECT_MOVED.
+ *
+ * 04 12 2011 cp.wu
+ * [WCXRP00000635] [MT6620 Wi-Fi][Driver] Clear pending security frames when QM clear pending data frames for dedicated
+ * network type
+ * include link.h for linux's port.
+ *
+ * 04 12 2011 cp.wu
+ * [WCXRP00000635] [MT6620 Wi-Fi][Driver] Clear pending security frames when QM clear pending data frames for dedicated
+ * network type
+ * clear pending security frames for dedicated network type when BSS is being deactivated/disconnected
+ *
+ * 04 01 2011 cp.wu
+ * [WCXRP00000540] [MT5931][Driver] Add eHPI8/eHPI16 support to Linux Glue Layer
+ * 1. simplify config.h due to aggregation options could be also applied for eHPI/SPI interface
+ * 2. use spin-lock instead of semaphore for protecting eHPI access because of possible access from ISR
+ * 3. request_irq() API has some changes between linux kernel 2.6.12 and 2.6.26
+ *
+ * 03 16 2011 cp.wu
+ * [WCXRP00000562] [MT6620 Wi-Fi][Driver] I/O buffer pre-allocation to avoid physically continuous memory shortage
+ * after system running for a long period
+ * 1. pre-allocate physical continuous buffer while module is being loaded
+ * 2. use pre-allocated physical continuous buffer for TX/RX DMA transfer
+ *
+ * The windows part remained the same as before, but added similar APIs to hide the difference.
+ *
+ * 03 10 2011 chinghwa.yu
+ * [WCXRP00000065] Update BoW design and settings
+ * Add BOW table.
+ *
+ * 03 07 2011 terry.wu
+ * [WCXRP00000521] [MT6620 Wi-Fi][Driver] Remove non-standard debug message
+ * Toggle non-standard debug messages to comments.
+ *
+ * 03 06 2011 chinghwa.yu
+ * [WCXRP00000065] Update BoW design and settings
+ * Sync BOW Driver to latest person development branch version..
+ *
+ * 03 02 2011 cp.wu
+ * [WCXRP00000503] [MT6620 Wi-Fi][Driver] Take RCPI brought by association response as initial RSSI right after
+ * connection is built.
+ * use RCPI brought by ASSOC-RESP after connection is built as initial RCPI to avoid using a uninitialized MAC-RX RCPI.
+ *
+ * 02 24 2011 cp.wu
+ * [WCXRP00000490] [MT6620 Wi-Fi][Driver][Win32] modify kalMsleep() implementation because NdisMSleep() won't sleep
+ * long enough for specified interval such as 500ms
+ * modify cnm_timer and hem_mbox APIs to be thread safe to ease invoking restrictions
+ *
+ * 01 12 2011 cp.wu
+ * [WCXRP00000357] [MT6620 Wi-Fi][Driver][Bluetooth over Wi-Fi] add another net device interface for BT AMP
+ * implementation of separate BT_OVER_WIFI data path.
+ *
+ * 01 04 2011 cp.wu
+ * [WCXRP00000338] [MT6620 Wi-Fi][Driver] Separate kalMemAlloc into kmalloc and vmalloc implementations to ease
+ * physically continuous memory demands
+ * separate kalMemAlloc() into virtually-continuous and physically-continuous type to ease slab system pressure
+ *
+ * 12 31 2010 cp.wu
+ * [WCXRP00000335] [MT6620 Wi-Fi][Driver] change to use milliseconds sleep instead of delay to avoid blocking to system
+ * scheduling
+ * change to use msleep() and shorten waiting interval to reduce blocking to other task while Wi-Fi driver is being
+ * loaded
+ *
+ * 12 31 2010 jeffrey.chang
+ * [WCXRP00000332] [MT6620 Wi-Fi][Driver] add kal sleep function for delay which use blocking call
+ * modify the implementation of kalDelay to msleep
+ *
+ * 12 22 2010 cp.wu
+ * [WCXRP00000283] [MT6620 Wi-Fi][Driver][Wi-Fi Direct] Implementation of interface for supporting Wi-Fi Direct Service
+ * Discovery
+ * 1. header file restructure for more clear module isolation
+ * 2. add function interface definition for implementing Service Discovery callbacks
+ *
+ * 11 30 2010 yuche.tsai
+ * NULL
+ * Invitation & Provision Discovery Indication.
+ *
+ * 11 26 2010 cp.wu
+ * [WCXRP00000209] [MT6620 Wi-Fi][Driver] Modify NVRAM checking mechanism to warning only with necessary data field
+ * checking
+ * 1. NVRAM error is now treated as warning only, thus normal operation is still available but extra scan result used
+ * to indicate user is attached
+ * 2. DPD and TX-PWR are needed fields from now on, if these 2 fields are not available then warning message is shown
+ *
+ * 11 08 2010 cp.wu
+ * [WCXRP00000166] [MT6620 Wi-Fi][Driver] use SDIO CMD52 for enabling/disabling interrupt to reduce transaction period
+ * change to use CMD52 for enabling/disabling interrupt to reduce SDIO transaction time
+ *
+ * 11 01 2010 cp.wu
+ * [WCXRP00000056] [MT6620 Wi-Fi][Driver] NVRAM implementation with Version Check[WCXRP00000150] [MT6620 Wi-Fi][Driver]
+ * Add implementation for querying current TX rate from firmware auto rate module
+ * 1) Query link speed (TX rate) from firmware directly with buffering mechanism to reduce overhead
+ * 2) Remove CNM CH-RECOVER event handling
+ * 3) cfg read/write API renamed with kal prefix for unified naming rules.
+ *
+ * 10 05 2010 cp.wu
+ * [WCXRP00000056] [MT6620 Wi-Fi][Driver] NVRAM implementation with Version Check
+ * 1) add NVRAM access API
+ * 2) fake scanning result when NVRAM doesn't exist and/or version mismatch. (off by compiler option)
+ * 3) add OID implementation for NVRAM read/write service
+ *
+ * 10 04 2010 wh.su
+ * [WCXRP00000081] [MT6620][Driver] Fix the compiling error at WinXP while enable P2P
+ * add a kal function for set cipher.
+ *
+ * 10 04 2010 wh.su
+ * [WCXRP00000081] [MT6620][Driver] Fix the compiling error at WinXP while enable P2P
+ * fixed compiling error while enable p2p.
+ *
+ * 09 28 2010 wh.su
+ * NULL
+ * [WCXRP00000069][MT6620 Wi-Fi][Driver] Fix some code for phase 1 P2P Demo.
+ *
+ * 09 21 2010 cp.wu
+ * [WCXRP00000053] [MT6620 Wi-Fi][Driver] Reset incomplete and might leads to BSOD when entering RF test with AIS
+ * associated
+ * Do a complete reset with STA-REC null checking for RF test re-entry
+ *
+ * 09 21 2010 kevin.huang
+ * [WCXRP00000052] [MT6620 Wi-Fi][Driver] Eliminate Linux Compile Warning
+ * Eliminate Linux Compile Warning
+ *
+ * 09 10 2010 wh.su
+ * NULL
+ * fixed the compiling error at win XP.
+ *
+ * 09 07 2010 wh.su
+ * NULL
+ * adding the code for beacon/probe req/ probe rsp wsc ie at p2p.
+ *
+ * 09 06 2010 wh.su
+ * NULL
+ * let the p2p can set the privacy bit at beacon and rsn ie at assoc req at key handshake state.
+ *
+ * 09 03 2010 kevin.huang
+ * NULL
+ * Refine #include sequence and solve recursive/nested #include issue
+ *
+ * 08 06 2010 cp.wu
+ * NULL
+ * driver hook modifications corresponding to ioctl interface change.
+ *
+ * 08 03 2010 cp.wu
+ * NULL
+ * [Wi-Fi Direct Driver Hook] change event indication API to be consistent with supplicant
+ *
+ * 08 03 2010 cp.wu
+ * NULL
+ * [Wi-Fi Direct] add framework for driver hooks
+ *
+ * 08 02 2010 jeffrey.chang
+ * NULL
+ * modify kalSetEvent declaration
+ *
+ * 07 29 2010 cp.wu
+ * NULL
+ * simplify post-handling after TX_DONE interrupt is handled.
+ *
+ * 07 23 2010 cp.wu
+ *
+ * 1) re-enable AIS-FSM beacon timeout handling.
+ * 2) scan done API revised
+ *
+ * 07 23 2010 jeffrey.chang
+ *
+ * fix kal header file
+ *
+ * 07 22 2010 jeffrey.chang
+ *
+ * use different spin lock for security frame
+ *
+ * 07 22 2010 jeffrey.chang
+ *
+ * add new spinlock
+ *
+ * 07 19 2010 jeffrey.chang
+ *
+ * add kal api for scanning done
+ *
+ * 07 19 2010 jeffrey.chang
+ *
+ * modify cmd/data path for new design
+ *
+ * 07 19 2010 jeffrey.chang
+ *
+ * add new kal api
+ *
+ * 07 19 2010 jeffrey.chang
+ *
+ * Linux port modification
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 06 21 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * change MAC address updating logic.
+ *
+ * 06 18 2010 cm.chang
+ * [WPD00003841][LITE Driver] Migrate RLM/CNM to host driver
+ * Provide cnmMgtPktAlloc() and alloc/free function of msg/buf
+ *
+ * 06 11 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * 1) migrate assoc.c.
+ * 2) add ucTxSeqNum for tracking frames which needs TX-DONE awareness
+ * 3) add configuration options for CNM_MEM and RSN modules
+ * 4) add data path for management frames
+ * 5) eliminate rPacketInfo of MSDU_INFO_T
+ *
+ * 06 07 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * gl_kal merged
+ *
+ * 06 06 2010 kevin.huang
+ * [WPD00003832][MT6620 5931] Create driver base
+ * [MT6620 5931] Create driver base
+ *
+ * 05 17 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * add basic handling framework for wireless extension ioctls.
+ *
+ * 05 11 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * add ioctl for controlling p2p scan phase parameters
+ *
+ * 05 10 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * fill network type field while doing frame identification.
+ *
+ * 05 10 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * implement basic wi-fi direct framework
+ *
+ * 05 07 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * add basic framework for implementating P2P driver hook.
+ *
+ * 05 07 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * modify kalMemAlloc method
+ *
+ * 04 28 2010 cp.wu
+ * [WPD00003823][MT6620 Wi-Fi] Add Bluetooth-over-Wi-Fi support
+ * change prefix for data structure used to communicate with 802.11 PAL
+ * to avoid ambiguous naming with firmware interface
+ *
+ * 04 27 2010 cp.wu
+ * [WPD00003823][MT6620 Wi-Fi] Add Bluetooth-over-Wi-Fi support
+ * add multiple physical link support
+ *
+ * 04 27 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * follow Linux's firmware framework, and remove unused kal API
+ *
+ * 04 22 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * when acquiring driver-own, wait for up to 8 seconds.
+ *
+ * 04 22 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ *
+ * 1) modify rx path code for supporting Wi-Fi direct
+ * 2) modify config.h since Linux dont need to consider retaining packet
+ *
+ * 04 21 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * add for private ioctl support
+ *
+ * 04 20 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * don't need SPIN_LOCK_PWR_CTRL anymore, it will raise IRQL
+ *  * and cause SdBusSubmitRequest running at DISPATCH_LEVEL as well.
+ *
+ * 04 14 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * information buffer for query oid/ioctl is now buffered in prCmdInfo
+ *  *  *  *  *  *  *  * instead of glue-layer variable to improve multiple oid/ioctl capability
+ *
+ * 04 13 2010 cp.wu
+ * [WPD00003823][MT6620 Wi-Fi] Add Bluetooth-over-Wi-Fi support
+ * add framework for BT-over-Wi-Fi support.
+ *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  * 1) prPendingCmdInfo is replaced by queue for multiple handler
+ *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *    capability
+ *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  * 2) command sequence number is now increased atomically
+ *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  * 3) private data could be hold and taken use for other purpose
+ *
+ * 04 09 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * 1) add spinlock
+ *  *  * 2) add KAPI for handling association info
+ *
+ * 04 09 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * adding firmware download KAPI
+ *
+ * 04 07 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * finish non-glue layer access to glue variables
+ *
+ * 04 07 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * accessing to firmware load/start address, and access to OID handling information
+ *  *  *  * are now handled in glue layer
+ *
+ * 04 07 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * rWlanInfo should be placed at adapter rather than glue due to most operations
+ *  *  *  *  *  *  *  *  * are done in adapter layer.
+ *
+ * 04 07 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * eliminate direct access to prGlueInfo->eParamMediaStateIndicated from non-glue layer
+ *
+ * 04 06 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * add KAL API: kalFlushPendingTxPackets(), and take use of the API
+ *
+ * 04 06 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * eliminate direct access to prGlueInfo->rWlanInfo.eLinkAttr.ucMediaStreamMode from non-glue layer.
+ *
+ * 04 06 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * improve none-glue code portability
+ *
+ * 04 06 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * code refine: fgTestMode should be at adapter rather than glue due to the device/fw is also involved
+ *
+ * 04 06 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1) for some OID, never do timeout expiration
+ *  *  *  * 2) add 2 kal API for later integration
+ *
+ * 03 30 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * emulate NDIS Pending OID facility
+ *
+ * 03 26 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * [WPD00003826] Initial import for Linux port
+ * adding firmware download KAPI
+ *
+ * 03 24 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * initial import for Linux port
+**  \main\maintrunk.MT5921\41 2009-09-28 20:19:23 GMT mtk01090
+**  Add private ioctl to carry OID structures. Restructure public/private ioctl interfaces to Linux kernel.
+**  \main\maintrunk.MT5921\40 2009-08-18 22:57:09 GMT mtk01090
+**  Add Linux SDIO (with mmc core) support.
+**  Add Linux 2.6.21, 2.6.25, 2.6.26.
+**  Fix compile warning in Linux.
+**  \main\maintrunk.MT5921\39 2009-06-23 23:19:15 GMT mtk01090
+**  Add build option BUILD_USE_EEPROM and compile option CFG_SUPPORT_EXT_CONFIG for NVRAM support
+**  \main\maintrunk.MT5921\38 2009-02-09 14:03:17 GMT mtk01090
+**  Add KAL function kalDevSetPowerState(). It is not implemented yet. Only add an empty macro.
+**
+**  \main\maintrunk.MT5921\37 2009-01-22 13:05:59 GMT mtk01088
+**  new defeine to got 1x value at packet reserved field
+**  \main\maintrunk.MT5921\36 2008-12-08 16:15:02 GMT mtk01461
+**  Add kalQueryValidBufferLength() macro
+**  \main\maintrunk.MT5921\35 2008-11-13 20:33:15 GMT mtk01104
+**  Remove lint warning
+**  \main\maintrunk.MT5921\34 2008-10-22 11:05:52 GMT mtk01461
+**  Remove unused macro
+**  \main\maintrunk.MT5921\33 2008-10-16 15:48:17 GMT mtk01461
+**  Update driver to fix lint warning
+**  \main\maintrunk.MT5921\32 2008-09-02 11:50:51 GMT mtk01461
+**  SPIN_LOCK_SDIO_DDK_TX_QUE
+**  \main\maintrunk.MT5921\31 2008-08-29 15:58:30 GMT mtk01088
+**  remove non-used function for code refine
+**  \main\maintrunk.MT5921\30 2008-08-21 00:33:29 GMT mtk01461
+**  Update for Driver Review
+**  \main\maintrunk.MT5921\29 2008-06-19 13:29:14 GMT mtk01425
+**  1. Add declaration of SPIN_LOCK_SDIO_DDK_TX_QUE and SPIN_LOCK_SDIO_DDK_RX_QUE
+**  \main\maintrunk.MT5921\28 2008-05-30 20:27:34 GMT mtk01461
+**  Rename KAL function
+**  \main\maintrunk.MT5921\27 2008-05-30 14:42:05 GMT mtk01461
+**  Remove WMM Assoc Flag in KAL
+**  \main\maintrunk.MT5921\26 2008-05-29 14:15:18 GMT mtk01084
+**  remove un-used function
+**  \main\maintrunk.MT5921\25 2008-04-23 14:02:20 GMT mtk01084
+**  modify KAL port access function prototype
+**  \main\maintrunk.MT5921\24 2008-04-17 23:06:41 GMT mtk01461
+**  Add iwpriv support for AdHocMode setting
+**  \main\maintrunk.MT5921\23 2008-04-08 15:38:50 GMT mtk01084
+**  add KAL function to setting pattern search function enable/ disable
+**  \main\maintrunk.MT5921\22 2008-03-26 15:34:48 GMT mtk01461
+**  Add update MAC address func
+**  \main\maintrunk.MT5921\21 2008-03-18 15:56:15 GMT mtk01084
+**  update ENUM_NIC_INITIAL_PARAM_E
+**  \main\maintrunk.MT5921\20 2008-03-18 11:49:28 GMT mtk01084
+**  update function for initial value access
+**  \main\maintrunk.MT5921\19 2008-03-18 10:21:31 GMT mtk01088
+**  use kal update associate request at linux
+**  \main\maintrunk.MT5921\18 2008-03-14 18:03:41 GMT mtk01084
+**  refine register and port access function
+**  \main\maintrunk.MT5921\17 2008-03-11 14:51:02 GMT mtk01461
+**  Add copy_to(from)_user macro
+**  \main\maintrunk.MT5921\16 2008-03-06 23:42:21 GMT mtk01385
+**  1. add Query Registry Mac address function.
+**  \main\maintrunk.MT5921\15 2008-02-26 09:48:04 GMT mtk01084
+**  modify KAL set network address/ checksum offload part
+**  \main\maintrunk.MT5921\14 2008-01-09 17:54:58 GMT mtk01084
+**  Modify the argument of kalQueryPacketInfo
+**  \main\maintrunk.MT5921\13 2007-11-29 02:05:20 GMT mtk01461
+**  Fix Windows RX multiple packet retain problem
+**  \main\maintrunk.MT5921\12 2007-11-26 19:43:45 GMT mtk01461
+**  Add OS_TIMESTAMP macro
+**
+**  \main\maintrunk.MT5921\11 2007-11-09 16:36:15 GMT mtk01425
+**  1. Modify for CSUM offloading with Tx Fragment
+**  \main\maintrunk.MT5921\10 2007-11-07 18:38:37 GMT mtk01461
+**  Add Tx Fragmentation Support
+**  \main\maintrunk.MT5921\9 2007-11-06 19:36:50 GMT mtk01088
+**  add the WPS related code
+**  \main\maintrunk.MT5921\8 2007-11-02 01:03:57 GMT mtk01461
+**  Unify TX Path for Normal and IBSS Power Save + IBSS neighbor learning
+** Revision 1.4  2007/07/05 07:25:33  MTK01461
+** Add Linux initial code, modify doc, add 11BB, RF init code
+**
+** Revision 1.3  2007/06/27 02:18:50  MTK01461
+** Update SCAN_FSM, Initial(Can Load Module), Proc(Can do Reg R/W), TX API
+**
+** Revision 1.2  2007/06/25 06:16:23  MTK01461
+** Update illustrations, gl_init.c, gl_kal.c, gl_kal.h, gl_os.h and RX API
+**
 */
 
 #ifndef _GL_KAL_H
@@ -42,7 +556,7 @@ extern int allocatedMemSize;
 
 #if CFG_SUPPORT_MET_PROFILING
 #include "linux/kallsyms.h"
-#include <linux/trace_events.h>
+#include <linux/ftrace_event.h>
 #endif
 
 extern BOOLEAN fgIsUnderSuspend;
@@ -58,7 +572,6 @@ extern struct delayed_work sched_workq;
 extern ENUM_WMTHWVER_TYPE_T mtk_wcn_wmt_hwver_get(VOID);
 #endif
 
-extern BOOLEAN fgIsUnderSuspend;
 /*******************************************************************************
 *                              C O N S T A N T S
 ********************************************************************************
@@ -123,29 +636,6 @@ typedef enum _ENUM_KAL_NETWORK_TYPE_INDEX_T {
 #endif
 	KAL_NETWORK_TYPE_INDEX_NUM
 } ENUM_KAL_NETWORK_TYPE_INDEX_T;
-
-typedef enum _ENUM_PKT_TYPE_T {
-	ENUM_PKT_802_11,	/* 802.11 or non-802.11 */
-	ENUM_PKT_802_3,		/* 802.3 or ethernetII */
-	ENUM_PKT_1X,		/* 1x frame or not */
-	ENUM_PKT_PROTECTED_1X,	/* prtected 1x frame */
-	ENUM_PKT_WPI_1X,	/* WAPI */
-	ENUM_PKT_VLAN_EXIST,	/* VLAN tag exist */
-	ENUM_PKT_DHCP,		/* DHCP frame */
-	ENUM_PKT_ARP,		/* ARP */
-	ENUM_PKT_ICMP,		/* ICMP */
-	ENUM_PKT_TDLS,		/* TDLS */
-	ENUM_PKT_DNS,		/* DNS */
-
-	ENUM_PKT_FLAG_NUM
-} ENUM_PKT_TYPE_T;
-
-
-typedef enum _ENUM_AMPDU_TYPE_E {
-	MTK_AMPDU_TX_DESC,
-	MTK_AMPDU_RX_DESC,
-	MTK_AMPDU_NUM
-} ENUM_AMPDU_TYPE;
 
 typedef enum _ENUM_KAL_MEM_ALLOCATION_TYPE_E {
 	PHY_MEM_TYPE,		/* physically continuous */
@@ -370,11 +860,11 @@ struct KAL_HALT_CTRL_T {
 #define kalStrnChr(s, n, c)                           strnchr(s, n, c)
 #define kalStrLen(s)                                strlen(s)
 #define kalStrnLen(s, b)                             strnlen(s, b)
+//#define kalStrniCmp(s1, s2, n)                          strnicmp(s1, s2, n)
 #define kalStrniCmp(s1, s2, n)                          strncasecmp(s1, s2, n)
-/*
- * #define kalStrtoul(cp, endp, base)                    simple_strtoul(cp, endp, base)
- * #define kalStrtol(cp, endp, base)                     simple_strtol(cp, endp, base)
- */
+#define strnicmp(s1, s2, n)                              strncasecmp(s1, s2, n)
+/* #define kalStrtoul(cp, endp, base)                    simple_strtoul(cp, endp, base)
+#define kalStrtol(cp, endp, base)                     simple_strtol(cp, endp, base) */
 #define kalkStrtou32(cp, base, resp)                   kstrtou32(cp, base, resp)
 #define kalkStrtos32(cp, base, resp)                    kstrtos32(cp, base, resp)
 #define kalSnprintf(buf, size, fmt, ...)              snprintf(buf, size, fmt, __VA_ARGS__)
@@ -454,12 +944,274 @@ struct KAL_HALT_CTRL_T {
 
 #define kalGetTimeTick()                            jiffies_to_msecs(jiffies)
 
-#define WLAN_TAG                                    "[wlan]"
-#define kalPrint(_Fmt...)                           pr_debug(WLAN_TAG _Fmt)
+#define kalPrint                                    pr_debug
+
+#if !DBG
+#define AIS_ERROR_LOGFUNC(_Fmt...)
+#define AIS_WARN_LOGFUNC(_Fmt...)
+#define AIS_INFO_LOGFUNC(_Fmt...)
+#define AIS_STATE_LOGFUNC(_Fmt...)
+#define AIS_EVENT_LOGFUNC(_Fmt...)
+#define AIS_TRACE_LOGFUNC(_Fmt...)
+#define AIS_LOUD_LOGFUNC(_Fmt...)
+#define AIS_TEMP_LOGFUNC(_Fmt...)
+
+#define INTR_ERROR_LOGFUNC(_Fmt...)
+#define INTR_WARN_LOGFUNC(_Fmt...)
+#define INTR_INFO_LOGFUNC(_Fmt...)
+#define INTR_STATE_LOGFUNC(_Fmt...)
+#define INTR_EVENT_LOGFUNC(_Fmt...)
+#define INTR_TRACE_LOGFUNC(_Fmt...)
+#define INTR_LOUD_LOGFUNC(_Fmt...)
+#define INTR_TEMP_LOGFUNC(_Fmt...)
+
+#define INIT_ERROR_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define INIT_WARN_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define INIT_INFO_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define INIT_STATE_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define INIT_EVENT_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define INIT_TRACE_LOGFUNC(_Fmt...)
+#define INIT_LOUD_LOGFUNC(_Fmt...)
+#define INIT_TEMP_LOGFUNC(_Fmt...)
+
+#define AAA_ERROR_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define AAA_WARN_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define AAA_INFO_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define AAA_STATE_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define AAA_EVENT_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define AAA_TRACE_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define AAA_LOUD_LOGFUNC(_Fmt...)
+#define AAA_TEMP_LOGFUNC(_Fmt...)
+
+#define ROAMING_ERROR_LOGFUNC(_Fmt...)
+#define ROAMING_WARN_LOGFUNC(_Fmt...)
+#define ROAMING_INFO_LOGFUNC(_Fmt...)
+#define ROAMING_STATE_LOGFUNC(_Fmt...)
+#define ROAMING_EVENT_LOGFUNC(_Fmt...)
+#define ROAMING_TRACE_LOGFUNC(_Fmt...)
+#define ROAMING_LOUD_LOGFUNC(_Fmt...)
+#define ROAMING_TEMP_LOGFUNC(_Fmt...)
+
+#define REQ_ERROR_LOGFUNC(_Fmt...)
+#define REQ_WARN_LOGFUNC(_Fmt...)
+#define REQ_INFO_LOGFUNC(_Fmt...)
+#define REQ_STATE_LOGFUNC(_Fmt...)
+#define REQ_EVENT_LOGFUNC(_Fmt...)
+#define REQ_TRACE_LOGFUNC(_Fmt...)
+#define REQ_LOUD_LOGFUNC(_Fmt...)
+#define REQ_TEMP_LOGFUNC(_Fmt...)
+
+#define TX_ERROR_LOGFUNC(_Fmt...)
+#define TX_WARN_LOGFUNC(_Fmt...)
+#define TX_INFO_LOGFUNC(_Fmt...)
+#define TX_STATE_LOGFUNC(_Fmt...)
+#define TX_EVENT_LOGFUNC(_Fmt...)
+#define TX_TRACE_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define TX_LOUD_LOGFUNC(_Fmt...)
+#define TX_TEMP_LOGFUNC(_Fmt...)
+
+#define RX_ERROR_LOGFUNC(_Fmt...)
+#define RX_WARN_LOGFUNC(_Fmt...)
+#define RX_INFO_LOGFUNC(_Fmt...)
+#define RX_STATE_LOGFUNC(_Fmt...)
+#define RX_EVENT_LOGFUNC(_Fmt...)
+#define RX_TRACE_LOGFUNC(_Fmt...)
+#define RX_LOUD_LOGFUNC(_Fmt...)
+#define RX_TEMP_LOGFUNC(_Fmt...)
+
+#define RFTEST_ERROR_LOGFUNC(_Fmt...)
+#define RFTEST_WARN_LOGFUNC(_Fmt...)
+#define RFTEST_INFO_LOGFUNC(_Fmt...)
+#define RFTEST_STATE_LOGFUNC(_Fmt...)
+#define RFTEST_EVENT_LOGFUNC(_Fmt...)
+#define RFTEST_TRACE_LOGFUNC(_Fmt...)
+#define RFTEST_LOUD_LOGFUNC(_Fmt...)
+#define RFTEST_TEMP_LOGFUNC(_Fmt...)
+
+#define EMU_ERROR_LOGFUNC(_Fmt...)
+#define EMU_WARN_LOGFUNC(_Fmt...)
+#define EMU_INFO_LOGFUNC(_Fmt...)
+#define EMU_STATE_LOGFUNC(_Fmt...)
+#define EMU_EVENT_LOGFUNC(_Fmt...)
+#define EMU_TRACE_LOGFUNC(_Fmt...)
+#define EMU_LOUD_LOGFUNC(_Fmt...)
+#define EMU_TEMP_LOGFUNC(_Fmt...)
+
+#define HEM_ERROR_LOGFUNC(_Fmt...)
+#define HEM_WARN_LOGFUNC(_Fmt...)
+#define HEM_INFO_LOGFUNC(_Fmt...)
+#define HEM_STATE_LOGFUNC(_Fmt...)
+#define HEM_EVENT_LOGFUNC(_Fmt...)
+#define HEM_TRACE_LOGFUNC(_Fmt...)
+#define HEM_LOUD_LOGFUNC(_Fmt...)
+#define HEM_TEMP_LOGFUNC(_Fmt...)
+
+#define RLM_ERROR_LOGFUNC(_Fmt...)
+#define RLM_WARN_LOGFUNC(_Fmt...)
+#define RLM_INFO_LOGFUNC(_Fmt...)
+#define RLM_STATE_LOGFUNC(_Fmt...)
+#define RLM_EVENT_LOGFUNC(_Fmt...)
+#define RLM_TRACE_LOGFUNC(_Fmt...)
+#define RLM_LOUD_LOGFUNC(_Fmt...)
+#define RLM_TEMP_LOGFUNC(_Fmt...)
+
+#define MEM_ERROR_LOGFUNC(_Fmt...)
+#define MEM_WARN_LOGFUNC(_Fmt...)
+#define MEM_INFO_LOGFUNC(_Fmt...)
+#define MEM_STATE_LOGFUNC(_Fmt...)
+#define MEM_EVENT_LOGFUNC(_Fmt...)
+#define MEM_TRACE_LOGFUNC(_Fmt...)
+#define MEM_LOUD_LOGFUNC(_Fmt...)
+#define MEM_TEMP_LOGFUNC(_Fmt...)
+
+#define CNM_ERROR_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define CNM_WARN_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define CNM_INFO_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define CNM_STATE_LOGFUNC(_Fmt...)
+#define CNM_EVENT_LOGFUNC(_Fmt...)
+#define CNM_TRACE_LOGFUNC(_Fmt...)
+#define CNM_LOUD_LOGFUNC(_Fmt...)
+#define CNM_TEMP_LOGFUNC(_Fmt...)
+
+#define RSN_ERROR_LOGFUNC(_Fmt...)
+#define RSN_WARN_LOGFUNC(_Fmt...)
+#define RSN_INFO_LOGFUNC(_Fmt...)
+#define RSN_STATE_LOGFUNC(_Fmt...)
+#define RSN_EVENT_LOGFUNC(_Fmt...)
+#define RSN_TRACE_LOGFUNC(_Fmt...)
+#define RSN_LOUD_LOGFUNC(_Fmt...)
+#define RSN_TEMP_LOGFUNC(_Fmt...)
+
+#define BSS_ERROR_LOGFUNC(_Fmt...)
+#define BSS_WARN_LOGFUNC(_Fmt...)
+#define BSS_INFO_LOGFUNC(_Fmt...)
+#define BSS_STATE_LOGFUNC(_Fmt...)
+#define BSS_EVENT_LOGFUNC(_Fmt...)
+#define BSS_TRACE_LOGFUNC(_Fmt...)
+#define BSS_LOUD_LOGFUNC(_Fmt...)
+#define BSS_TEMP_LOGFUNC(_Fmt...)
+
+#define SCN_ERROR_LOGFUNC(_Fmt...)
+#define SCN_WARN_LOGFUNC(_Fmt...)
+#define SCN_INFO_LOGFUNC(_Fmt...)
+#define SCN_STATE_LOGFUNC(_Fmt...)
+#define SCN_EVENT_LOGFUNC(_Fmt...)
+#define SCN_TRACE_LOGFUNC(_Fmt...)
+#define SCN_LOUD_LOGFUNC(_Fmt...)
+#define SCN_TEMP_LOGFUNC(_Fmt...)
+
+#define SAA_ERROR_LOGFUNC(_Fmt...)
+#define SAA_WARN_LOGFUNC(_Fmt...)
+#define SAA_INFO_LOGFUNC(_Fmt...)
+#define SAA_STATE_LOGFUNC(_Fmt...)
+#define SAA_EVENT_LOGFUNC(_Fmt...)
+#define SAA_TRACE_LOGFUNC(_Fmt...)
+#define SAA_LOUD_LOGFUNC(_Fmt...)
+#define SAA_TEMP_LOGFUNC(_Fmt...)
+
+#define P2P_ERROR_LOGFUNC(_Fmt...)
+#define P2P_WARN_LOGFUNC(_Fmt...)
+#define P2P_INFO_LOGFUNC(_Fmt...)
+#define P2P_STATE_LOGFUNC(_Fmt...)
+#define P2P_EVENT_LOGFUNC(_Fmt...)
+#define P2P_TRACE_LOGFUNC(_Fmt...)
+#define P2P_LOUD_LOGFUNC(_Fmt...)
+#define P2P_TEMP_LOGFUNC(_Fmt...)
+
+#define QM_ERROR_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define QM_WARN_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define QM_INFO_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define QM_STATE_LOGFUNC(_Fmt...)
+#define QM_EVENT_LOGFUNC(_Fmt...)
+#define QM_TRACE_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define QM_LOUD_LOGFUNC(_Fmt...)
+#define QM_TEMP_LOGFUNC(_Fmt...)
+
+#define SEC_ERROR_LOGFUNC(_Fmt...)
+#define SEC_WARN_LOGFUNC(_Fmt...)
+#define SEC_INFO_LOGFUNC(_Fmt...)
+#define SEC_STATE_LOGFUNC(_Fmt...)
+#define SEC_EVENT_LOGFUNC(_Fmt...)
+#define SEC_TRACE_LOGFUNC(_Fmt...)
+#define SEC_LOUD_LOGFUNC(_Fmt...)
+#define SEC_TEMP_LOGFUNC(_Fmt...)
+
+#define BOW_ERROR_LOGFUNC(_Fmt...)
+#define BOW_WARN_LOGFUNC(_Fmt...)
+#define BOW_INFO_LOGFUNC(_Fmt...)
+#define BOW_STATE_LOGFUNC(_Fmt...)
+#define BOW_EVENT_LOGFUNC(_Fmt...)
+#define BOW_TRACE_LOGFUNC(_Fmt...)
+#define BOW_LOUD_LOGFUNC(_Fmt...)
+#define BOW_TEMP_LOGFUNC(_Fmt...)
+
+#define HAL_ERROR_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define HAL_WARN_LOGFUNC(_Fmt...)
+#define HAL_INFO_LOGFUNC(_Fmt...)
+#define HAL_STATE_LOGFUNC(_Fmt...)
+#define HAL_EVENT_LOGFUNC(_Fmt...)
+#define HAL_TRACE_LOGFUNC(_Fmt...)
+#define HAL_LOUD_LOGFUNC(_Fmt...)
+#define HAL_TEMP_LOGFUNC(_Fmt...)
+
+#define WAPI_ERROR_LOGFUNC(_Fmt...)
+#define WAPI_WARN_LOGFUNC(_Fmt...)
+#define WAPI_INFO_LOGFUNC(_Fmt...)
+#define WAPI_STATE_LOGFUNC(_Fmt...)
+#define WAPI_EVENT_LOGFUNC(_Fmt...)
+#define WAPI_TRACE_LOGFUNC(_Fmt...)
+#define WAPI_LOUD_LOGFUNC(_Fmt...)
+#define WAPI_TEMP_LOGFUNC(_Fmt...)
+
+#define TDLS_ERROR_LOGFUNC(_Fmt...) kalPrint(_Fmt)
+#define TDLS_WARN_LOGFUNC(_Fmt...)  kalPrint(_Fmt)
+#define TDLS_INFO_LOGFUNC(_Fmt...)  kalPrint(_Fmt)
+#define TDLS_STATE_LOGFUNC(_Fmt...)
+#define TDLS_EVENT_LOGFUNC(_Fmt...)
+#define TDLS_TRACE_LOGFUNC(_Fmt...)
+#define TDLS_LOUD_LOGFUNC(_Fmt...)
+#define TDLS_TEMP_LOGFUNC(_Fmt...)
+
+#define SW1_ERROR_LOGFUNC(_Fmt...)
+#define SW1_WARN_LOGFUNC(_Fmt...)
+#define SW1_INFO_LOGFUNC(_Fmt...)
+#define SW1_STATE_LOGFUNC(_Fmt...)
+#define SW1_EVENT_LOGFUNC(_Fmt...)
+#define SW1_TRACE_LOGFUNC(_Fmt...)
+#define SW1_LOUD_LOGFUNC(_Fmt...)
+#define SW1_TEMP_LOGFUNC(_Fmt...)
+
+#define SW2_ERROR_LOGFUNC(_Fmt...)
+#define SW2_WARN_LOGFUNC(_Fmt...)
+#define SW2_INFO_LOGFUNC(_Fmt...)
+#define SW2_STATE_LOGFUNC(_Fmt...)
+#define SW2_EVENT_LOGFUNC(_Fmt...)
+#define SW2_TRACE_LOGFUNC(_Fmt...)
+#define SW2_LOUD_LOGFUNC(_Fmt...)
+#define SW2_TEMP_LOGFUNC(_Fmt...)
+
+#define SW3_ERROR_LOGFUNC(_Fmt...)
+#define SW3_WARN_LOGFUNC(_Fmt...)
+#define SW3_INFO_LOGFUNC(_Fmt...)
+#define SW3_STATE_LOGFUNC(_Fmt...)
+#define SW3_EVENT_LOGFUNC(_Fmt...)
+#define SW3_TRACE_LOGFUNC(_Fmt...)
+#define SW3_LOUD_LOGFUNC(_Fmt...)
+#define SW3_TEMP_LOGFUNC(_Fmt...)
+
+#define SW4_ERROR_LOGFUNC(_Fmt...)
+#define SW4_WARN_LOGFUNC(_Fmt...)
+#define SW4_INFO_LOGFUNC(_Fmt...)
+#define SW4_STATE_LOGFUNC(_Fmt...)
+#define SW4_EVENT_LOGFUNC(_Fmt...)
+#define SW4_TRACE_LOGFUNC(_Fmt...)
+#define SW4_LOUD_LOGFUNC(_Fmt...)
+#define SW4_TEMP_LOGFUNC(_Fmt...)
+#endif
 
 #define kalBreakPoint() \
 do { \
-	WARN_ON(1); \
+	BUG(); \
 	panic("Oops"); \
 } while (0)
 
@@ -533,7 +1285,8 @@ VOID kalSendCompleteAndAwakeQueue(IN P_GLUE_INFO_T prGlueInfo, IN PVOID pvPacket
 #if CFG_TCP_IP_CHKSUM_OFFLOAD
 VOID kalQueryTxChksumOffloadParam(IN PVOID pvPacket, OUT PUINT_8 pucFlag);
 
-VOID kalUpdateRxCSUMOffloadParam(IN PVOID pvPacket, IN ENUM_CSUM_RESULT_T eCSUM[]);
+VOID kalUpdateRxCSUMOffloadParam(IN PVOID pvPacket, IN ENUM_CSUM_RESULT_T eCSUM[]
+);
 #endif /* CFG_TCP_IP_CHKSUM_OFFLOAD */
 
 BOOLEAN kalRetrieveNetworkAddress(IN P_GLUE_INFO_T prGlueInfo, IN OUT PARAM_MAC_ADDRESS *prMacAddr);
@@ -575,8 +1328,6 @@ void kalDevLoopbkAuto(IN GLUE_INFO_T *GlueInfo);
 #if CFG_SUPPORT_EXT_CONFIG
 UINT_32 kalReadExtCfg(IN P_GLUE_INFO_T prGlueInfo);
 #endif
-
-UINT_8 kalGetPktEtherType(IN PUINT_8 pucPkt);
 
 BOOLEAN
 kalQoSFrameClassifierAndPacketInfo(IN P_GLUE_INFO_T prGlueInfo,
@@ -801,17 +1552,14 @@ INT_32 kalHaltTryLock(VOID);
 VOID kalHaltUnlock(VOID);
 VOID kalSetHalted(BOOLEAN fgHalt);
 BOOLEAN kalIsHalted(VOID);
-VOID kalGetAPMCUMen(IN P_GLUE_INFO_T prGlueInfo, IN UINT32 u4StartAddr
-		, IN UINT32 u4Offset, IN UINT32 index, OUT PUINT_8 pucBuffer, IN UINT_32 u4BufferLen);
 
-INT_32 kalPerMonInit(IN P_GLUE_INFO_T prGlueInfo);
-INT_32 kalPerMonDisable(IN P_GLUE_INFO_T prGlueInfo);
-INT_32 kalPerMonEnable(IN P_GLUE_INFO_T prGlueInfo);
-INT_32 kalPerMonStart(IN P_GLUE_INFO_T prGlueInfo);
-INT_32 kalPerMonStop(IN P_GLUE_INFO_T prGlueInfo);
-INT_32 kalPerMonDestroy(IN P_GLUE_INFO_T prGlueInfo);
+INT32 kalPerMonInit(IN P_GLUE_INFO_T prGlueInfo);
+INT32 kalPerMonDisable(IN P_GLUE_INFO_T prGlueInfo);
+INT32 kalPerMonEnable(IN P_GLUE_INFO_T prGlueInfo);
+INT32 kalPerMonStart(IN P_GLUE_INFO_T prGlueInfo);
+INT32 kalPerMonStop(IN P_GLUE_INFO_T prGlueInfo);
+INT32 kalPerMonDestroy(IN P_GLUE_INFO_T prGlueInfo);
 VOID kalPerMonHandler(IN P_ADAPTER_T prAdapter, ULONG ulParam);
-INT_32 kalBoostCpu(UINT_32 core_num);
-INT_32 kalFbNotifierReg(IN P_GLUE_INFO_T prGlueInfo);
-VOID kalFbNotifierUnReg(VOID);
+INT32 kalBoostCpu(UINT_32 core_num);
+
 #endif /* _GL_KAL_H */

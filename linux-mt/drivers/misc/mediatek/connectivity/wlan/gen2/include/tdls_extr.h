@@ -1,13 +1,21 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: include/tdls_extr.h#1
 */
+
+/*! \file   "tdls_extr.h"
+    \brief This file contains the external used in other modules
+	 for MediaTek Inc. 802.11 Wireless LAN Adapters.
+*/
+
+/*
+** Log: tdls_extr.h
+ *
+ * 11 18 2013 vend_samp.lin
+ * NULL
+ * Initial version.
+ *
+ **
+ */
 
 #ifndef _TDLS_EXTR_H
 #define _TDLS_EXTR_H
@@ -323,14 +331,14 @@ typedef struct _TDLS_CMD_CORE_T {
 ********************************************************************************
 */
 /*
- * assign station record idx for the packet only when STA_STATE_3
- * Or we will try to send data frame when the TDLS peer's state is STA_STATE_1
- *  EX:
- *    1. mtk_cfg80211_add_station: First create the STA_RECORD_T;
- *    2. TdlsexCfg80211TdlsMgmt: Send a TDLS request frame.
- *    3. mtk_cfg80211_add_station: Change state to STA_STATE_1.
- *    4. TdlsexCfg80211TdlsMgmt: Send a TDLS request frame.
- */
+	assign station record idx for the packet only when STA_STATE_3
+	Or we will try to send data frame when the TDLS peer's state is STA_STATE_1
+	EX:
+		1. mtk_cfg80211_add_station: First create the STA_RECORD_T;
+		2. TdlsexCfg80211TdlsMgmt: Send a TDLS request frame.
+		3. mtk_cfg80211_add_station: Change state to STA_STATE_1.
+		4. TdlsexCfg80211TdlsMgmt: Send a TDLS request frame.
+*/
 #define TDLSEX_STA_REC_IDX_GET(__prAdapter__, __MsduInfo__) \
 { \
 	STA_RECORD_T *__StaRec__; \
@@ -353,9 +361,9 @@ typedef struct _TDLS_CMD_CORE_T {
 
 /* assign user priority of a TDLS action frame */
 /*
- * According to 802.11z: Setup req/resp are sent in AC_BK, otherwise we should default
- * to AC_VI.
- */
+	According to 802.11z: Setup req/resp are sent in AC_BK, otherwise we should default
+	to AC_VI.
+*/
 #define TDLSEX_UP_ASSIGN(__UserPriority__) \
 { \
 	__UserPriority__ = USER_PRIORITY_TDLS; \

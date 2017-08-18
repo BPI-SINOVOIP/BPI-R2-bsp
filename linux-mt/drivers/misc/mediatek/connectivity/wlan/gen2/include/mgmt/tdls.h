@@ -1,13 +1,21 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: include/tdls.h#1
 */
+
+/*! \file   "tdls.h"
+    \brief This file contains the internal used in TDLS modules
+	 for MediaTek Inc. 802.11 Wireless LAN Adapters.
+*/
+
+/*
+** Log: tdls.h
+ *
+ * 11 18 2013 vend_samp.lin
+ * NULL
+ * Initial version.
+ *
+ **
+ */
 
 #ifndef _TDLS_H
 #define _TDLS_H
@@ -156,27 +164,27 @@ typedef struct _PARAM_CUSTOM_TDLS_CMD_STRUCT_T {
 	UINT_8 arBssid[TDLS_FME_MAC_ADDR_LEN];
 
 /*
- * Linux Kernel-3.10
- *    struct station_parameters {
- *        const u8 *supported_rates;
- *        struct net_device *vlan;
- *        u32 sta_flags_mask, sta_flags_set;
- *        u32 sta_modify_mask;
- *        int listen_interval;
- *        u16 aid;
- *        u8 supported_rates_len;
- *        u8 plink_action;
- *        u8 plink_state;
- *        const struct ieee80211_ht_cap *ht_capa;
- *        const struct ieee80211_vht_cap *vht_capa;
- *        u8 uapsd_queues;
- *        u8 max_sp;
- *        enum nl80211_mesh_power_mode local_pm;
- *        u16 capability;
- *        const u8 *ext_capab;
- *        u8 ext_capab_len;
- *    };
- */
+	Linux Kernel-3.10
+	struct station_parameters {
+		const u8 *supported_rates;
+		struct net_device *vlan;
+		u32 sta_flags_mask, sta_flags_set;
+		u32 sta_modify_mask;
+		int listen_interval;
+		u16 aid;
+		u8 supported_rates_len;
+		u8 plink_action;
+		u8 plink_state;
+		const struct ieee80211_ht_cap *ht_capa;
+		const struct ieee80211_vht_cap *vht_capa;
+		u8 uapsd_queues;
+		u8 max_sp;
+		enum nl80211_mesh_power_mode local_pm;
+		u16 capability;
+		const u8 *ext_capab;
+		u8 ext_capab_len;
+	};
+*/
 	struct ieee80211_ht_cap rHtCapa;
 	struct ieee80211_vht_cap rVhtCapa; /* LINUX_KERNEL_VERSION >= 3.10.0 */
 	struct station_parameters rPeerInfo;

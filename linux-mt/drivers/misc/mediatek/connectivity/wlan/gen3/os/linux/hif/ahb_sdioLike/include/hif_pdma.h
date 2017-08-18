@@ -1,30 +1,26 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
 ** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/os/linux/hif/sdio/include/hif.h#1
 */
 
+/*! \file   "hif_pdma.h"
+    \brief  MARCO, definition, structure for PDMA.
+
+    MARCO, definition, structure for PDMA.
+*/
+
 /*
- * ! \file   "hif_pdma.h"
- *  \brief  MARCO, definition, structure for PDMA.
+** Log: hif_pdma.h
  *
- *   MARCO, definition, structure for PDMA.
- */
+ * 01 16 2013 vend_samp.lin
+ * Add AHB PDMA support
+ * 1) Initial version
+**
+*/
 
 #ifndef _HIF_PDMA_H
 #define _HIF_PDMA_H
+
+#include "mtk_porting.h"
 
 /*******************************************************************************
 *                         C O M P I L E R   F L A G S
@@ -53,8 +49,14 @@ typedef enum _MTK_WCN_HIF_PDMA_BURST_LEN {
 	HIF_PDMA_BURST_4_4
 } MTK_WCN_HIF_PDMA_BURST_LEN;
 
-/* reference to Everest_APDMA_Spec.doc */
+/* reference to MT6572_AP_P_DMA_Spec.doc */
+#ifdef CONFIG_OF
+/* for MT6752, MT6797 */
 #define AP_DMA_HIF_BASE             0x11000080
+#else
+/*for MT6572/82/92*/
+#define AP_DMA_HIF_BASE             0x11000180
+#endif
 
 #define AP_DMA_HIF_0_INT_FLAG       (0x0000)
 #define AP_DMA_HIF_0_INT_EN         (0x0004)
@@ -69,8 +71,8 @@ typedef enum _MTK_WCN_HIF_PDMA_BURST_LEN {
 #define AP_DMA_HIF_0_INT_BUF_SIZE   (0x0038)
 #define AP_DMA_HIF_0_DEBUG_STATUS   (0x0050)
 
-#define AP_DMA_HIF_0_SRC_ADDR2      (0x0054)
-#define AP_DMA_HIF_0_DST_ADDR2      (0x0058)
+#define AP_DMA_HIF_0_SRC_ADDR2         (0x0054)
+#define AP_DMA_HIF_0_DST_ADDR2         (0x0058)
 
 #define AP_DMA_HIF_0_LENGTH         0x0080
 
@@ -95,8 +97,7 @@ typedef enum _MTK_WCN_HIF_PDMA_BURST_LEN {
 #define ADH_CR_FLUSH                BIT(0)
 
 /* AP_DMA_HIF_0_CON */
-#define ADH_CR_BURST_INCR           BIT(31)
-#define ADH_CR_BURST_INCR_OFFSET    31
+#define ADH_CR_BUS_INCR_OFFSET      31
 #define ADH_CR_BURST_LEN            BITS(16, 17)
 #define ADH_CR_BURST_LEN_OFFSET     16
 #define ADH_CR_SLOW_CNT             BITS(5, 14)
@@ -109,11 +110,9 @@ typedef enum _MTK_WCN_HIF_PDMA_BURST_LEN {
 #define ADH_CR_LEN                  BITS(0, 19)
 
 /* AP_DMA_HIF_0_SRC_ADDR2 */
-#define ADH_CR_SRC_ADDR2            BIT(0)
-
+#define ADH_CR_SRC_ADDR2               BIT(0)
 /* AP_DMA_HIF_0_DST_ADDR2 */
-#define ADH_CR_DST_ADDR2            BIT(0)
-
+#define ADH_CR_DST_ADDR2               BIT(0)
 /*******************************************************************************
 *                            P U B L I C   D A T A
 ********************************************************************************

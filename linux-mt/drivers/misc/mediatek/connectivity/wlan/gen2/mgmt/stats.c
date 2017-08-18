@@ -1,15 +1,18 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: stats.c#1
 */
+
+/*! \file stats.c
+    \brief This file includes statistics support.
+*/
+
+/*
+** Log: stats.c
+ *
+ * 07 17 2014 samp.lin
+ * NULL
+ * Initial version.
+ */
 
 /*******************************************************************************
  *						C O M P I L E R	 F L A G S
@@ -46,9 +49,9 @@ statsInfoEnvRequest(ADAPTER_T *prAdapter, VOID *pvSetBuffer, UINT_32 u4SetBuffer
 ********************************************************************************
 */
 UINT_64 u8DrvOwnStart, u8DrvOwnEnd;
-UINT32 u4DrvOwnMax;
+UINT32 u4DrvOwnMax = 0;
 #define CFG_USER_LOAD 0
-static UINT_16 su2TxDoneCfg = CFG_DHCP | CFG_ICMP | CFG_EAPOL | CFG_ARP;
+static UINT_16 su2TxDoneCfg = CFG_DHCP | CFG_ICMP | CFG_EAPOL;
 /*******************************************************************************
 *						P R I V A T E  F U N C T I O N S
 ********************************************************************************
@@ -76,69 +79,68 @@ static void statsInfoEnvDisplay(GLUE_INFO_T *prGlueInfo, UINT8 *prInBuf, UINT32 
 	UINT32 u4Total, u4RateId;
 
 /*
- * [wlan] statsInfoEnvRequest: (INIT INFO) statsInfoEnvRequest cmd ok.
- * [wlan] statsEventHandle: (INIT INFO) <stats> statsEventHandle: Rcv a event
- * [wlan] statsEventHandle: (INIT INFO) <stats> statsEventHandle: Rcv a event: 0
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> Display stats for [00:0c:43:31:35:97]:
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> TPAM(0x0) RTS(0 0) BA(0x1 0) OK(9 9 xxx) ERR(0 0 0 0 0 0 0)
- *     TPAM (bit0: enable 40M, bit1: enable 20 short GI, bit2: enable 40 short GI,
- *         bit3: use 40M TX, bit4: use short GI TX, bit5: use no ack)
- *     RTS (1st: current use RTS/CTS, 2nd: ever use RTS/CTS)
- *     BA (1st: TX session BA bitmap for TID0 ~ TID7, 2nd: peer receive maximum agg number)
- *     OK (1st: total number of tx packet from host, 2nd: total number of tx ok, system time last TX OK)
- *     ERR (1st: total number of tx err, 2nd ~ 7st: total number of
- *         WLAN_STATUS_BUFFER_RETAINED, WLAN_STATUS_PACKET_FLUSHED, WLAN_STATUS_PACKET_AGING_TIMEOUT,
- *         WLAN_STATUS_PACKET_MPDU_ERROR, WLAN_STATUS_PACKET_RTS_ERROR, WLAN_STATUS_PACKET_LIFETIME_ERROR)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> TRATE (6 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0) (0 0 0 0 0 0 0 3)
- *     TX rate count (1M 2 5.5 11 NA NA NA NA 48 24 12 6 54 36 18 9) (MCS0 ~ MCS7)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> RX(148 1 0) BA(0x1 64) OK(2 2) ERR(0)
- *     RX (1st: latest RCPI, 2nd: chan num)
- *     BA (1st: RX session BA bitmap for TID0 ~ TID7, 2nd: our receive maximum agg number)
- *     OK (number of rx packets without error, number of rx packets to OS)
- *     ERR (number of rx packets with error)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> RCCK (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
- *     CCK MODE (1 2 5.5 11M)
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> ROFDM (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
- *     OFDM MODE (NA NA NA NA 6 9 12 18 24 36 48 54M)
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> RHT (0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0)
- *     MIXED MODE (number of rx packets with MCS0 ~ MCS15)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayIntH2M us (29 29 32) (0 0 0) (0 0 0)
- *     delay from HIF to MAC own bit=1 (min, avg, max for 500B) (min, avg, max for 1000B) (min, avg, max for others)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> AirTime us (608 864 4480) (0 0 0) (0 0 0)
- *     delay from MAC start TX to MAC TX done
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayInt us (795 1052 4644_4504) (0 0 0_0) (0 0 0_0)
- *     delay from HIF to MAC TX done (min, avg, max_system time for 500B)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayIntD2T us (795 1052 4644) (0 0 0) (0 0 0)
- *     delay from driver to MAC TX done (min, avg, max for 500B)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayIntR_M2H us (37 40 58) (0 0 0) (0 0 0)
- *     delay from MAC to HIF (min, avg, max for 500B)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayIntR_H2D us (0 0 0) (0 0 0) (0 0 0)
- *     delay from HIF to Driver OS (min, avg, max for 500B)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayCntD2H unit:10ms (10 0 0 0)
- *     delay count from Driver to HIF (count in 0~10ms, 10~20ms, 20~30ms, others)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayCnt unit:1ms (6 3 0 1)
- *     delay count from HIF to TX DONE (count in 0~1ms, 1~5ms, 5~10ms, others)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO)
- *     <stats> StayCnt (0~1161:7) (1161~2322:2) (2322~3483:0) (3483~4644:0) (4644~:1)
- *     delay count from HIF to TX DONE (count in 0~1161 ticks, 1161~2322, 2322~3483, 3483~4644, others)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> OTHER (61877) (0) (38) (0) (0) (0ms)
- *     Channel idle time, scan count, channel change count, empty tx quota count,
- *     power save change count from active to PS, maximum delay from PS to active
- */
+[wlan] statsInfoEnvRequest: (INIT INFO) statsInfoEnvRequest cmd ok.
+[wlan] statsEventHandle: (INIT INFO) <stats> statsEventHandle: Rcv a event
+[wlan] statsEventHandle: (INIT INFO) <stats> statsEventHandle: Rcv a event: 0
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> Display stats for [00:0c:43:31:35:97]:
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> TPAM(0x0) RTS(0 0) BA(0x1 0) OK(9 9 xxx) ERR(0 0 0 0 0 0 0)
+	TPAM (bit0: enable 40M, bit1: enable 20 short GI, bit2: enable 40 short GI,
+		bit3: use 40M TX, bit4: use short GI TX, bit5: use no ack)
+	RTS (1st: current use RTS/CTS, 2nd: ever use RTS/CTS)
+	BA (1st: TX session BA bitmap for TID0 ~ TID7, 2nd: peer receive maximum agg number)
+	OK (1st: total number of tx packet from host, 2nd: total number of tx ok, system time last TX OK)
+	ERR (1st: total number of tx err, 2nd ~ 7st: total number of
+		WLAN_STATUS_BUFFER_RETAINED, WLAN_STATUS_PACKET_FLUSHED, WLAN_STATUS_PACKET_AGING_TIMEOUT,
+		WLAN_STATUS_PACKET_MPDU_ERROR, WLAN_STATUS_PACKET_RTS_ERROR, WLAN_STATUS_PACKET_LIFETIME_ERROR)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> TRATE (6 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0) (0 0 0 0 0 0 0 3)
+	TX rate count (1M 2 5.5 11 NA NA NA NA 48 24 12 6 54 36 18 9) (MCS0 ~ MCS7)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> RX(148 1 0) BA(0x1 64) OK(2 2) ERR(0)
+	RX (1st: latest RCPI, 2nd: chan num)
+	BA (1st: RX session BA bitmap for TID0 ~ TID7, 2nd: our receive maximum agg number)
+	OK (number of rx packets without error, number of rx packets to OS)
+	ERR (number of rx packets with error)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> RCCK (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
+	CCK MODE (1 2 5.5 11M)
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> ROFDM (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
+	OFDM MODE (NA NA NA NA 6 9 12 18 24 36 48 54M)
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> RHT (0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0)
+	MIXED MODE (number of rx packets with MCS0 ~ MCS15)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayIntH2M us (29 29 32) (0 0 0) (0 0 0)
+	delay from HIF to MAC own bit=1 (min, avg, max for 500B) (min, avg, max for 1000B) (min, avg, max for others)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> AirTime us (608 864 4480) (0 0 0) (0 0 0)
+	delay from MAC start TX to MAC TX done
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayInt us (795 1052 4644_4504) (0 0 0_0) (0 0 0_0)
+	delay from HIF to MAC TX done (min, avg, max_system time for 500B)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayIntD2T us (795 1052 4644) (0 0 0) (0 0 0)
+	delay from driver to MAC TX done (min, avg, max for 500B)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayIntR_M2H us (37 40 58) (0 0 0) (0 0 0)
+	delay from MAC to HIF (min, avg, max for 500B)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayIntR_H2D us (0 0 0) (0 0 0) (0 0 0)
+	delay from HIF to Driver OS (min, avg, max for 500B)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayCntD2H unit:10ms (10 0 0 0)
+	delay count from Driver to HIF (count in 0~10ms, 10~20ms, 20~30ms, others)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayCnt unit:1ms (6 3 0 1)
+	delay count from HIF to TX DONE (count in 0~1ms, 1~5ms, 5~10ms, others)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayCnt (0~1161:7) (1161~2322:2) (2322~3483:0) (3483~4644:0) (4644~:1)
+	delay count from HIF to TX DONE (count in 0~1161 ticks, 1161~2322, 2322~3483, 3483~4644, others)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> OTHER (61877) (0) (38) (0) (0) (0ms)
+	Channel idle time, scan count, channel change count, empty tx quota count,
+	power save change count from active to PS, maximum delay from PS to active
+*/
 
 	/* init */
 	prAdapter = prGlueInfo->prAdapter;
@@ -161,8 +163,8 @@ static void statsInfoEnvDisplay(GLUE_INFO_T *prGlueInfo, UINT8 *prInBuf, UINT32 
 	/* print */
 	for (u4InfoId = 0; u4InfoId < u4NumOfInfo; u4InfoId++) {
 		/*
-		 * use u4InBufLen, not sizeof(rStatsInfoEnv)
-		 * because the firmware version maybe not equal to driver version
+		   use u4InBufLen, not sizeof(rStatsInfoEnv)
+		   because the firmware version maybe not equal to driver version
 		 */
 		kalMemCopy(prInfo, prInBuf + 8, u4InBufLen);
 
@@ -441,69 +443,68 @@ static void statsInfoEnvDisplay(GLUE_INFO_T *prGlueInfo, UINT8 *prInBuf, UINT32 
 	STATS_INFO_ENV_T rStatsInfoEnv, *prInfo;
 
 /*
- * [wlan] statsInfoEnvRequest: (INIT INFO) statsInfoEnvRequest cmd ok.
- * [wlan] statsEventHandle: (INIT INFO) <stats> statsEventHandle: Rcv a event
- * [wlan] statsEventHandle: (INIT INFO) <stats> statsEventHandle: Rcv a event: 0
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> Display stats for [00:0c:43:31:35:97]:
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> TPAM(0x0) RTS(0 0) BA(0x1 0) OK(9 9 xxx) ERR(0 0 0 0 0 0 0)
- *     TPAM (bit0: enable 40M, bit1: enable 20 short GI, bit2: enable 40 short GI,
+[wlan] statsInfoEnvRequest: (INIT INFO) statsInfoEnvRequest cmd ok.
+[wlan] statsEventHandle: (INIT INFO) <stats> statsEventHandle: Rcv a event
+[wlan] statsEventHandle: (INIT INFO) <stats> statsEventHandle: Rcv a event: 0
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> Display stats for [00:0c:43:31:35:97]:
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> TPAM(0x0) RTS(0 0) BA(0x1 0) OK(9 9 xxx) ERR(0 0 0 0 0 0 0)
+	TPAM (bit0: enable 40M, bit1: enable 20 short GI, bit2: enable 40 short GI,
 		bit3: use 40M TX, bit4: use short GI TX, bit5: use no ack)
- *     RTS (1st: current use RTS/CTS, 2nd: ever use RTS/CTS)
- *     BA (1st: TX session BA bitmap for TID0 ~ TID7, 2nd: peer receive maximum agg number)
- *     OK (1st: total number of tx packet from host, 2nd: total number of tx ok, system time last TX OK)
- *     ERR (1st: total number of tx err, 2nd ~ 7st: total number of
+	RTS (1st: current use RTS/CTS, 2nd: ever use RTS/CTS)
+	BA (1st: TX session BA bitmap for TID0 ~ TID7, 2nd: peer receive maximum agg number)
+	OK (1st: total number of tx packet from host, 2nd: total number of tx ok, system time last TX OK)
+	ERR (1st: total number of tx err, 2nd ~ 7st: total number of
 		WLAN_STATUS_BUFFER_RETAINED, WLAN_STATUS_PACKET_FLUSHED, WLAN_STATUS_PACKET_AGING_TIMEOUT,
 		WLAN_STATUS_PACKET_MPDU_ERROR, WLAN_STATUS_PACKET_RTS_ERROR, WLAN_STATUS_PACKET_LIFETIME_ERROR)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> TRATE (6 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0) (0 0 0 0 0 0 0 3)
- *     TX rate count (1M 2 5.5 11 NA NA NA NA 48 24 12 6 54 36 18 9) (MCS0 ~ MCS7)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> RX(148 1 0) BA(0x1 64) OK(2 2) ERR(0)
- *     RX (1st: latest RCPI, 2nd: chan num)
- *     BA (1st: RX session BA bitmap for TID0 ~ TID7, 2nd: our receive maximum agg number)
- *     OK (number of rx packets without error, number of rx packets to OS)
- *     ERR (number of rx packets with error)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> RCCK (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
- *     CCK MODE (1 2 5.5 11M)
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> ROFDM (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
- *     OFDM MODE (NA NA NA NA 6 9 12 18 24 36 48 54M)
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> RHT (0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0)
- *     MIXED MODE (number of rx packets with MCS0 ~ MCS15)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayIntH2M us (29 29 32) (0 0 0) (0 0 0)
- *     delay from HIF to MAC own bit=1 (min, avg, max for 500B) (min, avg, max for 1000B) (min, avg, max for others)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> AirTime us (608 864 4480) (0 0 0) (0 0 0)
- *     delay from MAC start TX to MAC TX done
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayInt us (795 1052 4644_4504) (0 0 0_0) (0 0 0_0)
- *     delay from HIF to MAC TX done (min, avg, max_system time for 500B)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayIntD2T us (795 1052 4644) (0 0 0) (0 0 0)
- *     delay from driver to MAC TX done (min, avg, max for 500B)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayIntR_M2H us (37 40 58) (0 0 0) (0 0 0)
- *     delay from MAC to HIF (min, avg, max for 500B)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayIntR_H2D us (0 0 0) (0 0 0) (0 0 0)
- *     delay from HIF to Driver OS (min, avg, max for 500B)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayCntD2H unit:10ms (10 0 0 0)
- *     delay count from Driver to HIF (count in 0~10ms, 10~20ms, 20~30ms, others)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayCnt unit:1ms (6 3 0 1)
- *     delay count from HIF to TX DONE (count in 0~1ms, 1~5ms, 5~10ms, others)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO)
- *     <stats> StayCnt (0~1161:7) (1161~2322:2) (2322~3483:0) (3483~4644:0) (4644~:1)
- *     delay count from HIF to TX DONE (count in 0~1161 ticks, 1161~2322, 2322~3483, 3483~4644, others)
- *
- * [wlan] statsInfoEnvDisplay: (INIT INFO) <stats> OTHER (61877) (0) (38) (0) (0) (0ms)
- *     Channel idle time, scan count, channel change count, empty tx quota count,
- *     power save change count from active to PS, maximum delay from PS to active
- */
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> TRATE (6 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0) (0 0 0 0 0 0 0 3)
+	TX rate count (1M 2 5.5 11 NA NA NA NA 48 24 12 6 54 36 18 9) (MCS0 ~ MCS7)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> RX(148 1 0) BA(0x1 64) OK(2 2) ERR(0)
+	RX (1st: latest RCPI, 2nd: chan num)
+	BA (1st: RX session BA bitmap for TID0 ~ TID7, 2nd: our receive maximum agg number)
+	OK (number of rx packets without error, number of rx packets to OS)
+	ERR (number of rx packets with error)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> RCCK (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
+	CCK MODE (1 2 5.5 11M)
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> ROFDM (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
+	OFDM MODE (NA NA NA NA 6 9 12 18 24 36 48 54M)
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> RHT (0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0)
+	MIXED MODE (number of rx packets with MCS0 ~ MCS15)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayIntH2M us (29 29 32) (0 0 0) (0 0 0)
+	delay from HIF to MAC own bit=1 (min, avg, max for 500B) (min, avg, max for 1000B) (min, avg, max for others)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> AirTime us (608 864 4480) (0 0 0) (0 0 0)
+	delay from MAC start TX to MAC TX done
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayInt us (795 1052 4644_4504) (0 0 0_0) (0 0 0_0)
+	delay from HIF to MAC TX done (min, avg, max_system time for 500B)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayIntD2T us (795 1052 4644) (0 0 0) (0 0 0)
+	delay from driver to MAC TX done (min, avg, max for 500B)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayIntR_M2H us (37 40 58) (0 0 0) (0 0 0)
+	delay from MAC to HIF (min, avg, max for 500B)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayIntR_H2D us (0 0 0) (0 0 0) (0 0 0)
+	delay from HIF to Driver OS (min, avg, max for 500B)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayCntD2H unit:10ms (10 0 0 0)
+	delay count from Driver to HIF (count in 0~10ms, 10~20ms, 20~30ms, others)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayCnt unit:1ms (6 3 0 1)
+	delay count from HIF to TX DONE (count in 0~1ms, 1~5ms, 5~10ms, others)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> StayCnt (0~1161:7) (1161~2322:2) (2322~3483:0) (3483~4644:0) (4644~:1)
+	delay count from HIF to TX DONE (count in 0~1161 ticks, 1161~2322, 2322~3483, 3483~4644, others)
+
+[wlan] statsInfoEnvDisplay: (INIT INFO) <stats> OTHER (61877) (0) (38) (0) (0) (0ms)
+	Channel idle time, scan count, channel change count, empty tx quota count,
+	power save change count from active to PS, maximum delay from PS to active
+*/
 
 	/* init */
 	prAdapter = prGlueInfo->prAdapter;
@@ -520,8 +521,8 @@ static void statsInfoEnvDisplay(GLUE_INFO_T *prGlueInfo, UINT8 *prInBuf, UINT32 
 	/* print */
 	for (u4InfoId = 0; u4InfoId < u4NumOfInfo; u4InfoId++) {
 		/*
-		 * use u4InBufLen, not sizeof(rStatsInfoEnv)
-		 * because the firmware version maybe not equal to driver version
+		   use u4InBufLen, not sizeof(rStatsInfoEnv)
+		   because the firmware version maybe not equal to driver version
 		 */
 		kalMemCopy(&rStatsInfoEnv, prInBuf + 8, u4InBufLen);
 
@@ -901,7 +902,7 @@ VOID StatsEnvRxDone(STA_RECORD_T *prStaRec, SW_RFB_T *prSwRfb)
 	if (prSwRfb->u2PacketLen < STATS_STAY_INT_BYTE_THRESHOLD) {
 		u4LenId = 0;
 	} else {
-		if ((prSwRfb->u2PacketLen >= STATS_STAY_INT_BYTE_THRESHOLD) &&
+		if ((STATS_STAY_INT_BYTE_THRESHOLD <= prSwRfb->u2PacketLen) &&
 		    (prSwRfb->u2PacketLen < (STATS_STAY_INT_BYTE_THRESHOLD << 1))) {
 			u4LenId = 1;
 		} else
@@ -1007,11 +1008,8 @@ static VOID statsParsePktInfo(PUINT_8 pucPkt, UINT_8 status, UINT_8 eventType, P
 	case ETH_P_ARP:
 	{
 		UINT_16 u2OpCode = (pucEthBody[6] << 8) | pucEthBody[7];
-
 		if (eventType == EVENT_TX)
 			prMsduInfo->fgIsBasicRate = TRUE;
-
-		wlanPktDebugTraceInfoARP(status, eventType, u2OpCode);
 
 		if ((su2TxDoneCfg & CFG_ARP) == 0)
 			break;
@@ -1019,7 +1017,7 @@ static VOID statsParsePktInfo(PUINT_8 pucPkt, UINT_8 status, UINT_8 eventType, P
 		switch (eventType) {
 		case EVENT_RX:
 			if (u2OpCode == ARP_PRO_REQ)
-				DBGLOG(RX, TRACE, "<RX> Arp Req From IP: %d.%d.%d.%d\n",
+				DBGLOG(RX, INFO, "<RX> Arp Req From IP: %d.%d.%d.%d\n",
 					pucEthBody[14], pucEthBody[15], pucEthBody[16], pucEthBody[17]);
 			else if (u2OpCode == ARP_PRO_RSP)
 				DBGLOG(RX, INFO, "<RX> Arp Rsp from IP: %d.%d.%d.%d\n",
@@ -1027,10 +1025,10 @@ static VOID statsParsePktInfo(PUINT_8 pucPkt, UINT_8 status, UINT_8 eventType, P
 			break;
 		case EVENT_TX:
 			if (u2OpCode == ARP_PRO_REQ)
-				DBGLOG(TX, TRACE, "<TX> Arp Req to IP: %d.%d.%d.%d\n",
+				DBGLOG(TX, INFO, "<TX> Arp Req to IP: %d.%d.%d.%d\n",
 					pucEthBody[24], pucEthBody[25], pucEthBody[26], pucEthBody[27]);
 			else if (u2OpCode == ARP_PRO_RSP)
-				DBGLOG(TX, TRACE, "<TX> Arp Rsp to IP: %d.%d.%d.%d\n",
+				DBGLOG(TX, INFO, "<TX> Arp Rsp to IP: %d.%d.%d.%d\n",
 					pucEthBody[24], pucEthBody[25], pucEthBody[26], pucEthBody[27]);
 			prMsduInfo->fgNeedTxDoneStatus = TRUE;
 			break;
@@ -1039,7 +1037,7 @@ static VOID statsParsePktInfo(PUINT_8 pucPkt, UINT_8 status, UINT_8 eventType, P
 				DBGLOG(TX, INFO, "<TX status:%d> Arp Req to IP: %d.%d.%d.%d\n", status,
 					pucEthBody[24], pucEthBody[25], pucEthBody[26], pucEthBody[27]);
 			else if (u2OpCode == ARP_PRO_RSP)
-				DBGLOG(TX, TRACE, "<TX status:%d> Arp Rsp to IP: %d.%d.%d.%d\n", status,
+				DBGLOG(TX, INFO, "<TX status:%d> Arp Rsp to IP: %d.%d.%d.%d\n", status,
 					pucEthBody[24], pucEthBody[25], pucEthBody[26], pucEthBody[27]);
 			break;
 		}
@@ -1050,10 +1048,6 @@ static VOID statsParsePktInfo(PUINT_8 pucPkt, UINT_8 status, UINT_8 eventType, P
 		UINT_8 ucIpProto = pucEthBody[9]; /* IP header without options */
 		UINT_8 ucIpVersion = (pucEthBody[0] & IPVH_VERSION_MASK) >> IPVH_VERSION_OFFSET;
 		UINT_16 u2IpId = pucEthBody[4]<<8 | pucEthBody[5];
-
-
-		wlanPktDebugTraceInfoIP(status, eventType, ucIpProto, u2IpId);
-
 
 		if (ucIpVersion != IPVERSION)
 			break;
@@ -1078,12 +1072,12 @@ static VOID statsParsePktInfo(PUINT_8 pucPkt, UINT_8 status, UINT_8 eventType, P
 							ucIcmpType, u2IcmpId, u2IcmpSeq);
 				break;
 			case EVENT_TX:
-				DBGLOG(TX, TRACE, "<TX> ICMP: Type %d, Id 0x04%x, Seq BE 0x%04x\n",
+				DBGLOG(TX, INFO, "<TX> ICMP: Type %d, Id 0x04%x, Seq BE 0x%04x\n",
 								ucIcmpType, u2IcmpId, u2IcmpSeq);
 				prMsduInfo->fgNeedTxDoneStatus = TRUE;
 				break;
 			case EVENT_TX_DONE:
-				DBGLOG(TX, INFO, "<TX status:%d> ICMP: Type %d, Id 0x%04x, Seq 0x%04x\n",
+				DBGLOG(TX, INFO, "<TX status:%d> Type %d, Id 0x%04x, Seq 0x%04x\n",
 						status, ucIcmpType, u2IcmpId, u2IcmpSeq);
 				break;
 			}
@@ -1123,7 +1117,6 @@ static VOID statsParsePktInfo(PUINT_8 pucPkt, UINT_8 status, UINT_8 eventType, P
 				}
 			} else if (u2UdpDstPort == UDP_PORT_DNS) { /* tx dns */
 				UINT_16 u2TransId = (pucUdpPayload[0] << 8) | pucUdpPayload[1];
-
 				if (eventType == EVENT_TX)
 					prMsduInfo->fgIsBasicRate = TRUE;
 
@@ -1312,7 +1305,6 @@ VOID StatsTxPktCallBack(UINT_8 *pPkt, P_MSDU_INFO_T prMsduInfo)
 
 	u2EtherTypeLen = (pPkt[ETH_TYPE_LEN_OFFSET] << 8) | (pPkt[ETH_TYPE_LEN_OFFSET + 1]);
 	statsParsePktInfo(pPkt, 0, EVENT_TX, prMsduInfo);
-
 }
 
 /*----------------------------------------------------------------------------*/

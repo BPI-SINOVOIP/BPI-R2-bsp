@@ -1,29 +1,14 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
 ** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/pwr_mgt.h#1
 */
 
-/*
- * ! \file   "pwr_mgt.h"
- *  \brief  In this file we define the STATE and EVENT for Power Management FSM.
- *
- *   The SCAN FSM is responsible for performing SCAN behavior when the Arbiter enter
- *   ARB_STATE_SCAN. The STATE and EVENT for SCAN FSM are defined here with detail
- *   description.
- */
+/*! \file   "pwr_mgt.h"
+    \brief  In this file we define the STATE and EVENT for Power Management FSM.
+
+    The SCAN FSM is responsible for performing SCAN behavior when the Arbiter enter
+    ARB_STATE_SCAN. The STATE and EVENT for SCAN FSM are defined here with detail
+    description.
+*/
 
 #ifndef _PWR_MGT_H
 #define _PWR_MGT_H

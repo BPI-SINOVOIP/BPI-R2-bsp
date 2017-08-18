@@ -1,13 +1,14 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/mgmt/swcr.h#1
 */
+
+/*! \file   "swcr.h"
+    \brief
+*/
+
+/*
+ *
+ */
 
 #ifndef _SWCR_H
 #define _SWCR_H
@@ -43,7 +44,7 @@ extern SWCR_MAP_ENTRY_T g_arRlmArSwCrMap[];
 #define SWCR_READ 0
 #define SWCR_WRITE 1
 
-#define SWCR_MAP_NUM(x)  (ARRAY_SIZE(x))
+#define SWCR_MAP_NUM(x)  (sizeof(x)/sizeof(x[0]))
 
 #define SWCR_CR_NUM 7
 

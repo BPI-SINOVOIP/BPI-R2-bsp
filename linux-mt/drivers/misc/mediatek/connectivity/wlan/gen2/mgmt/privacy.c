@@ -1,12 +1,219 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/mgmt/privacy.c#1
+*/
+
+/*! \file   "privacy.c"
+    \brief  This file including the protocol layer privacy function.
+
+    This file provided the macros and functions library support for the
+    protocol layer security setting from rsn.c and nic_privacy.c
+
+*/
+
+/*
+** Log: privacy.c
+ *
+ * 11 10 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * change the debug module level.
+ *
+ * 10 20 2011 terry.wu
+ * NULL
+ * Fix Hotspot deauth send failed.
+ *
+ * 10 12 2011 wh.su
+ * [WCXRP00001036] [MT6620 Wi-Fi][Driver][FW] Adding the 802.11w code for MFP
+ * adding the 802.11w related function and define .
+ *
+ * 06 28 2011 tsaiyuan.hsu
+ * [WCXRP00000819] [MT6620 Wi-Fi][Driver] check if staRec is NULL or not in secCheckClassError
+ * check if staRec is NULL or not in secCheckClassError.
+ *
+ * 06 09 2011 tsaiyuan.hsu
+ * [WCXRP00000760] [MT5931 Wi-Fi][FW] Refine rxmHandleMacRxDone to reduce code size
+ * move send_auth at rxmHandleMacRxDone in firmware to driver to reduce code size.
+ *
+ * 01 25 2011 yuche.tsai
+ * [WCXRP00000388] [Volunteer Patch][MT6620][Driver/Fw] change Station Type in station record.
+ * Change Station Type in Station Record, Modify MACRO definition for getting station type & network type index & Role.
+ *
+ * 11 04 2010 wh.su
+ * [WCXRP00000164] [MT6620 Wi-Fi][Driver] Support the p2p random SSID
+ * adding the p2p random ssid support.
+ *
+ * 10 04 2010 cp.wu
+ * [WCXRP00000077] [MT6620 Wi-Fi][Driver][FW] Eliminate use of ENUM_NETWORK_TYPE_T
+ * and replaced by ENUM_NETWORK_TYPE_INDEX_T only
+ * remove ENUM_NETWORK_TYPE_T definitions
+ *
+ * 09 03 2010 kevin.huang
+ * NULL
+ * Refine #include sequence and solve recursive/nested #include issue
+ *
+ * 09 01 2010 wh.su
+ * NULL
+ * adding the wapi support for integration test.
+ *
+ * 07 24 2010 wh.su
+ *
+ * .support the Wi-Fi RSN
+ *
+ * 07 20 2010 wh.su
+ *
+ * adding the wapi code.
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 06 21 2010 wh.su
+ * [WPD00003840][MT6620 5931] Security migration
+ * modify some code for concurrent network.
+ *
+ * 06 21 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * enable RX management frame handling.
+ *
+ * 06 19 2010 wh.su
+ * [WPD00003840][MT6620 5931] Security migration
+ * adding the compiling flag for migration.
+ *
+ * 06 19 2010 wh.su
+ * [WPD00003840][MT6620 5931] Security migration
+ * consdier the concurrent network setting.
+ *
+ * 06 18 2010 wh.su
+ * [WPD00003840][MT6620 5931] Security migration
+ * migration the security related function from firmware.
+ *
+ * 05 28 2010 wh.su
+ * [BORA00000626][MT6620] Refine the remove key flow for WHQL testing
+ * fixed the ad-hoc wpa-none send non-encrypted frame issue.
+ *
+ * 05 24 2010 kevin.huang
+ * [BORA00000794][WIFISYS][New Feature]Power Management Support
+ * Refine authSendAuthFrame() for NULL STA_RECORD_T case and minimum deauth interval.
+ *
+ * 04 29 2010 wh.su
+ * [BORA00000637][MT6620 Wi-Fi] [Bug] WPA2 pre-authentication timer not correctly initialize
+ * adjsut the pre-authentication code.
+ *
+ * 04 22 2010 wh.su
+ * [BORA00000626][MT6620] Refine the remove key flow for WHQL testing
+ * fixed the wpi same key id rx issue and fixed the remove wep key issue.
+ *
+ * 04 19 2010 kevin.huang
+ * [BORA00000714][WIFISYS][New Feature]Beacon Timeout Support
+ * Add Send Deauth for Class 3 Error and Leave Network Support
+ *
+ * 04 15 2010 wh.su
+ * [BORA00000680][MT6620] Support the statistic for Micxxsoft os query
+ * remove the assert code for allow ad-hoc pkt.
+ *
+ * 04 13 2010 wh.su
+ * [BORA00000680][MT6620] Support the statistic for Micxxsoft os query
+ * fixed the Klocwork error and refine the class error message.
+ *
+ * 03 04 2010 wh.su
+ * [BORA00000605][WIFISYS] Phase3 Integration
+ * Code refine, and remove non-used code.
+ *
+ * 03 03 2010 wh.su
+ * [BORA00000637][MT6620 Wi-Fi] [Bug] WPA2 pre-authentication timer not correctly initialize
+ * move the AIS specific variable for security to AIS specific structure.
+ *
+ * 03 03 2010 wh.su
+ * [BORA00000637][MT6620 Wi-Fi] [Bug] WPA2 pre-authentication timer not correctly initialize
+ * Fixed the pre-authentication timer not correctly init issue,
+ * and modify the security related callback function prototype.
+ *
+ * 03 01 2010 wh.su
+ * [BORA00000605][WIFISYS] Phase3 Integration
+ * Refine the variable and parameter for security.
+ *
+ * 02 26 2010 wh.su
+ * [BORA00000626][MT6620] Refine the remove key flow for WHQL testing
+ * change the waning message shown level, and clear the global transmit flag for CMD INFRASTRUCTURE.
+ *
+ * 02 25 2010 wh.su
+ * [BORA00000626][MT6620] Refine the remove key flow for WHQL testing
+ * For support the WHQL test, do the remove key code refine.
+ *
+ * 01 27 2010 wh.su
+ * [BORA00000476][Wi-Fi][firmware] Add the security module initialize code
+ * add and fixed some security function.
+ *
+ * 12 25 2009 tehuang.liu
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * Integrated modifications for 1st connection (mainly on FW modules MQM, TXM, and RXM)
+ *  *  *  *  *  *  *  *  * MQM: BA handling
+ *  *  *  *  *  *  *  *  * TXM: Macros updates
+ *  *  *  *  *  *  *  *  * RXM: Macros/Duplicate Removal updates
+ *
+ * 12 18 2009 cm.chang
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * .
+ *
+ * Dec 11 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * modify the cmd with result return
+ *
+ * Dec 11 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * fixed the value not initialize issue
+ *
+ * Dec 10 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * change the cmd return type
+ *
+ * Dec 8 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adding the function to update the auth mode and encryption status for cmd build connection
+ *
+ * Dec 7 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adding some code for wapi mode
+ *
+ * Dec 7 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adding the call to check the 4th and eapol error report frame
+ *
+ * Dec 7 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * rename the function name
+ *
+ * Dec 4 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adding the code for parsing the EAPoL frame, and do some code refine
+ *
+ * Dec 3 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adding the class error check
+ *
+ * Dec 3 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adding the cmd_802_11_pmkid code
+ *
+ * Dec 1 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * doing some function rename, and adding the code for cmd CMD_ADD_REMOVE_KEY
+ *
+ * Nov 23 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adding the clear pmkid function
+ *
+ * Nov 23 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Fix eStaType check for AIS
+ *
+ * Nov 19 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adding the ap selection related code
+ *
+ * Nov 18 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ *
 */
 
 /*******************************************************************************
@@ -112,8 +319,6 @@ VOID secInit(IN P_ADAPTER_T prAdapter, IN UINT_8 ucNetTypeIdx)
 	prAdapter->rMib.dot11RSNAConfigPairwiseCiphersTable[5].dot11RSNAConfigPairwiseCipher = RSN_CIPHER_SUITE_TKIP;
 	prAdapter->rMib.dot11RSNAConfigPairwiseCiphersTable[6].dot11RSNAConfigPairwiseCipher = RSN_CIPHER_SUITE_CCMP;
 	prAdapter->rMib.dot11RSNAConfigPairwiseCiphersTable[7].dot11RSNAConfigPairwiseCipher = RSN_CIPHER_SUITE_WEP104;
-	prAdapter->rMib.dot11RSNAConfigPairwiseCiphersTable[8].dot11RSNAConfigPairwiseCipher =
-		RSN_CIPHER_SUITE_GROUP_NOT_USED;
 
 	for (i = 0; i < MAX_NUM_SUPPORTED_CIPHER_SUITES; i++)
 		prAdapter->rMib.dot11RSNAConfigPairwiseCiphersTable[i].dot11RSNAConfigPairwiseCipherEnabled = FALSE;
@@ -136,11 +341,6 @@ VOID secInit(IN P_ADAPTER_T prAdapter, IN UINT_8 ucNetTypeIdx)
 	    RSN_AKM_SUITE_802_1X_SHA256;
 	prAdapter->rMib.dot11RSNAConfigAuthenticationSuitesTable[7].dot11RSNAConfigAuthenticationSuite =
 	    RSN_AKM_SUITE_PSK_SHA256;
-	prAdapter->rMib.dot11RSNAConfigAuthenticationSuitesTable[8].dot11RSNAConfigAuthenticationSuite =
-	    WFA_AKM_SUITE_OSEN;
-#else
-	prAdapter->rMib.dot11RSNAConfigAuthenticationSuitesTable[6].dot11RSNAConfigAuthenticationSuite =
-	    WFA_AKM_SUITE_OSEN;
 #endif
 
 	for (i = 0; i < MAX_NUM_SUPPORTED_AKM_SUITES; i++) {
@@ -188,9 +388,6 @@ BOOLEAN secCheckClassError(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb, IN P
 {
 	ENUM_NETWORK_TYPE_INDEX_T eNetTypeIndex;
 	P_BSS_INFO_T prBssInfo;
-	P_SW_RFB_T prCurrSwRfb;
-	P_HIF_RX_HEADER_T prHifRxHdr;
-	UINT_16 u2PktTmpLen;
 
 	ASSERT(prAdapter);
 	ASSERT(prSwRfb);
@@ -203,7 +400,7 @@ BOOLEAN secCheckClassError(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb, IN P
 		return FALSE;
 
 	prBssInfo = &prAdapter->rWifiVar.arBssInfo[eNetTypeIndex];
-	if ((prStaRec->ucStaState != STA_STATE_3) && prBssInfo->fgIsNetAbsent == FALSE) {
+	if ((STA_STATE_3 != prStaRec->ucStaState) && prBssInfo->fgIsNetAbsent == FALSE) {
 		/*(IS_AP_STA(prStaRec) || IS_CLIENT_STA(prStaRec))) { */
 
 #if 0	/* by scott's suggestions, do not put work-around in JB2,we need to find the root cause */
@@ -216,36 +413,17 @@ BOOLEAN secCheckClassError(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb, IN P
 		}
 #endif
 
-#if 0
-		if (authSendDeauthFrame(prAdapter, prStaRec, NULL, REASON_CODE_CLASS_3_ERR,
-			(PFN_TX_DONE_HANDLER) NULL) == WLAN_STATUS_SUCCESS)
+		if (WLAN_STATUS_SUCCESS == authSendDeauthFrame(prAdapter,
+							       prStaRec,
+							       NULL,
+							       REASON_CODE_CLASS_3_ERR,
+							       (PFN_TX_DONE_HANDLER) NULL))
+
 			DBGLOG(RSN, INFO, "Send Deauth to [ %pM ] for Rx Class 3 Error.\n",
 					   prStaRec->aucMacAddr);
 		else
 			DBGLOG(RSN, INFO, "Host sends Deauth to [ %pM ] for Rx Class 3 fail.\n",
 					   prStaRec->aucMacAddr);
-#endif
-		DBGLOG(RSN, WARN, "received class 3 data frame !!!");
-
-		/* dump Rx Pkt */
-		prCurrSwRfb = prSwRfb;
-
-		prHifRxHdr = prCurrSwRfb->prHifRxHdr;
-
-		DBGLOG(SW4, WARN, "QM RX DATA: net %u sta idx %u wlan idx %u ssn %u tid %u ptype %u 11 %u\n",
-			(UINT_32) HIF_RX_HDR_GET_NETWORK_IDX(prHifRxHdr),
-			prHifRxHdr->ucStaRecIdx, prCurrSwRfb->ucWlanIdx,
-			(UINT_32) HIF_RX_HDR_GET_SN(prHifRxHdr),	/* The new SN of the frame */
-			(UINT_32) HIF_RX_HDR_GET_TID(prHifRxHdr),
-			prCurrSwRfb->ucPacketType,
-			(UINT_32) HIF_RX_HDR_GET_80211_FLAG(prHifRxHdr));
-
-		u2PktTmpLen = prCurrSwRfb->u2PacketLen;
-		if (u2PktTmpLen > 48)
-			u2PktTmpLen = 48;
-
-		dumpMemory8((PUINT_8) prCurrSwRfb->pvHeader, u2PktTmpLen);
-
 		return FALSE;
 	}
 
@@ -436,12 +614,7 @@ VOID secSetCipherSuite(IN P_ADAPTER_T prAdapter, IN UINT_32 u4CipherSuitesFlags)
 			else
 				prEntry->dot11RSNAConfigPairwiseCipherEnabled = FALSE;
 			break;
-		case RSN_CIPHER_SUITE_GROUP_NOT_USED:
-			if (u4CipherSuitesFlags & (CIPHER_FLAG_CCMP | CIPHER_FLAG_TKIP))
-				prEntry->dot11RSNAConfigPairwiseCipherEnabled = TRUE;
-			else
-				prEntry->dot11RSNAConfigPairwiseCipherEnabled = FALSE;
-			break;
+
 		case WPA_CIPHER_SUITE_WEP104:
 		case RSN_CIPHER_SUITE_WEP104:
 			if (u4CipherSuitesFlags & CIPHER_FLAG_WEP104)
@@ -463,8 +636,6 @@ VOID secSetCipherSuite(IN P_ADAPTER_T prAdapter, IN UINT_32 u4CipherSuitesFlags)
 		prMib->dot11RSNAConfigGroupCipher = WPA_CIPHER_SUITE_WEP104;
 	else if (rsnSearchSupportedCipher(prAdapter, WPA_CIPHER_SUITE_WEP40, &i))
 		prMib->dot11RSNAConfigGroupCipher = WPA_CIPHER_SUITE_WEP40;
-	else if (rsnSearchSupportedCipher(prAdapter, RSN_CIPHER_SUITE_GROUP_NOT_USED, &i))
-		prMib->dot11RSNAConfigGroupCipher = RSN_CIPHER_SUITE_GROUP_NOT_USED;
 	else
 		prMib->dot11RSNAConfigGroupCipher = WPA_CIPHER_SUITE_NONE;
 

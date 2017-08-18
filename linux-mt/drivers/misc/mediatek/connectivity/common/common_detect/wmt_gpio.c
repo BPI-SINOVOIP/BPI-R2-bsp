@@ -66,7 +66,7 @@ const PUINT8 gpio_state_name[GPIO_PIN_ID_MAX][GPIO_STATE_MAX] = {{"gpio_ldo_en_p
 		"",
 		"",
 		"",
-		"gpio_rst_in_pulldown",
+		"",
 		""},
 	{"",
 		"",
@@ -75,7 +75,7 @@ const PUINT8 gpio_state_name[GPIO_PIN_ID_MAX][GPIO_STATE_MAX] = {{"gpio_ldo_en_p
 		"",
 		"",
 		"",
-		"gpio_bgf_eint_in_pull_dis",
+		"",
 		"gpio_bgf_eint_in_pulldown",
 		"gpio_bgf_eint_in_pullup"},
 	{"",
@@ -101,7 +101,7 @@ const PUINT8 gpio_state_name[GPIO_PIN_ID_MAX][GPIO_STATE_MAX] = {{"gpio_ldo_en_p
 	{"gpio_urxd_uart_pull_dis",
 		"",
 		"",
-		"gpio_urxd_uart_out_low",
+		"",
 		"",
 		"",
 		"",
@@ -207,26 +207,6 @@ const PUINT8 gpio_state_name[GPIO_PIN_ID_MAX][GPIO_STATE_MAX] = {{"gpio_ldo_en_p
 		"",
 		"",
 		"",
-		""},
-	{"",
-		"",
-		"",
-		"",
-		"",
-		"gpio_chip_deep_sleep_in_pull_dis",
-		"",
-		"",
-		"",
-		""},
-	{"",
-		"",
-		"gpio_chip_wake_up_pullup",
-		"",
-		"",
-		"",
-		"",
-		"",
-		"",
 		""}
 };
 
@@ -247,10 +227,7 @@ const PUINT8 gpio_pin_name[GPIO_PIN_ID_MAX] = {"gpio_combo_ldo_en_pin",
 					"gpio_combo_i2s_ws_pin",
 					"gpio_combo_i2s_dat_pin",
 					"gpio_gps_sync_pin",
-					"gpio_gps_lna_pin",
-					"gpio_chip_deep_sleep_pin",
-					"gpio_chip_wake_up_pin"
-					};
+					"gpio_gps_lna_pin"};
 
 GPIO_CTRL_INFO gpio_ctrl_info;
 
@@ -258,40 +235,6 @@ GPIO_CTRL_INFO gpio_ctrl_info;
 *                              F U N C T I O N S
 ********************************************************************************
 */
-int __weak mt_get_gpio_mode_base(unsigned long pin)
-{
-	return 0;
-}
-
-int __weak mt_get_gpio_pull_select_base(unsigned long pin)
-{
-	return 0;
-}
-
-int __weak mt_get_gpio_in_base(unsigned long pin)
-{
-	return 0;
-}
-
-int __weak mt_get_gpio_out_base(unsigned long pin)
-{
-	return 0;
-}
-
-int __weak mt_get_gpio_pull_enable_base(unsigned long pin)
-{
-	return 0;
-}
-
-int __weak mt_get_gpio_dir_base(unsigned long pin)
-{
-	return 0;
-}
-
-int __weak mt_get_gpio_ies_base(unsigned long pin)
-{
-	return 0;
-}
 INT32 wmt_gpio_init(struct platform_device *pdev)
 {
 	INT32 iret = 0;
@@ -314,9 +257,9 @@ INT32 wmt_gpio_init(struct platform_device *pdev)
 					gpio_pin_name[i], 0);
 			if (gpio_ctrl_info.gpio_ctrl_state[i].gpio_num < 0)
 				gpio_ctrl_info.gpio_ctrl_state[i].gpio_num = DEFAULT_PIN_ID;
-			if (gpio_ctrl_info.gpio_ctrl_state[i].gpio_num != DEFAULT_PIN_ID) {
+			if (DEFAULT_PIN_ID != gpio_ctrl_info.gpio_ctrl_state[i].gpio_num) {
 				for (j = 0; j < GPIO_STATE_MAX; j++) {
-					if (strlen(gpio_state_name[i][j]) != 0) {
+					if (0 != strlen(gpio_state_name[i][j])) {
 						gpio_ctrl_info.gpio_ctrl_state[i].gpio_state[j] =
 							pinctrl_lookup_state(gpio_ctrl_info.pinctrl_info,
 									gpio_state_name[i][j]);
@@ -327,21 +270,6 @@ INT32 wmt_gpio_init(struct platform_device *pdev)
 		}
 
 		pr_err("wmt_gpio: gpio init start!\n");
-		if (gpio_ctrl_info.gpio_ctrl_state[GPIO_COMBO_URXD_PIN].gpio_state[GPIO_PULL_DIS]) {
-			pinctrl_select_state(gpio_ctrl_info.pinctrl_info,
-								 gpio_ctrl_info.gpio_ctrl_state[GPIO_COMBO_URXD_PIN].
-								 gpio_state[GPIO_PULL_DIS]);
-			pr_err("wmt_gpio:set GPIO_COMBO_URXD_PIN to GPIO_PULL_DIS done!\n");
-		} else
-			pr_err("wmt_gpio:set GPIO_COMBO_URXD_PIN to GPIO_PULL_DIS fail, is NULL!\n");
-
-		if (gpio_ctrl_info.gpio_ctrl_state[GPIO_COMBO_UTXD_PIN].gpio_state[GPIO_PULL_DIS]) {
-			pinctrl_select_state(gpio_ctrl_info.pinctrl_info,
-								 gpio_ctrl_info.gpio_ctrl_state[GPIO_COMBO_UTXD_PIN].
-								 gpio_state[GPIO_PULL_DIS]);
-			pr_err("wmt_gpio:set GPIO_COMBO_UTXD_PIN to GPIO_PULL_DIS done!\n");
-		} else
-			pr_err("wmt_gpio:set GPIO_COMBO_UTXD_PIN to GPIO_PULL_DIS fail, is NULL!\n");
 
 		if (gpio_ctrl_info.gpio_ctrl_state[GPIO_COMBO_PMU_EN_PIN].gpio_state[GPIO_PULL_DIS]) {
 			pinctrl_select_state(gpio_ctrl_info.pinctrl_info,
@@ -351,7 +279,7 @@ INT32 wmt_gpio_init(struct platform_device *pdev)
 		} else
 			pr_err("wmt_gpio:set GPIO_COMBO_PMU_EN_PIN to GPIO_PULL_DIS fail, is NULL!\n");
 
-		if (gpio_ctrl_info.gpio_ctrl_state[GPIO_COMBO_PMU_EN_PIN].gpio_num != DEFAULT_PIN_ID) {
+		if (DEFAULT_PIN_ID != gpio_ctrl_info.gpio_ctrl_state[GPIO_COMBO_PMU_EN_PIN].gpio_num) {
 			gpio_direction_output(gpio_ctrl_info.gpio_ctrl_state[GPIO_COMBO_PMU_EN_PIN].gpio_num,
 					0);
 			pr_err("wmt_gpio:set GPIO_COMBO_PMU_EN_PIN out to 0: %d!\n",
@@ -365,7 +293,7 @@ INT32 wmt_gpio_init(struct platform_device *pdev)
 		} else
 			pr_err("wmt_gpio:set GPIO_COMBO_RST_PIN to GPIO_PULL_DIS fail, is NULL!\n");
 
-		if (gpio_ctrl_info.gpio_ctrl_state[GPIO_COMBO_RST_PIN].gpio_num != DEFAULT_PIN_ID) {
+		if (DEFAULT_PIN_ID != gpio_ctrl_info.gpio_ctrl_state[GPIO_COMBO_RST_PIN].gpio_num) {
 			gpio_direction_output(gpio_ctrl_info.gpio_ctrl_state[GPIO_COMBO_RST_PIN].gpio_num,
 					0);
 			pr_err("wmt_gpio:set GPIO_COMBO_RST_PIN out to 0: %d!\n",
@@ -409,21 +337,6 @@ INT32 wmt_gpio_init(struct platform_device *pdev)
 			pr_err("wmt_gpio:set GPIO_PCM_DAISYNC_PIN to GPIO_PULL_DIS done!\n");
 		} else
 			pr_err("wmt_gpio:set GPIO_PCM_DAISYNC_PIN to GPIO_PULL_DIS fail, is NULL!\n");
-		if (gpio_ctrl_info.gpio_ctrl_state[GPIO_CHIP_DEEP_SLEEP_PIN].gpio_state[GPIO_IN_DIS]) {
-			pinctrl_select_state(gpio_ctrl_info.pinctrl_info,
-					gpio_ctrl_info.gpio_ctrl_state[GPIO_CHIP_DEEP_SLEEP_PIN].
-					gpio_state[GPIO_IN_DIS]);
-			pr_err("wmt_gpio:set GPIO_CHIP_DEEP_SLEEP_PIN to GPIO_IN_DIS done!\n");
-		} else
-			pr_warn("wmt_gpio:it may not be 6632 project, GPIO_CHIP_DEEP_SLEEP_PIN no need config!\n");
-
-		if (gpio_ctrl_info.gpio_ctrl_state[GPIO_CHIP_WAKE_UP_PIN].gpio_state[GPIO_PULL_UP]) {
-			pinctrl_select_state(gpio_ctrl_info.pinctrl_info,
-					gpio_ctrl_info.gpio_ctrl_state[GPIO_CHIP_WAKE_UP_PIN].
-					gpio_state[GPIO_PULL_UP]);
-			pr_err("wmt_gpio:set GPIO_CHIP_WAKE_UP_PIN to GPIO_PULL_UP done!\n");
-		} else
-			pr_warn("wmt_gpio:it may not be 6632 project, GPIO_CHIP_WAKE_UP_PIN no need config!\n");
 
 		pr_err("wmt_gpio: gpio init done!\n");
 	} else {
@@ -442,9 +355,9 @@ INT32 wmt_gpio_deinit(VOID)
 
 	for (i = 0; i < GPIO_PIN_ID_MAX; i++) {
 		gpio_ctrl_info.gpio_ctrl_state[i].gpio_num = DEFAULT_PIN_ID;
-		if (gpio_ctrl_info.gpio_ctrl_state[i].gpio_num != DEFAULT_PIN_ID) {
+		if (DEFAULT_PIN_ID != gpio_ctrl_info.gpio_ctrl_state[i].gpio_num) {
 			for (j = 0; j < GPIO_STATE_MAX; j++) {
-				if (strlen(gpio_state_name[i][j]) != 0)
+				if (0 != strlen(gpio_state_name[i][j]))
 					gpio_ctrl_info.gpio_ctrl_state[i].gpio_state[j] = NULL;
 			}
 		}
@@ -455,41 +368,4 @@ INT32 wmt_gpio_deinit(VOID)
 	}
 
 	return iret;
-}
-VOID _wmt_dump_gpio_regs(INT32 idx)
-{
-	ULONG idxl = (ULONG)idx;
-
-	pr_err("PIN: [MODE] [PULL_SEL] [DIN] [DOUT] [PULL EN] [DIR] [IES]\n");
-	pr_err("idx = %3d: %d %d %d %d %d %d %d\n",
-	       idx, mt_get_gpio_mode_base(idxl),
-	       mt_get_gpio_pull_select_base(idxl),
-	       mt_get_gpio_in_base(idxl),
-	       mt_get_gpio_out_base(idxl),
-	       mt_get_gpio_pull_enable_base(idxl),
-	       mt_get_gpio_dir_base(idxl),
-	       mt_get_gpio_ies_base(idxl));
-}
-
-VOID _wmt_gpio_pre_regs(INT32 num, WMT_GPIO_STATE_INFO *gpio_state)
-{
-	gpio_state->gpio_num = num;
-	gpio_state->mode = mt_get_gpio_mode_base(num);
-	gpio_state->pull_sel = mt_get_gpio_pull_select_base(num);
-	gpio_state->in = mt_get_gpio_in_base(num);
-	gpio_state->out = mt_get_gpio_out_base(num);
-	gpio_state->pull_en = mt_get_gpio_pull_enable_base(num);
-	gpio_state->dir = mt_get_gpio_dir_base(num);
-	gpio_state->ies = mt_get_gpio_ies_base(num);
-
-}
-
-VOID _wmt_dump_gpio_pre_regs(WMT_GPIO_STATE_INFO gpio_state)
-{
-	pr_err("PIN: [MODE] [PULL_SEL] [DIN] [DOUT] [PULL EN] [DIR] [IES]\n");
-	pr_err("idx = %3d: %d %d %d %d %d %d %d\n",
-		gpio_state.gpio_num, gpio_state.mode,
-		gpio_state.pull_sel, gpio_state.in,
-		gpio_state.out, gpio_state.pull_en,
-		gpio_state.dir, gpio_state.ies);
 }

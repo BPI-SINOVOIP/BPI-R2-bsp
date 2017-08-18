@@ -1,12 +1,61 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/os/linux/hif/sdio/include/hif.h#1
+*/
+
+/*! \file   "hif.h"
+    \brief  Functions for the driver to register bus and setup the IRQ
+
+    Functions for the driver to register bus and setup the IRQ
+*/
+
+/*
+** Log: hif.h
+ *
+ * 11 01 2010 yarco.yang
+ * [WCXRP00000149] [MT6620 WI-Fi][Driver]Fine tune performance on MT6516 platform
+ * Add GPIO debug function
+ *
+ * 10 19 2010 jeffrey.chang
+ * [WCXRP00000120] [MT6620 Wi-Fi][Driver] Refine linux kernel module to the license of MTK propietary and enable MTK
+ * HIF by default
+ * Refine linux kernel module to the license of MTK and enable MTK HIF
+ *
+ * 08 18 2010 jeffrey.chang
+ * NULL
+ * support multi-function sdio
+ *
+ * 08 17 2010 cp.wu
+ * NULL
+ * add ENE SDIO host workaround for x86 linux platform.
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 06 06 2010 kevin.huang
+ * [WPD00003832][MT6620 5931] Create driver base
+ * [MT6620 5931] Create driver base
+ *
+ * 03 24 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * initial import for Linux port
+**  \main\maintrunk.MT5921\4 2009-10-20 17:38:28 GMT mtk01090
+**  Refine driver unloading and clean up procedure. Block requests, stop main thread and clean up queued requests,
+**  and then stop hw.
+**  \main\maintrunk.MT5921\3 2009-09-28 20:19:20 GMT mtk01090
+**  Add private ioctl to carry OID structures. Restructure public/private ioctl interfaces to Linux kernel.
+**  \main\maintrunk.MT5921\2 2009-08-18 22:57:05 GMT mtk01090
+**  Add Linux SDIO (with mmc core) support.
+**  Add Linux 2.6.21, 2.6.25, 2.6.26.
+**  Fix compile warning in Linux.
+**  \main\maintrunk.MT5921\2 2008-09-22 23:18:17 GMT mtk01461
+**  Update driver for code review
+** Revision 1.1  2007/07/05 07:25:33  MTK01461
+** Add Linux initial code, modify doc, add 11BB, RF init code
+**
+** Revision 1.3  2007/06/27 02:18:51  MTK01461
+** Update SCAN_FSM, Initial(Can Load Module), Proc(Can do Reg R/W), TX API
+**
 */
 
 #ifndef _HIF_H
@@ -67,21 +116,6 @@ extern void upmu_set_vcn33_on_ctrl_wifi(UINT_32 val);
 #define CONN_MCU_REG_LENGTH              0x0200
 #define CONN_MCU_CPUPCR                  0x0160
 
-#define AP_MCU_DRV_BASE                  0x18090000
-#define AP_MCU_TX_RX_LENGTH              0x10100
-#define AP_MCU_TX_DESC_ADDR              0x0000
-#define AP_MCU_RX_DESC_ADDR              0x8080
-#define AP_MCU_BANK_OFFSET               0x1010
-
-#if (CFG_SRAM_SIZE_OPTION == 0)
-#define AP_MCU_TC_INDEX_4_ADDR          0x1E50
-#elif (CFG_SRAM_SIZE_OPTION == 1)
-#define AP_MCU_TC_INDEX_4_ADDR          0x2848
-#elif (CFG_SRAM_SIZE_OPTION == 2)
-#define AP_MCU_TC_INDEX_4_ADDR          0x2F28
-#endif
-#define AP_MCU_TC_INDEX_4_OFFSET        0x0018
-
 /*******************************************************************************
 *                             D A T A   T Y P E S
 ********************************************************************************
@@ -97,9 +131,9 @@ typedef struct _GL_HIF_DMA_OPS_T {	/* DMA Operators */
 
 	VOID (*DmaStop)(IN VOID *HifInfo);
 
-	INT32 (*DmaPollStart)(IN VOID *HifInfo);
+	MTK_WCN_BOOL (*DmaPollStart)(IN VOID *HifInfo);
 
-	INT32 (*DmaPollIntr)(IN VOID *HifInfo);
+	MTK_WCN_BOOL (*DmaPollIntr)(IN VOID *HifInfo);
 
 	VOID (*DmaAckIntr)(IN VOID *HifInfo);
 
@@ -122,9 +156,7 @@ typedef struct _GL_HIF_INFO_T {
 #define MTK_CHIP_ID_8127    0x8127
 #define MTK_CHIP_ID_6752    0x6752
 #define MTK_CHIP_ID_8163    0x8163
-#define MTK_CHIP_ID_8167    0x8167
 #define MTK_CHIP_ID_6735    0x6735
-#define MTK_CHIP_ID_6570    0x6570
 #define MTK_CHIP_ID_6580    0x6580
 #define MTK_CHIP_ID_6755    0x6755
 #define MTK_CHIP_ID_7623    0x7623
@@ -139,7 +171,6 @@ typedef struct _GL_HIF_INFO_T {
 	/* HIF related */
 	UINT_8 *HifRegBaseAddr;	/* HIF register base */
 	UINT_8 *McuRegBaseAddr;	/* CONN MCU register base */
-	UINT_8 *APMcuRegBaseAddr;	/* APMcu register base */
 
 #if (CONF_HIF_LOOPBACK_AUTO == 1)
 	struct timer_list HifTmrLoopbkFn;	/* HIF loopback test trigger timer */

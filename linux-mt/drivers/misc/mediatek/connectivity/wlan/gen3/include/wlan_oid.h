@@ -1,26 +1,259 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/wlan_oid.h#4
+*/
+
+/*! \file   "wlan_oid.h"
+    \brief This file contains the declairation file of the WLAN OID processing routines
+	   of Windows driver for MediaTek Inc. 802.11 Wireless LAN Adapters.
 */
 
 /*
- * Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/wlan_oid.h#4
- */
+** Log: wlan_oid.h
+**
+** 08 23 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Add GTK re-key driver handle function
+**
+** 08 15 2013 cp.wu
+** [BORA00002253] [MT6630 Wi-Fi][Driver][Firmware] Add NLO and timeout mechanism to SCN module
+** enlarge  match_ssid_num to 16 for PNO support
+**
+** 08 09 2013 eason.tsai
+** [BORA00002255] [MT6630 Wi-Fi][Driver] develop
+** update ICAP support code
+**
+** 08 09 2013 cp.wu
+** [BORA00002253] [MT6630 Wi-Fi][Driver][Firmware] Add NLO and timeout mechanism to SCN module
+** 1. integrate scheduled scan functionality
+** 2. condition compilation for linux-3.4 & linux-3.8 compatibility
+** 3. correct CMD queue access to reduce lock scope
+**
+** 07 23 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Modify some security code for 11w and p2p
+**
+** 07 01 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Add some debug code, fixed some compiling warning
+**
+** 03 20 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Add the security code for wlan table assign operation
+**
+** 03 07 2013 yuche.tsai
+** [BORA00002398] [MT6630][Volunteer Patch] P2P Driver Re-Design for Multiple BSS support
+** Add wlan_p2p.c, but still need to FIX many place.
+**
+** 09 17 2012 cm.chang
+** [BORA00002149] [MT6630 Wi-Fi] Initial software development
+** Duplicate source from MT6620 v2.3 driver branch
+** (Davinci label: MT6620_WIFI_Driver_V2_3_120913_1942_As_MT6630_Base)
+**
+** 08 24 2012 cp.wu
+** [WCXRP00001269] [MT6620 Wi-Fi][Driver] cfg80211 porting merge back to DaVinci
+** .
+**
+** 08 24 2012 cp.wu
+** [WCXRP00001269] [MT6620 Wi-Fi][Driver] cfg80211 porting merge back to DaVinci
+** cfg80211 support merge back from ALPS.JB to DaVinci - MT6620 Driver v2.3 branch.
+ *
+ * 03 02 2012 terry.wu
+ * NULL
+ * Sync CFG80211 modification from branch 2,2.
+ *
+ * 01 05 2012 wh.su
+ * [WCXRP00001153] [MT6620 Wi-Fi][Driver] Adding the get_ch_list and set_tx_power proto type function
+ * Adding the related ioctl / wlan oid function to set the Tx power cfg.
+ *
+ * 07 18 2011 chinghwa.yu
+ * [WCXRP00000063] Update BCM CoEx design and settings[WCXRP00000612] [MT6620 Wi-Fi] [FW] CSD update SWRDD algorithm
+ * Add CMD/Event for RDD and BWCS.
+ *
+ * 03 22 2011 george.huang
+ * [WCXRP00000504] [MT6620 Wi-Fi][FW] Support Sigma CAPI for power saving related command
+ * link with supplicant commands
+ *
+ * 03 17 2011 chinglan.wang
+ * [WCXRP00000570] [MT6620 Wi-Fi][Driver] Add Wi-Fi Protected Setup v2.0 feature
+ * .
+ *
+ * 03 02 2011 george.huang
+ * [WCXRP00000504] [MT6620 Wi-Fi][FW] Support Sigma CAPI for power saving related command
+ * Support UAPSD/OppPS/NoA parameter setting
+ *
+ * 01 20 2011 eddie.chen
+ * [WCXRP00000374] [MT6620 Wi-Fi][DRV] SW debug control
+ * Add Oid for sw control debug command
+ *
+ * 12 07 2010 cm.chang
+ * [WCXRP00000238] MT6620 Wi-Fi][Driver][FW] Support regulation domain setting from NVRAM and supplicant
+ * 1. Country code is from NVRAM or supplicant
+ * 2. Change band definition in CMD/EVENT.
+ *
+ * 10 18 2010 cp.wu
+ * [WCXRP00000056] [MT6620 Wi-Fi][Driver] NVRAM implementation with Version Check
+ * [WCXRP00000086] [MT6620 Wi-Fi][Driver] The mac address is all zero at android
+ * complete implementation of Android NVRAM access
+ *
+ * 10 08 2010 cp.wu
+ * [WCXRP00000084] [MT6620 Wi-Fi][Driver][FW] Add fixed rate support for distance test
+ * adding fixed rate support for distance test. (from registry setting)
+ *
+ * 09 23 2010 cp.wu
+ * [WCXRP00000056] [MT6620 Wi-Fi][Driver] NVRAM implementation with Version Check
+ * add skeleton for NVRAM integration
+ *
+ * 09 08 2010 cp.wu
+ * NULL
+ * use static memory pool for storing IEs of scanning result.
+ *
+ * 09 03 2010 kevin.huang
+ * NULL
+ * Refine #include sequence and solve recursive/nested #include issue
+ *
+ * 08 29 2010 yuche.tsai
+ * NULL
+ * Finish SLT TX/RX & Rate Changing Support.
+ *
+ * 08 04 2010 cp.wu
+ * NULL
+ * revert changelist #15371, efuse read/write access will be done by RF test approach
+ *
+ * 08 04 2010 cp.wu
+ * NULL
+ * add OID definitions for EFUSE read/write access.
+ *
+ * 08 04 2010 yarco.yang
+ * NULL
+ * Add TX_AMPDU and ADDBA_REJECT command
+ *
+ * 08 02 2010 george.huang
+ * NULL
+ * add WMM-PS test related OID/ CMD handlers
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 06 22 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * 1) add command warpper for STA-REC/BSS-INFO sync.
+ * 2) enhance command packet sending procedure for non-oid part
+ * 3) add command packet definitions for STA-REC/BSS-INFO sync.
+ *
+ * 06 18 2010 wh.su
+ * [WPD00003840][MT6620 5931] Security migration
+ * migration from MT6620 firmware.
+ *
+ * 06 07 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * merge wlan_def.h.
+ *
+ * 06 07 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * merge wifi_var.h, precomp.h, cnm_timer.h (data type only)
+ *
+ * 06 06 2010 kevin.huang
+ * [WPD00003832][MT6620 5931] Create driver base
+ * [MT6620 5931] Create driver base
+ *
+ * 06 03 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * move timer callback to glue layer.
+ *
+ * 05 20 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1) integrate OID_GEN_NETWORK_LAYER_ADDRESSES with CMD_ID_SET_IP_ADDRESS
+ * 2) buffer statistics data for 2 seconds
+ * 3) use default value for adhoc parameters instead of 0
+ *
+ * 05 18 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * implement Wakeup-on-LAN except firmware integration part
+ *
+ * 05 17 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * MT6620 is not supporting NDIS_PACKET_TYPE_PROMISCUOUS.
+ *
 
-/*
- * ! \file   "wlan_oid.h"
- * \brief This file contains the declairation file of the WLAN OID processing routines
- * of Windows driver for MediaTek Inc. 802.11 Wireless LAN Adapters.
- */
+ *
+ * 05 17 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * 1) add timeout handler mechanism for pending command packets
+ * 2) add p2p add/removal key
+ *
+ * 05 13 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * add NULL OID implementation for WOL-related OIDs.
+ *
+ * 04 22 2010 cp.wu
+ * [WPD00003830]add OID_802_11_PRIVACY_FILTER support
+ * enable RX filter OID
+ *
+ * 04 14 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * information buffer for query oid/ioctl is now buffered in prCmdInfo
+ *  *  *  *  * instead of glue-layer variable to improve multiple oid/ioctl capability
+ *
+ * 03 31 2010 wh.su
+ * [WPD00003816][MT6620 Wi-Fi] Adding the security support
+ * modify the wapi related code for new driver's design.
+ *
+ * 03 26 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * indicate media stream mode after set is done
+ *
+ * 03 24 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * initial import for Linux port
+ *
+ * 03 03 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * implement custom OID: EEPROM read/write access
+ *
+ * 02 09 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1. Permanent and current MAC address are now retrieved by CMD/EVENT packets instead of hard-coded address
+ *  *  *  *  *  * 2. follow MSDN defined behavior when associates to another AP
+ *  *  *  *  *  * 3. for firmware download, packet size could be up to 2048 bytes
+ *
+ * 01 27 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1) implement timeout mechanism when OID is pending for longer than 1 second
+ *  *  * 2) allow OID_802_11_CONFIGURATION to be executed when RF test mode is turned on
+ *
+ * 01 27 2010 wh.su
+ * [WPD00003816][MT6620 Wi-Fi] Adding the security support
+ * .
+ *
+ * 01 22 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * implement following 802.11 OIDs:
+ *  *  *  * OID_802_11_RSSI,
+ *  *  *  * OID_802_11_RSSI_TRIGGER,
+ *  *  *  * OID_802_11_STATISTICS,
+ *  *  *  * OID_802_11_DISASSOCIATE,
+ *  *  *  * OID_802_11_POWER_MODE
+ *
+ * 01 21 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * implement OID_802_11_MEDIA_STREAM_MODE
+ *
+ * 01 21 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * implement OID_802_11_SUPPORTED_RATES / OID_802_11_DESIRED_RATES
+**  \main\maintrunk.MT6620WiFiDriver_Prj\6 2009-12-08 11:38:11 GMT mtk02752
+**  add declares for RF test related APIs
+**  \main\maintrunk.MT6620WiFiDriver_Prj\5 2009-11-24 22:41:53 GMT mtk02752
+**  remove u4SysTime, MSDN 10-second will be implemented in FW side
+**  \main\maintrunk.MT6620WiFiDriver_Prj\4 2009-11-23 20:30:13 GMT mtk02752
+**  add u4SysTime field in PARAM_BSSID_EX_T
+**  \main\maintrunk.MT6620WiFiDriver_Prj\3 2009-11-12 19:48:35 GMT mtk02752
+**  allow upper layer to set a packet filter with PROMISCUOUS mode
+**  \main\maintrunk.MT6620WiFiDriver_Prj\2 2009-03-10 20:12:12 GMT mtk01426
+**  Init for develop
+**
+*/
 
 #ifndef _WLAN_OID_H
 #define _WLAN_OID_H
@@ -97,38 +330,6 @@
 #define PARAM_MEM_DUMP_MAX_SIZE         2048
 
 #define BT_PROFILE_PARAM_LEN        8
-
-#if CFG_SUPPORT_BUFFER_MODE
-
-/* For MT6632,6630 */
-#define EFUSE_CONTENT_BUFFER_START        0x03A
-#define EFUSE_CONTENT_BUFFER_END          0x1D9
-#define EFUSE_CONTENT_SIZE_1		(EFUSE_CONTENT_BUFFER_END - EFUSE_CONTENT_BUFFER_START + 1)
-#define EFUSE_CONTENT_SIZE			16
-
-#define EFUSE_BLOCK_SIZE 16
-#define EEPROM_SIZE 1184
-#endif /* CFG_SUPPORT_BUFFER_MODE */
-
-#if CFG_SUPPORT_TX_BF
-#define TXBF_CMD_NEED_TO_RESPONSE(u4TxBfCmdId) (u4TxBfCmdId == BF_PFMU_TAG_READ || \
-						u4TxBfCmdId == BF_PROFILE_READ)
-#endif /* CFG_SUPPORT_TX_BF */
-#define MU_CMD_NEED_TO_RESPONSE(u4MuCmdId) (u4MuCmdId == MU_GET_CALC_INIT_MCS || \
-					    u4MuCmdId == MU_HQA_GET_QD || \
-					    u4MuCmdId == MU_HQA_GET_CALC_LQ)
-
-#if CFG_SUPPORT_MU_MIMO
-/* @NITESH: MACROS For Init MCS calculation (MU Metric Table) */
-#define NUM_MUT_FEC             2
-#define NUM_MUT_MCS             10
-#define NUM_MUT_NR_NUM          3
-#define NUM_MUT_INDEX           8
-
-#define NUM_OF_USER             2
-#define NUM_OF_MODUL            5
-#endif /* CFG_SUPPORT_MU_MIMO */
-
 /*******************************************************************************
 *                             D A T A   T Y P E S
 ********************************************************************************
@@ -178,40 +379,26 @@ typedef UINT_8 PARAM_RATES[PARAM_MAX_LEN_RATES];
 typedef UINT_8 PARAM_RATES_EX[PARAM_MAX_LEN_RATES_EX];
 
 typedef enum _ENUM_PARAM_PHY_TYPE_T {
-	PHY_TYPE_802_11ABG = 0,	/*
-				 * !< Can associated with 802.11abg AP,
-				 * Scan dual band.
-				 */
-	PHY_TYPE_802_11BG,	/*
-				 * !< Can associated with 802_11bg AP,
-				 * Scan single band and not report 802_11a BSSs.
-				 */
-	PHY_TYPE_802_11G,	/*
-				 * !< Can associated with 802_11g only AP,
-				 * Scan single band and not report 802_11ab BSSs.
-				 */
-	PHY_TYPE_802_11A,	/*
-				 * !< Can associated with 802_11a only AP,
-				 * Scan single band and not report 802_11bg BSSs.
-				 */
-	PHY_TYPE_802_11B,	/*
-				 * !< Can associated with 802_11b only AP,
-				 * Scan single band and not report 802_11ag BSSs.
-				 */
+	PHY_TYPE_802_11ABG = 0,	/*!< Can associated with 802.11abg AP,
+				   Scan dual band. */
+	PHY_TYPE_802_11BG,	/*!< Can associated with 802_11bg AP,
+				   Scan single band and not report 802_11a BSSs. */
+	PHY_TYPE_802_11G,	/*!< Can associated with 802_11g only AP,
+				   Scan single band and not report 802_11ab BSSs. */
+	PHY_TYPE_802_11A,	/*!< Can associated with 802_11a only AP,
+				   Scan single band and not report 802_11bg BSSs. */
+	PHY_TYPE_802_11B,	/*!< Can associated with 802_11b only AP,
+				   Scan single band and not report 802_11ag BSSs. */
 	PHY_TYPE_NUM		/* 5 */
 } ENUM_PARAM_PHY_TYPE_T, *P_ENUM_PARAM_PHY_TYPE_T;
 
 typedef enum _ENUM_PARAM_OP_MODE_T {
 	NET_TYPE_IBSS = 0,	/*!< Try to merge/establish an AdHoc, do periodic SCAN for merging. */
 	NET_TYPE_INFRA,		/*!< Try to join an Infrastructure, do periodic SCAN for joining. */
-	NET_TYPE_AUTO_SWITCH,	/*
-				 * !< Try to join an Infrastructure, if fail then try to merge or
-				 * establish an AdHoc, do periodic SCAN for joining or merging.
-				 */
-	NET_TYPE_DEDICATED_IBSS,	/*
-					 * !< Try to merge an AdHoc first,
-					 * if fail then establish AdHoc permanently, no more SCAN.
-					 */
+	NET_TYPE_AUTO_SWITCH,	/*!< Try to join an Infrastructure, if fail then try to merge or
+				   establish an AdHoc, do periodic SCAN for joining or merging. */
+	NET_TYPE_DEDICATED_IBSS,	/*!< Try to merge an AdHoc first,
+					   if fail then establish AdHoc permanently, no more SCAN. */
 	NET_TYPE_NUM		/* 4 */
 } ENUM_PARAM_OP_MODE_T, *P_ENUM_PARAM_OP_MODE_T;
 
@@ -320,7 +507,7 @@ typedef struct _PARAM_AUTH_EVENT_T {
 typedef struct _PARAM_BSSID_EX_T {
 	UINT_32 u4Length;	/*!< Length of structure */
 	PARAM_MAC_ADDRESS arMacAddress;	/*!< BSSID */
-	UINT_16 u2CapInfo;
+	UINT_8 Reserved[2];
 	PARAM_SSID_T rSsid;	/*!< SSID */
 	UINT_32 u4Privacy;	/*!< Need WEP encryption */
 	PARAM_RSSI rRssi;	/*!< in dBm */
@@ -496,8 +683,8 @@ typedef struct _PARAM_PMKID_CANDIDATE_T {
 
 /* #ifdef LINUX */
 typedef struct _PARAM_PMKID_CANDIDATE_LIST_T {
-	UINT_32 u4Version;	/* !< Version */
-	UINT_32 u4NumCandidates;	/* !< How many candidates follow */
+	UINT_32 u4Version;	/*!< Version */
+	UINT_32 u4NumCandidates;	/*!< How many candidates follow */
 	PARAM_PMKID_CANDIDATE_T arCandidateList[1];
 } PARAM_PMKID_CANDIDATE_LIST_T, *P_PARAM_PMKID_CANDIDATE_LIST_T;
 /* #endif */
@@ -517,616 +704,10 @@ typedef struct _PARAM_CUSTOM_MCR_RW_STRUCT_T {
 	UINT_32 u4McrData;
 } PARAM_CUSTOM_MCR_RW_STRUCT_T, *P_PARAM_CUSTOM_MCR_RW_STRUCT_T;
 
-#if CFG_SUPPORT_QA_TOOL
-#if CFG_SUPPORT_BUFFER_MODE
-typedef struct _BIN_CONTENT_T {
-	UINT_16 u2Addr;
-	UINT_8 ucValue;
-	UINT_8 ucReserved;
-} BIN_CONTENT_T, *P_BIN_CONTENT_T;
-
-typedef struct _PARAM_CUSTOM_EFUSE_BUFFER_MODE_T {
-	UINT_8 ucSourceMode;
-	UINT_8 ucCount;
-	UINT_8 ucReserved[2];
-	BIN_CONTENT_T aBinContent[EFUSE_CONTENT_SIZE];
-} PARAM_CUSTOM_EFUSE_BUFFER_MODE_T, *P_PARAM_CUSTOM_EFUSE_BUFFER_MODE_T;
-
-typedef struct _PARAM_CUSTOM_EFUSE_BUFFER_MODE_1_T {
-	UINT_8 ucSourceMode;
-	UINT_8 ucCount;
-	UINT_8 ucCmdType;
-	UINT_8 ucReserved;
-	UINT_8 aBinContent[EFUSE_CONTENT_SIZE_1];
-} PARAM_CUSTOM_EFUSE_BUFFER_MODE_1_T, *P_PARAM_CUSTOM_EFUSE_BUFFER_MODE_1_T;
-
-
-/*#if (CFG_EEPROM_PAGE_ACCESS == 1)*/
-typedef struct _PARAM_CUSTOM_ACCESS_EFUSE_T {
-	UINT_32 u4Address;
-	UINT_32 u4Valid;
-	UINT_8 aucData[16];
-} PARAM_CUSTOM_ACCESS_EFUSE_T, *P_PARAM_CUSTOM_ACCESS_EFUSE_T;
-
-
-typedef struct _PARAM_CUSTOM_EFUSE_FREE_BLOCK_T {
-	UINT_8  ucGetFreeBlock;
-	UINT_8  aucReserved[3];
-} PARAM_CUSTOM_EFUSE_FREE_BLOCK_T, *P_PARAM_CUSTOM_EFUSE_FREE_BLOCK_T;
-
-/*#endif*/
-
-#endif /* CFG_SUPPORT_BUFFER_MODE */
-
-typedef struct _PARAM_CUSTOM_ACCESS_RX_STAT {
-	UINT_32 u4SeqNum;
-	UINT_32 u4TotalNum;
-} PARAM_CUSTOM_ACCESS_RX_STAT, *P_PARAM_CUSTOM_ACCESS_RX_STAT;
-
-/* Ext DevInfo Tag */
-typedef enum _EXT_ENUM_DEVINFO_TAG_HANDLE_T {
-	DEV_INFO_ACTIVE = 0,
-	DEV_INFO_BSSID,
-	DEV_INFO_MAX_NUM
-} EXT_ENUM_TAG_DEVINFO_HANDLE_T;
-
-/*  STA record TLV tag */
-typedef enum _EXT_ENUM_STAREC_TAG_HANDLE_T {
-	STA_REC_BASIC = 0,
-	STA_REC_RA,
-	STA_REC_RA_COMMON_INFO,
-	STA_REC_RA_UPDATE,
-	STA_REC_BF,
-	STA_REC_MAUNAL_ASSOC,
-	STA_REC_BA = 6,
-	STA_REC_MAX_NUM
-} EXT_ENUM_TAG_STAREC_HANDLE_T;
-
-#if CFG_SUPPORT_TX_BF
-typedef enum _BF_ACTION_CATEGORY {
-	BF_SOUNDING_OFF = 0,
-	BF_SOUNDING_ON,
-	BF_HW_CTRL,
-	BF_DATA_PACKET_APPLY,
-	BF_PFMU_MEM_ALLOCATE,
-	BF_PFMU_MEM_RELEASE,
-	BF_PFMU_TAG_READ,
-	BF_PFMU_TAG_WRITE,
-	BF_PROFILE_READ,
-	BF_PROFILE_WRITE,
-	BF_PN_READ,
-	BF_PN_WRITE,
-	BF_PFMU_MEM_ALLOC_MAP_READ
-} BF_ACTION_CATEGORY;
-
-enum {
-	DEVINFO_ACTIVE = 0,
-	DEVINFO_MAX_NUM = 1,
-};
-
-enum {
-	DEVINFO_ACTIVE_FEATURE = (1 << DEVINFO_ACTIVE),
-	DEVINFO_MAX_NUM_FEATURE = (1 << DEVINFO_MAX_NUM)
-};
-
-enum {
-	BSS_INFO_OWN_MAC = 0,
-	BSS_INFO_BASIC = 1,
-	BSS_INFO_RF_CH = 2,
-	BSS_INFO_PM = 3,
-	BSS_INFO_UAPSD = 4,
-	BSS_INFO_ROAM_DETECTION = 5,
-	BSS_INFO_LQ_RM = 6,
-	BSS_INFO_EXT_BSS = 7,
-	BSS_INFO_BROADCAST_INFO = 8,
-	BSS_INFO_SYNC_MODE = 9,
-	BSS_INFO_MAX_NUM
-};
-
-typedef union _PFMU_PROFILE_TAG1 {
-	struct {
-		UINT_32 ucProfileID:7;	/* [6:0] : 0 ~ 63 */
-		UINT_32 ucTxBf:1;	/* [7] : 0: iBF, 1: eBF */
-		UINT_32 ucDBW:2;	/* [9:8] : 0/1/2/3: DW20/40/80/160NC */
-		UINT_32 ucSU_MU:1;	/* [10] : 0:SU, 1: MU */
-		UINT_32 ucInvalidProf:1;	/* [11] : 0:default, 1: This profile number is invalid by SW */
-		UINT_32 ucRMSD:3;	/* [14:12] : RMSD value from CE */
-		UINT_32 ucMemAddr1ColIdx:3;	/* [17 : 15] : column index : 0 ~ 5 */
-		UINT_32 ucMemAddr1RowIdx:6;	/* [23 : 18] : row index : 0 ~ 63 */
-		UINT_32 ucMemAddr2ColIdx:3;	/* [26 : 24] : column index : 0 ~ 5 */
-		UINT_32 ucMemAddr2RowIdx:5;	/* [31 : 27] : row index : 0 ~ 63 */
-		UINT_32 ucMemAddr2RowIdxMsb:1;	/* [32] : MSB of row index */
-		UINT_32 ucMemAddr3ColIdx:3;	/* [35 : 33] : column index : 0 ~ 5 */
-		UINT_32 ucMemAddr3RowIdx:6;	/* [41 : 36] : row index : 0 ~ 63 */
-		UINT_32 ucMemAddr4ColIdx:3;	/* [44 : 42] : column index : 0 ~ 5 */
-		UINT_32 ucMemAddr4RowIdx:6;	/* [50 : 45] : row index : 0 ~ 63 */
-		UINT_32 ucReserved:1;	/* [51] : Reserved */
-		UINT_32 ucNrow:2;	/* [53 : 52] : Nrow */
-		UINT_32 ucNcol:2;	/* [55 : 54] : Ncol */
-		UINT_32 ucNgroup:2;	/* [57 : 56] : Ngroup */
-		UINT_32 ucLM:2;	/* [59 : 58] : 0/1/2 */
-		UINT_32 ucCodeBook:2;	/* [61:60] : Code book */
-		UINT_32 ucHtcExist:1;	/* [62] : HtcExist */
-		UINT_32 ucReserved1:1;	/* [63] : Reserved */
-		UINT_32 ucSNR_STS0:8;	/* [71:64] : SNR_STS0 */
-		UINT_32 ucSNR_STS1:8;	/* [79:72] : SNR_STS1 */
-		UINT_32 ucSNR_STS2:8;	/* [87:80] : SNR_STS2 */
-		UINT_32 ucSNR_STS3:8;	/* [95:88] : SNR_STS3 */
-		UINT_32 ucIBfLnaIdx:8;	/* [103:96] : iBF LNA index */
-	} rField;
-	UINT_32 au4RawData[4];
-} PFMU_PROFILE_TAG1, *P_PFMU_PROFILE_TAG1;
-
-typedef union _PFMU_PROFILE_TAG2 {
-	struct {
-		UINT_32 u2SmartAnt:12;	/* [11:0] : Smart Ant config */
-		UINT_32 ucReserved0:3;	/* [14:12] : Reserved */
-		UINT_32 ucSEIdx:5;	/* [19:15] : SE index */
-		UINT_32 ucRMSDThd:3;	/* [22:20] : RMSD Threshold */
-		UINT_32 ucReserved1:1;	/* [23] : Reserved */
-		UINT_32 ucMCSThL1SS:4;	/* [27:24] : MCS TH long 1SS */
-		UINT_32 ucMCSThS1SS:4;	/* [31:28] : MCS TH short 1SS */
-		UINT_32 ucMCSThL2SS:4;	/* [35:32] : MCS TH long 2SS */
-		UINT_32 ucMCSThS2SS:4;	/* [39:36] : MCS TH short 2SS */
-		UINT_32 ucMCSThL3SS:4;	/* [43:40] : MCS TH long 3SS */
-		UINT_32 ucMCSThS3SS:4;	/* [47:44] : MCS TH short 3SS */
-		UINT_32 uciBfTimeOut:8;	/* [55:48] : iBF timeout limit */
-		UINT_32 ucReserved2:8;	/* [63:56] : Reserved */
-		UINT_32 ucReserved3:8;	/* [71:64] : Reserved */
-		UINT_32 ucReserved4:8;	/* [79:72] : Reserved */
-		UINT_32 uciBfDBW:2;	/* [81:80] : iBF desired DBW 0/1/2/3 : BW20/40/80/160NC */
-		UINT_32 uciBfNcol:2;	/* [83:82] : iBF desired Ncol = 1 ~ 3 */
-		UINT_32 uciBfNrow:2;	/* [85:84] : iBF desired Nrow = 1 ~ 4 */
-		UINT_32 u2Reserved5:10;	/* [95:86] : Reserved */
-	} rField;
-	UINT_32 au4RawData[3];
-} PFMU_PROFILE_TAG2, *P_PFMU_PROFILE_TAG2;
-
-typedef union _PFMU_DATA {
-	struct {
-		UINT_32 u2Phi11:9;
-		UINT_32 ucPsi21:7;
-		UINT_32 u2Phi21:9;
-		UINT_32 ucPsi31:7;
-		UINT_32 u2Phi31:9;
-		UINT_32 ucPsi41:7;
-		UINT_32 u2Phi22:9;
-		UINT_32 ucPsi32:7;
-		UINT_32 u2Phi32:9;
-		UINT_32 ucPsi42:7;
-		UINT_32 u2Phi33:9;
-		UINT_32 ucPsi43:7;
-		UINT_32 u2dSNR00:4;
-		UINT_32 u2dSNR01:4;
-		UINT_32 u2dSNR02:4;
-		UINT_32 u2dSNR03:4;
-		UINT_32 u2Reserved:16;
-	} rField;
-	UINT_32 au4RawData[5];
-} PFMU_DATA, *P_PFMU_DATA;
-
-typedef struct _PROFILE_TAG_READ_T {
-	UINT_8 ucTxBfCategory;
-	UINT_8 ucProfileIdx;
-	BOOLEAN fgBfer;
-	UINT_8 ucRsv;
-} PROFILE_TAG_READ_T, *P_PROFILE_TAG_READ_T;
-
-typedef struct _PROFILE_TAG_WRITE_T {
-	UINT_8 ucTxBfCategory;
-	UINT_8 ucPfmuId;
-	UINT_8 ucBuffer[28];
-} PROFILE_TAG_WRITE_T, *P_PROFILE_TAG_WRITE_T;
-
-typedef struct _PROFILE_DATA_READ_T {
-	UINT_8 ucTxBfCategory;
-	UINT_8 ucPfmuIdx;
-	BOOLEAN fgBFer;
-	UINT_8 ucReserved[3];
-	UINT_8 ucSubCarrIdxLsb;
-	UINT_8 ucSubCarrIdxMsb;
-} PROFILE_DATA_READ_T, *P_PROFILE_DATA_READ_T;
-
-typedef struct _PROFILE_DATA_WRITE_T {
-	UINT_8 ucTxBfCategory;
-	UINT_8 ucPfmuIdx;
-	UINT_8 u2SubCarrIdxLsb;
-	UINT_8 u2SubCarrIdxMsb;
-	PFMU_DATA rTxBfPfmuData;
-} PROFILE_DATA_WRITE_T, *P_PROFILE_DATA_WRITE_T;
-
-typedef struct _PROFILE_PN_READ_T {
-	UINT_8 ucTxBfCategory;
-	UINT_8 ucPfmuIdx;
-	UINT_8 ucReserved[2];
-} PROFILE_PN_READ_T, *P_PROFILE_PN_READ_T;
-
-typedef struct _PROFILE_PN_WRITE_T {
-	UINT_8 ucTxBfCategory;
-	UINT_8 ucPfmuIdx;
-	UINT_16 u2bw;
-	UINT_8 ucBuf[32];
-} PROFILE_PN_WRITE_T, *P_PROFILE_PN_WRITE_T;
-
-typedef enum _BF_SOUNDING_MODE {
-	SU_SOUNDING = 0,
-	MU_SOUNDING,
-	SU_PERIODIC_SOUNDING,
-	MU_PERIODIC_SOUNDING
-} BF_SOUNDING_MODE;
-
-typedef struct _EXT_CMD_ETXBf_SND_PERIODIC_TRIGGER_CTRL_T {
-	UINT_8 ucCmdCategoryID;
-	UINT_8 ucSuMuSndMode;
-	UINT_8 ucWlanIdx;
-	UINT_32 u4SoundingInterval;	/* By ms */
-} EXT_CMD_ETXBf_SND_PERIODIC_TRIGGER_CTRL_T, *P_EXT_CMD_ETXBf_SND_PERIODIC_TRIGGER_CTRL_T;
-
-typedef struct _EXT_CMD_ETXBf_MU_SND_PERIODIC_TRIGGER_CTRL_T {
-	UINT_8 ucCmdCategoryID;
-	UINT_8 ucSuMuSndMode;
-	UINT_8 ucWlanId[4];
-	UINT_8 ucStaNum;
-	UINT_32 u4SoundingInterval;	/* By ms */
-} EXT_CMD_ETXBf_MU_SND_PERIODIC_TRIGGER_CTRL_T, *P_EXT_CMD_ETXBf_MU_SND_PERIODIC_TRIGGER_CTRL_T;
-
-/* Device information (Tag0) */
-typedef struct _CMD_DEVINFO_ACTIVE_T {
-	UINT_16 u2Tag;		/* Tag = 0x00 */
-	UINT_16 u2Length;
-	UINT_8 ucActive;
-	UINT_8 ucBandNum;
-	UINT_8 aucOwnMacAddr[6];
-	UINT_8 aucReserve[4];
-} CMD_DEVINFO_ACTIVE_T, *P_CMD_DEVINFO_ACTIVE_T;
-
-typedef struct _BSSINFO_BASIC_T {
-	/* Basic BSS information (Tag1) */
-	UINT_16 u2Tag;		/* Tag = 0x01 */
-	UINT_16 u2Length;
-	UINT_32 u4NetworkType;
-	UINT_8 ucActive;
-	UINT_8 ucReserve0;
-	UINT_16 u2BcnInterval;
-	UINT_8 aucBSSID[6];
-	UINT_8 ucWmmIdx;
-	UINT_8 ucDtimPeriod;
-	UINT_8 ucBcMcWlanidx;	/* indicate which wlan-idx used for MC/BC transmission. */
-	UINT_8 ucCipherSuit;
-	UINT_8 acuReserve[6];
-} CMD_BSSINFO_BASIC_T, *P_CMD_BSSINFO_BASIC_T;
-
-typedef struct _TXBF_PFMU_STA_INFO {
-	UINT_16 u2PfmuId;	/* 0xFFFF means no access right for PFMU */
-	UINT_8 fgSU_MU;		/* 0 : SU, 1 : MU */
-	UINT_8 fgETxBfCap;	/* 0 : ITxBf, 1 : ETxBf */
-	UINT_8 ucSoundingPhy;	/* 0: legacy, 1: OFDM, 2: HT, 4: VHT */
-	UINT_8 ucNdpaRate;
-	UINT_8 ucNdpRate;
-	UINT_8 ucReptPollRate;
-	UINT_8 ucTxMode;	/* 0: legacy, 1: OFDM, 2: HT, 4: VHT */
-	UINT_8 ucNc;
-	UINT_8 ucNr;
-	UINT_8 ucCBW;		/* 0 : 20M, 1 : 40M, 2 : 80M, 3 : 80 + 80M */
-	UINT_8 ucTotMemRequire;
-	UINT_8 ucMemRequire20M;
-	UINT_8 ucMemRow0;
-	UINT_8 ucMemCol0;
-	UINT_8 ucMemRow1;
-	UINT_8 ucMemCol1;
-	UINT_8 ucMemRow2;
-	UINT_8 ucMemCol2;
-	UINT_8 ucMemRow3;
-	UINT_8 ucMemCol3;
-	UINT_16 u2SmartAnt;
-	UINT_8 ucSEIdx;
-	UINT_8 uciBfTimeOut;
-	UINT_8 uciBfDBW;
-	UINT_8 uciBfNcol;
-	UINT_8 uciBfNrow;
-	UINT_8 aucReserved[3];
-} TXBF_PFMU_STA_INFO, *P_TXBF_PFMU_STA_INFO;
-
-typedef struct _STA_REC_UPD_ENTRY_T {
-	TXBF_PFMU_STA_INFO rTxBfPfmuStaInfo;
-	UINT_8 aucAddr[PARAM_MAC_ADDR_LEN];
-	UINT_8 ucAid;
-	UINT_8 ucRsv;
-} STA_REC_UPD_ENTRY_T, *P_STA_REC_UPD_ENTRY_T;
-
-typedef struct _STAREC_COMMON_T {
-	/* Basic STA record (Group0) */
-	UINT_16 u2Tag;		/* Tag = 0x00 */
-	UINT_16 u2Length;
-	UINT_32 u4ConnectionType;
-	UINT_8 ucConnectionState;
-	UINT_8 ucIsQBSS;
-	UINT_16 u2AID;
-	UINT_8 aucPeerMacAddr[6];
-	UINT_16 u2Reserve1;
-} CMD_STAREC_COMMON_T, *P_CMD_STAREC_COMMON_T;
-
-typedef struct _CMD_STAREC_BF {
-	UINT_16 u2Tag;		/* Tag = 0x02 */
-	UINT_16 u2Length;
-	TXBF_PFMU_STA_INFO rTxBfPfmuInfo;
-	UINT_8 ucReserved[3];
-} CMD_STAREC_BF, *P_CMD_STAREC_BF;
-
-/* QA tool: maunal assoc */
-typedef struct _CMD_MANUAL_ASSOC_STRUCT_T {
-	/*
-	* UINT_8              ucBssIndex;
-	* UINT_8              ucWlanIdx;
-	* UINT_16             u2TotalElementNum;
-	* UINT_32             u4Reserve;
-	*/
-	/* extension */
-	UINT_16 u2Tag;		/* Tag = 0x05 */
-	UINT_16 u2Length;
-	UINT_8 aucMac[MAC_ADDR_LEN];
-	UINT_8 ucType;
-	UINT_8 ucWtbl;
-	UINT_8 ucOwnmac;
-	UINT_8 ucMode;
-	UINT_8 ucBw;
-	UINT_8 ucNss;
-	UINT_8 ucPfmuId;
-	UINT_8 ucMarate;
-	UINT_8 ucSpeIdx;
-	UINT_8 ucaid;
-} CMD_MANUAL_ASSOC_STRUCT_T, *P_CMD_MANUAL_ASSOC_STRUCT_T;
-
-typedef struct _TX_BF_SOUNDING_START_T {
-	union {
-		EXT_CMD_ETXBf_SND_PERIODIC_TRIGGER_CTRL_T rExtCmdExtBfSndPeriodicTriggerCtrl;
-		EXT_CMD_ETXBf_MU_SND_PERIODIC_TRIGGER_CTRL_T rExtCmdExtBfMuSndPeriodicTriggerCtrl;
-	} rTxBfSounding;
-} TX_BF_SOUNDING_START_T, *P_TX_BF_SOUNDING_START_T;
-
-typedef struct _TX_BF_SOUNDING_STOP_T {
-	UINT_8 ucTxBfCategory;
-	UINT_8 ucSndgStop;
-	UINT_8 ucReserved[2];
-} TX_BF_SOUNDING_STOP_T, *P_TX_BF_SOUNDING_STOP_T;
-
-typedef struct _TX_BF_TX_APPLY_T {
-	UINT_8 ucTxBfCategory;
-	UINT_8 ucWlanId;
-	UINT_8 fgETxBf;
-	UINT_8 fgITxBf;
-	UINT_8 fgMuTxBf;
-	UINT_8 ucReserved[3];
-} TX_BF_TX_APPLY_T, *P_TX_BF_TX_APPLY_T;
-
-typedef struct _TX_BF_PFMU_MEM_ALLOC_T {
-	UINT_8 ucTxBfCategory;
-	UINT_8 ucSuMuMode;
-	UINT_8 ucWlanIdx;
-	UINT_8 ucReserved;
-} TX_BF_PFMU_MEM_ALLOC_T, *P_TX_BF_PFMU_MEM_ALLOC_T;
-
-typedef struct _TX_BF_PFMU_MEM_RLS_T {
-	UINT_8 ucTxBfCategory;
-	UINT_8 ucWlanId;
-	UINT_8 ucReserved[2];
-} TX_BF_PFMU_MEM_RLS_T, *P_TX_BF_PFMU_MEM_RLS_T;
-
-typedef union _PARAM_CUSTOM_TXBF_ACTION_STRUCT_T {
-	PROFILE_TAG_READ_T rProfileTagRead;
-	PROFILE_TAG_WRITE_T rProfileTagWrite;
-	PROFILE_DATA_READ_T rProfileDataRead;
-	PROFILE_DATA_WRITE_T rProfileDataWrite;
-	PROFILE_PN_READ_T rProfilePnRead;
-	PROFILE_PN_WRITE_T rProfilePnWrite;
-	TX_BF_SOUNDING_START_T rTxBfSoundingStart;
-	TX_BF_SOUNDING_STOP_T rTxBfSoundingStop;
-	TX_BF_TX_APPLY_T rTxBfTxApply;
-	TX_BF_PFMU_MEM_ALLOC_T rTxBfPfmuMemAlloc;
-	TX_BF_PFMU_MEM_RLS_T rTxBfPfmuMemRls;
-} PARAM_CUSTOM_TXBF_ACTION_STRUCT_T, *P_PARAM_CUSTOM_TXBF_ACTION_STRUCT_T;
-
-typedef struct _PARAM_CUSTOM_STA_REC_UPD_STRUCT_T {
-	UINT_8 ucBssIndex;
-	UINT_8 ucWlanIdx;
-	UINT_16 u2TotalElementNum;
-	UINT_8 ucAppendCmdTLV;
-	UINT_8 ucMuarIdx;
-	UINT_8 aucReserve[2];
-	UINT_32 *prStaRec;
-	CMD_STAREC_BF rCmdStaRecBf;
-} PARAM_CUSTOM_STA_REC_UPD_STRUCT_T, *P_PARAM_CUSTOM_STA_REC_UPD_STRUCT_T;
-
-typedef struct _BSSINFO_ARGUMENT_T {
-	UCHAR OwnMacIdx;
-	UINT_8 ucBssIndex;
-	UINT_8 Bssid[PARAM_MAC_ADDR_LEN];
-	UINT_8 ucBcMcWlanIdx;
-	UINT_8 ucPeerWlanIdx;
-	UINT_32 NetworkType;
-	UINT_32 u4ConnectionType;
-	UINT_8 CipherSuit;
-	UINT_8 Active;
-	UINT_8 WmmIdx;
-	UINT_32 u4BssInfoFeature;
-	UINT_8 aucBuffer[0];
-} BSSINFO_ARGUMENT_T, *P_BSSINFO_ARGUMENT_T;
-
-typedef struct _PARAM_CUSTOM_PFMU_TAG_READ_STRUCT_T {
-	PFMU_PROFILE_TAG1 ru4TxBfPFMUTag1;
-	PFMU_PROFILE_TAG2 ru4TxBfPFMUTag2;
-} PARAM_CUSTOM_PFMU_TAG_READ_STRUCT_T, *P_PARAM_CUSTOM_PFMU_TAG_READ_STRUCT_T;
-
-#if CFG_SUPPORT_MU_MIMO
-typedef struct _PARAM_CUSTOM_SHOW_GROUP_TBL_ENTRY_STRUCT_T {
-	UINT_32 u4EventId;
-	UINT_8 index;
-	UINT_8 numUser:2;
-	UINT_8 BW:2;
-	UINT_8 NS0:2;
-	UINT_8 NS1:2;
-	/* UINT_8       NS2:1; */
-	/* UINT_8       NS3:1; */
-	UINT_8 PFIDUser0;
-	UINT_8 PFIDUser1;
-	/* UINT_8       PFIDUser2; */
-	/* UINT_8       PFIDUser3; */
-	BOOLEAN fgIsShortGI;
-	BOOLEAN fgIsUsed;
-	BOOLEAN fgIsDisable;
-	UINT_8 initMcsUser0:4;
-	UINT_8 initMcsUser1:4;
-	/* UINT_8       initMcsUser2:4; */
-	/* UINT_8       initMcsUser3:4; */
-	UINT_8 dMcsUser0:4;
-	UINT_8 dMcsUser1:4;
-	/* UINT_8       dMcsUser2:4; */
-	/* UINT_8       dMcsUser3:4; */
-} PARAM_CUSTOM_SHOW_GROUP_TBL_ENTRY_STRUCT_T, *P_PARAM_CUSTOM_SHOW_GROUP_TBL_ENTRY_STRUCT_T;
-
-typedef struct _PARAM_CUSTOM_GET_QD_STRUCT_T {
-	UINT_32 u4EventId;
-	UINT_32 au4RawData[14];
-} PARAM_CUSTOM_GET_QD_STRUCT_T, *P_PARAM_CUSTOM_GET_QD_STRUCT_T;
-
-typedef struct _MU_STRUCT_LQ_REPORT {
-	int lq_report[NUM_OF_USER][NUM_OF_MODUL];
-} MU_STRUCT_LQ_REPORT, *P_MU_STRUCT_LQ_REPORT;
-
-typedef struct _PARAM_CUSTOM_GET_MU_CALC_LQ_STRUCT_T {
-	UINT_32 u4EventId;
-	MU_STRUCT_LQ_REPORT rEntry;
-} PARAM_CUSTOM_GET_MU_CALC_LQ_STRUCT_T, *P_PARAM_CUSTOM_GET_MU_CALC_LQ_STRUCT_T;
-
-typedef struct _MU_GET_CALC_INIT_MCS_T {
-	UINT_8 ucgroupIdx;
-	UINT_8 ucRsv[3];
-} MU_GET_CALC_INIT_MCS_T, *P_MU_GET_CALC_INIT_MCS_T;
-
-typedef struct _MU_SET_INIT_MCS_T {
-	UINT_8 ucNumOfUser;	/* zero-base : 0~3: means 1~2 users */
-	UINT_8 ucBandwidth;	/* zero-base : 0:20 hz 1:40 hz 2: 80 hz 3: 160 */
-	UINT_8 ucNssOfUser0;	/* zero-base : 0~1 means uesr0 use 1~2 ss , if no use keep 0 */
-	UINT_8 ucNssOfUser1;	/* zero-base : 0~1 means uesr0 use 1~2 ss , if no use keep 0 */
-	UINT_8 ucPfMuIdOfUser0;	/* zero-base : for now, uesr0 use pf mu id 0 */
-	UINT_8 ucPfMuIdOfUser1;	/* zero-base : for now, uesr1 use pf mu id 1 */
-	UINT_8 ucNumOfTxer;	/* 0~3: mean use 1~4 anntain, for now, should fix 3 */
-	UINT_8 ucSpeIndex;	/*add new field to fill?¡ìspecial extension index?¡§which replace reserve */
-	UINT_32 u4GroupIndex;	/* 0~ :the index of group table entry for calculation */
-} MU_SET_INIT_MCS_T, *P_MU_SET_INIT_MCS_T;
-
-typedef struct _MU_SET_CALC_LQ_T {
-	UINT_8 ucNumOfUser;	/* zero-base : 0~3: means 1~2 users */
-	UINT_8 ucBandwidth;	/* zero-base : 0:20 hz 1:40 hz 2: 80 hz 3: 160 */
-	UINT_8 ucNssOfUser0;	/* zero-base : 0~1 means uesr0 use 1~2 ss , if no use keep 0 */
-	UINT_8 ucNssOfUser1;	/* zero-base : 0~1 means uesr0 use 1~2 ss , if no use keep 0 */
-	UINT_8 ucPfMuIdOfUser0;	/* zero-base : for now, uesr0 use pf mu id 0 */
-	UINT_8 ucPfMuIdOfUser1;	/* zero-base : for now, uesr1 use pf mu id 1 */
-	UINT_8 ucNumOfTxer;	/* 0~3: mean use 1~4 anntain, for now, should fix 3 */
-	UINT_8 ucSpeIndex;	/*add new field to fill?¡ìspecial extension index?¡§which replace reserve */
-	UINT_32 u4GroupIndex;	/* 0~ :the index of group table entry for calculation */
-} MU_SET_CALC_LQ_T, *P_MU_SET_CALC_LQ_T;
-
-typedef struct _MU_GET_LQ_T {
-	UINT_8 ucType;
-	UINT_8 ucRsv[3];
-} MU_GET_LQ_T, *P_MU_GET_LQ_T;
-
-typedef struct _MU_SET_SNR_OFFSET_T {
-	UINT_8 ucVal;
-	UINT_8 ucRsv[3];
-} MU_SET_SNR_OFFSET_T, *P_MU_SET_SNR_OFFSET_T;
-
-typedef struct _MU_SET_ZERO_NSS_T {
-	UINT_8 ucVal;
-	UINT_8 ucRsv[3];
-} MU_SET_ZERO_NSS_T, *P_MU_SET_ZERO_NSS_T;
-
-typedef struct _MU_SPEED_UP_LQ_T {
-	UINT_32 u4Val;
-} MU_SPEED_UP_LQ_T, *P_MU_SPEED_UP_LQ_T;
-
-typedef struct _MU_SET_MU_TABLE_T {
-	/* UINT_16  u2Type; */
-	/* UINT_32  u4Length; */
-	UINT_8 aucMetricTable[NUM_MUT_NR_NUM * NUM_MUT_FEC * NUM_MUT_MCS * NUM_MUT_INDEX];
-} MU_SET_MU_TABLE_T, *P_MU_SET_MU_TABLE_T;
-
-typedef struct _MU_SET_GROUP_T {
-	UINT_32 u4GroupIndex;	/* Group Table Idx */
-	UINT_32 u4NumOfUser;
-	UINT_32 u4User0Ldpc;
-	UINT_32 u4User1Ldpc;
-	UINT_32 u4ShortGI;
-	UINT_32 u4Bw;
-	UINT_32 u4User0Nss;
-	UINT_32 u4User1Nss;
-	UINT_32 u4GroupId;
-	UINT_32 u4User0UP;
-	UINT_32 u4User1UP;
-	UINT_32 u4User0MuPfId;
-	UINT_32 u4User1MuPfId;
-	UINT_32 u4User0InitMCS;
-	UINT_32 u4User1InitMCS;
-	UINT_8 aucUser0MacAddr[PARAM_MAC_ADDR_LEN];
-	UINT_8 aucUser1MacAddr[PARAM_MAC_ADDR_LEN];
-} MU_SET_GROUP_T, *P_MU_SET_GROUP_T;
-
-typedef struct _MU_GET_QD_T {
-	UINT_8 ucSubcarrierIndex;
-	/* UINT_32 u4Length; */
-	/* UINT_8 *prQd; */
-} MU_GET_QD_T, *P_MU_GET_QD_T;
-
-typedef struct _MU_SET_ENABLE_T {
-	UINT_8 ucVal;
-	UINT_8 ucRsv[3];
-} MU_SET_ENABLE_T, *P_MU_SET_ENABLE_T;
-
-typedef struct _MU_SET_GID_UP_T {
-	UINT_32 au4Gid[2];
-	UINT_32 au4Up[4];
-} MU_SET_GID_UP_T, *P_MU_SET_GID_UP_T;
-
-typedef struct _MU_TRIGGER_MU_TX_T {
-	UINT_8  fgIsRandomPattern; /* is random pattern or not */
-	UINT_32 u4MsduPayloadLength0; /* payload length of the MSDU for user 0 */
-	UINT_32 u4MsduPayloadLength1; /* payload length of the MSDU for user 1 */
-	UINT_32 u4MuPacketCount; /* MU TX count */
-	UINT_32 u4NumOfSTAs; /* number of user in the MU TX */
-	UINT_8   aucMacAddrs[2][6]; /* MAC address of users*/
-} MU_TRIGGER_MU_TX_T, *P_MU_TRIGGER_MU_TX_T;
-
-typedef struct _PARAM_CUSTOM_MUMIMO_ACTION_STRUCT_T {
-	UINT_8 ucMuMimoCategory;
-	UINT_8 aucRsv[3];
-	union {
-		MU_GET_CALC_INIT_MCS_T rMuGetCalcInitMcs;
-		MU_SET_INIT_MCS_T rMuSetInitMcs;
-		MU_SET_CALC_LQ_T rMuSetCalcLq;
-		MU_GET_LQ_T rMuGetLq;
-		MU_SET_SNR_OFFSET_T rMuSetSnrOffset;
-		MU_SET_ZERO_NSS_T rMuSetZeroNss;
-		MU_SPEED_UP_LQ_T rMuSpeedUpLq;
-		MU_SET_MU_TABLE_T rMuSetMuTable;
-		MU_SET_GROUP_T rMuSetGroup;
-		MU_GET_QD_T rMuGetQd;
-		MU_SET_ENABLE_T rMuSetEnable;
-		MU_SET_GID_UP_T rMuSetGidUp;
-		MU_TRIGGER_MU_TX_T rMuTriggerMuTx;
-	} unMuMimoParam;
-} PARAM_CUSTOM_MUMIMO_ACTION_STRUCT_T, *P_PARAM_CUSTOM_MUMIMO_ACTION_STRUCT_T;
-#endif /* CFG_SUPPORT_MU_MIMO */
-#endif /* CFG_SUPPORT_TX_BF */
-#endif /* CFG_SUPPORT_QA_TOOL */
-
 typedef struct _PARAM_CUSTOM_MEM_DUMP_STRUCT_T {
 	UINT_32 u4Address;
 	UINT_32 u4Length;
 	UINT_32 u4RemainLength;
-#if CFG_SUPPORT_QA_TOOL
-	UINT_32 u4IcapContent;
-#endif				/* CFG_SUPPORT_QA_TOOL */
 	UINT_8 ucFragNum;
 } PARAM_CUSTOM_MEM_DUMP_STRUCT_T, *P_PARAM_CUSTOM_MEM_DUMP_STRUCT_T;
 
@@ -1287,7 +868,6 @@ typedef struct _PARAM_LINUX_NETDEV_STATISTICS_T {
 typedef struct _PARAM_MTK_WIFI_TEST_STRUCT_T {
 	UINT_32 u4FuncIndex;
 	UINT_32 u4FuncData;
-	UINT_32 u4FuncData2; /*FW don't support*/
 } PARAM_MTK_WIFI_TEST_STRUCT_T, *P_PARAM_MTK_WIFI_TEST_STRUCT_T;
 
 /* 802.11 Media stream constraints */
@@ -1372,14 +952,10 @@ typedef struct _PARAM_MTK_SLT_INITIAL_STRUCT_T {
 
 typedef struct _PARAM_MTK_SLT_TEST_STRUCT_T {
 	ENUM_MTK_SLT_FUNC_IDX_T rSltFuncIdx;
-	UINT_32 u4Length;	/*
-				 * Length of structure,
-				 * including myself
-				 */
-	UINT_32 u4FuncInfoLen;	/*
-				 * Include following content
-				 * field and myself
-				 */
+	UINT_32 u4Length;	/* Length of structure,
+				   including myself */
+	UINT_32 u4FuncInfoLen;	/* Include following content
+				   field and myself */
 	union {
 		PARAM_MTK_SLT_INITIAL_STRUCT_T rMtkInitTest;
 		PARAM_MTK_SLT_LP_TEST_STRUCT_T rMtkLpTest;
@@ -1463,14 +1039,13 @@ typedef struct _PTA_PROFILE_T {
 	ENUM_BT_PROFILE_T eBtProfile;
 	union {
 		UINT_8 aucBTPParams[BT_PROFILE_PARAM_LEN];
-		/*
-		 * 0: sco reserved slot time,
-		 * 1: sco idle slot time,
-		 * 2: acl throughput,
-		 * 3: bt tx power,
-		 * 4: bt rssi
-		 * 5: VoIP interval
-		 * 6: BIT(0) Use this field, BIT(1) 0 apply single/ 1 dual PTA setting.
+		/*  0: sco reserved slot time,
+		   1: sco idle slot time,
+		   2: acl throughput,
+		   3: bt tx power,
+		   4: bt rssi
+		   5: VoIP interval
+		   6: BIT(0) Use this field, BIT(1) 0 apply single/ 1 dual PTA setting.
 		 */
 		UINT_32 au4Btcr[4];
 	} u;
@@ -1499,29 +1074,17 @@ typedef struct _PARAM_SCAN_REQUEST_ADV_T {
 	PARAM_SSID_T rSsid[CFG_SCAN_SSID_MAX_NUM];
 	UINT_32 u4IELength;
 	PUINT_8 pucIE;
-	/* partial scan temp save request info */
-	PUINT_8 puPartialScanReq;
 } PARAM_SCAN_REQUEST_ADV_T, *P_PARAM_SCAN_REQUEST_ADV_T;
 
 /*--------------------------------------------------------------*/
 /*! \brief CFG80211 Scheduled Scan Request Container            */
 /*--------------------------------------------------------------*/
 typedef struct _PARAM_SCHED_SCAN_REQUEST_T {
-#if CFG_SUPPORT_SCHED_SCN_SSID_SETS
-	UINT_32 u4SsidNum;         /* passed in the probe_reqs */
-	PARAM_SSID_T arSsid[CFG_SCAN_HIDDEN_SSID_MAX_NUM];
-	UINT_32 u4MatchSsidNum;   /* matched for a scan request */
-	PARAM_SSID_T arMatchSsid[CFG_SCAN_SSID_MATCH_MAX_NUM];
-#else
 	UINT_32 u4SsidNum;
 	PARAM_SSID_T arSsid[CFG_SCAN_SSID_MATCH_MAX_NUM];
-#endif
-	INT_8 acRssiThresold[CFG_SCAN_SSID_MATCH_MAX_NUM];
 	UINT_32 u4IELength;
 	PUINT_8 pucIE;
 	UINT_16 u2ScanInterval;	/* in milliseconds */
-	UINT_8 ucChnlNum;
-	PUINT_8 pucChannels;
 } PARAM_SCHED_SCAN_REQUEST, *P_PARAM_SCHED_SCAN_REQUEST;
 
 #if CFG_SUPPORT_PASSPOINT
@@ -1546,59 +1109,25 @@ typedef struct _PARAM_CUSTOM_MONITOR_SET_STRUCT_T {
 } PARAM_CUSTOM_MONITOR_SET_STRUCT_T, *P_PARAM_CUSTOM_MONITOR_SET_STRUCT_T;
 #endif
 
-#if defined(MT6797)
-extern UINT_8 **g_pHifRegBaseAddr;
-#endif
-
 /*--------------------------------------------------------------*/
 /*! \brief PSCN Scan Request Container            */
 /*--------------------------------------------------------------*/
 
 typedef struct _CMD_GET_PSCAN_CAPABILITY {
-	/*TBD*/
-} CMD_GET_GSCAN_CAPABILITY, *P_CMD_GET_GSCAN_CAPABILITY;
-
-typedef enum _ENUM_PSCAN_ACT_T {
-	PSCAN_ACT_DISABLE = 0,
-	PSCAN_ACT_ENABLE,
-	PSCAN_ACT_SUSPEND,
-	PSCAN_ACT_CLEAR
-} ENUM_PSCAN_ACT_T, *P_ENUM_PSCAN_ACT_T;
+ /*TBD*/} CMD_GET_GSCAN_CAPABILITY, *P_CMD_GET_GSCAN_CAPABILITY;
 
 typedef struct _CMD_SET_PSCAN_ENABLE {
 	UINT_8 ucPscanAct;
 	UINT_8 aucReserved[3];
 } CMD_SET_PSCAN_ENABLE, *P_CMD_SET_PSCAN_ENABLE;
 
-#if CFG_AUTO_CHANNEL_SEL_SUPPORT
-/*--------------------------------------------------------------*/
-/*! \brief MTK Auto Channel Selection related Container         */
-/*--------------------------------------------------------------*/
-typedef struct _LTE_SAFE_CHN_INFO_T {
-	UINT_32 au4SafeChannelBitmask[5]; /* NL80211_TESTMODE_AVAILABLE_CHAN_ATTR_MAX */
-} LTE_SAFE_CHN_INFO_T, *P_CMD_LTE_SAFE_CHN_INFO_T;
+typedef enum _ENUM_PSCAN_ACT_T {
+	ENABLE = 1,
+	DISABLE,
+	SUSPEND,
+	CLEAR
+} ENUM_PSCAN_ACT_T, *P_ENUM_PSCAN_ACT_T;
 
-typedef struct _PARAM_CHN_LOAD_INFO {
-	/* Per-CHN Load */
-	UINT_8 ucChannel;
-	UINT_16 u2APNum;
-	UINT_8 ucReserved;
-} PARAM_CHN_LOAD_INFO, *P_PARAM_CHN_LOAD_INFO;
-
-typedef struct _PARAM_GET_CHN_INFO {
-	LTE_SAFE_CHN_INFO_T rLteSafeChnList;
-	PARAM_CHN_LOAD_INFO rEachChnLoad[MAX_CHN_NUM];
-	BOOLEAN fgDataReadyBit;
-	UINT_8 aucReserved[3];
-} PARAM_GET_CHN_INFO, *P_PARAM_GET_CHN_INFO;
-
-typedef struct _PARAM_PREFER_CHN_INFO {
-	UINT_8 ucChannel;
-	UINT_16 u2APNumScore;
-	UINT_8 ucReserved;
-} PARAM_PREFER_CHN_INFO, *P_PARAM_PREFER_CHN_INFO;
-
-#endif
 /*******************************************************************************
 *                            P U B L I C   D A T A
 ********************************************************************************
@@ -1748,10 +1277,6 @@ wlanoidSetChannel(IN P_ADAPTER_T prAdapter,
 		  IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
 
 WLAN_STATUS
-wlanoidRssiMonitor(IN P_ADAPTER_T prAdapter,
-		   OUT PVOID pvQueryBuffer, IN UINT_32 u4QueryBufferLen, OUT PUINT_32 pu4QueryInfoLen);
-
-WLAN_STATUS
 wlanoidQueryRssi(IN P_ADAPTER_T prAdapter,
 		 OUT PVOID pvQueryBuffer, IN UINT_32 u4QueryBufferLen, OUT PUINT_32 pu4QueryInfoLen);
 
@@ -1813,56 +1338,6 @@ wlanoidQueryPermanentAddr(IN P_ADAPTER_T prAdapter,
 WLAN_STATUS
 wlanoidQueryLinkSpeed(IN P_ADAPTER_T prAdapter,
 		      IN PVOID pvQueryBuffer, IN UINT_32 u4QueryBufferLen, OUT PUINT_32 pu4QueryInfoLen);
-
-#if CFG_SUPPORT_QA_TOOL
-#if CFG_SUPPORT_BUFFER_MODE
-WLAN_STATUS wlanoidSetEfusBufferMode(IN P_ADAPTER_T prAdapter,
-				     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-
-/*#if (CFG_EEPROM_PAGE_ACCESS == 1)*/
-WLAN_STATUS
-wlanoidQueryProcessAccessEfuseRead(IN P_ADAPTER_T prAdapter,
-					IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-
-WLAN_STATUS
-wlanoidQueryProcessAccessEfuseWrite(IN P_ADAPTER_T prAdapter,
-					IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-
-WLAN_STATUS
-wlanoidQueryEfuseFreeBlock(IN P_ADAPTER_T prAdapter,
-					IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-
-/*#endif*/
-
-#endif /* CFG_SUPPORT_BUFFER_MODE */
-WLAN_STATUS
-wlanoidQueryRxStatistics(IN P_ADAPTER_T prAdapter,
-			 IN PVOID pvQueryBuffer, IN UINT_32 u4QueryBufferLen, OUT PUINT_32 pu4QueryInfoLen);
-
-WLAN_STATUS
-wlanoidBssInfoBasic(IN P_ADAPTER_T prAdapter,
-		    IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-
-WLAN_STATUS
-wlanoidDevInfoActive(IN P_ADAPTER_T prAdapter,
-		     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-
-WLAN_STATUS
-wlanoidManualAssoc(IN P_ADAPTER_T prAdapter,
-		   IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-
-#if CFG_SUPPORT_TX_BF
-WLAN_STATUS
-wlanoidTxBfAction(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen,
-		  OUT PUINT_32 pu4SetInfoLen);
-WLAN_STATUS wlanoidMuMimoAction(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen,
-				OUT PUINT_32 pu4SetInfoLen);
-WLAN_STATUS wlanoidStaRecUpdate(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen,
-				OUT PUINT_32 pu4SetInfoLen);
-WLAN_STATUS wlanoidStaRecBFUpdate(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen,
-				  OUT PUINT_32 pu4SetInfoLen);
-#endif /* CFG_SUPPORT_TX_BF */
-#endif /* CFG_SUPPORT_QA_TOOL */
 
 WLAN_STATUS
 wlanoidQueryMcrRead(IN P_ADAPTER_T prAdapter,
@@ -1944,9 +1419,11 @@ wlanoidQueryStatistics(IN P_ADAPTER_T prAdapter,
 		       IN PVOID pvQueryBuffer, IN UINT_32 u4QueryBufferLen, OUT PUINT_32 pu4QueryInfoLen);
 
 #ifdef LINUX
+
 WLAN_STATUS
 wlanoidQueryStatisticsForLinux(IN P_ADAPTER_T prAdapter,
 			       IN PVOID pvQueryBuffer, IN UINT_32 u4QueryBufferLen, OUT PUINT_32 pu4QueryInfoLen);
+
 #endif
 
 WLAN_STATUS
@@ -2156,6 +1633,20 @@ wlanoidUpdateSLTMode(IN P_ADAPTER_T prAdapter,
 
 #endif
 
+#if 0
+WLAN_STATUS
+wlanoidSetNoaParam(IN P_ADAPTER_T prAdapter,
+		   IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
+
+WLAN_STATUS
+wlanoidSetOppPsParam(IN P_ADAPTER_T prAdapter,
+		     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
+
+WLAN_STATUS
+wlanoidSetUApsdParam(IN P_ADAPTER_T prAdapter,
+		     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
+#endif
+
 /*----------------------------------------------------------------------------*/
 WLAN_STATUS
 wlanoidSetBT(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
@@ -2167,6 +1658,40 @@ wlanoidQueryBT(IN P_ADAPTER_T prAdapter,
 WLAN_STATUS
 wlanoidSetTxPower(IN P_ADAPTER_T prAdapter,
 		  IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
+
+/*
+WLAN_STATUS
+wlanoidQueryBtSingleAntenna (
+    IN  P_ADAPTER_T prAdapter,
+    OUT PVOID       pvQueryBuffer,
+    IN  UINT_32     u4QueryBufferLen,
+    OUT PUINT_32    pu4QueryInfoLen
+    );
+
+WLAN_STATUS
+wlanoidSetBtSingleAntenna (
+    IN  P_ADAPTER_T prAdapter,
+    IN  PVOID       pvSetBuffer,
+    IN  UINT_32     u4SetBufferLen,
+    OUT PUINT_32    pu4SetInfoLen
+    );
+
+WLAN_STATUS
+wlanoidSetPta (
+    IN  P_ADAPTER_T prAdapter,
+    IN  PVOID       pvSetBuffer,
+    IN  UINT_32     u4SetBufferLen,
+    OUT PUINT_32    pu4SetInfoLen
+    );
+
+WLAN_STATUS
+wlanoidQueryPta (
+    IN  P_ADAPTER_T prAdapter,
+    OUT PVOID       pvQueryBuffer,
+    IN  UINT_32     u4QueryBufferLen,
+    OUT PUINT_32    pu4QueryInfoLen
+    );
+*/
 
 #if CFG_ENABLE_WIFI_DIRECT
 WLAN_STATUS
@@ -2227,53 +1752,31 @@ WLAN_STATUS wlanoidSetMonitor(IN P_ADAPTER_T prAdapter,
 			      IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
 #endif
 
-#if CFG_SUPPORT_GSCN
 WLAN_STATUS
 wlanoidSetGSCNAction(IN P_ADAPTER_T prAdapter,
 		     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
 
 WLAN_STATUS
-wlanoidSetGSCNParam(IN P_ADAPTER_T prAdapter,
-		    IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
+wlanoidSetGSCNAParam(IN P_ADAPTER_T prAdapter,
+		     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
 
 WLAN_STATUS
-wlanoidSetGSCNConfig(IN P_ADAPTER_T prAdapter,
-		     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
+wlanoidSetGSCNAConfig(IN P_ADAPTER_T prAdapter,
+		      IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
 
 WLAN_STATUS
 wlanoidGetGSCNResult(IN P_ADAPTER_T prAdapter,
 		     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-#endif
 
-WLAN_STATUS
-wlanoidSetPacketFilter(P_ADAPTER_T prAdapter, UINT_32 u4PacketFilter,
-		       BOOLEAN fgIsOid, PVOID pvSetBuffer, UINT_32 u4SetBufferLen);
+WLAN_STATUS wlanoidSetPacketFilter(P_ADAPTER_T prAdapter, UINT_32 u4PacketFilter,
+				BOOLEAN fgIsOid, PVOID pvSetBuffer, UINT_32 u4SetBufferLen);
 
 WLAN_STATUS
 wlanoidNotifyFwSuspend(IN P_ADAPTER_T prAdapter,
-		       IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
+			IN PVOID pvSetBuffer,
+			IN UINT_32 u4SetBufferLen,
+			OUT PUINT_32 pu4SetInfoLen);
 
-WLAN_STATUS
-wlanoidPacketKeepAlive(IN P_ADAPTER_T prAdapter,
-		       IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-
-#if CFG_AUTO_CHANNEL_SEL_SUPPORT
-WLAN_STATUS
-wlanoidQueryLteSafeChannel(IN P_ADAPTER_T prAdapter,
-			   IN PVOID pvQueryBuffer, IN UINT_32 u4QueryBufferLen, OUT PUINT_32 pu4QueryInfoLen);
-#endif
-
-#if FW_CFG_SUPPORT
-WLAN_STATUS wlanoidQueryCfgRead(IN P_ADAPTER_T prAdapter,
-				IN PVOID pvQueryBuffer, IN UINT_32 u4QueryBufferLen, OUT PUINT_32 pu4QueryInfoLen);
-#endif
-
-WLAN_STATUS
-wlanoidDisableTdlsPs(IN P_ADAPTER_T prAdapter,
-			 IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-
-WLAN_STATUS wlanoidSetDrvRoamingPolicy(IN P_ADAPTER_T prAdapter,
-			IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
 /*******************************************************************************
 *                              F U N C T I O N S
 ********************************************************************************

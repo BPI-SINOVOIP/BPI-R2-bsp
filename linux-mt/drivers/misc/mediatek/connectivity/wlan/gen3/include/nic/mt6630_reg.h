@@ -1,27 +1,31 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
 ** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/nic/mt6630_reg.h#1
 */
 
+/*! \file   "mt6630_reg.h"
+    \brief  The common register definition of MT6630
+
+    N/A
+*/
+
 /*
- * ! \file   "mt6630_reg.h"
- *   \brief  The common register definition of MT6630
+** Log: mt6630_reg.h
+**
+** 07 23 2013 cp.wu
+** [BORA00002227] [MT6630 Wi-Fi][Driver] Update for Makefile and HIFSYS modifications
+** 1. build success for win32 port
+** 2. add SDIO test read/write pattern for HQA tests (default off)
+**
+** 03 18 2013 cp.wu
+** [BORA00002227] [MT6630 Wi-Fi][Driver] Update for Makefile and HIFSYS modifications
+** use RX default maximum length to 16 (max. 64)
+**
+** 10 25 2012 cp.wu
+** [BORA00002227] [MT6630 Wi-Fi][Driver] Update for Makefile and HIFSYS modifications
+** sync with MT6630 HIFSYS update.
+**
  *
- *   N/A
- */
+*/
 
 #ifndef _MT6630_REG_H
 #define _MT6630_REG_H
@@ -124,24 +128,24 @@
 #define MCR_WRPLR                           0x0090
 
 /* 4 Test Mode Data Port */
-#define MCR_WTMDR                           0x00B0
+#define MCR_WTMDR                           0x00b0
 
 /* 4 Test Mode Control Register */
-#define MCR_WTMCR                           0x00B4
+#define MCR_WTMCR                           0x00b4
 
 /* 4 Test Mode Data Pattern Control Register #0 */
-#define MCR_WTMDPCR0                        0x00B8
+#define MCR_WTMDPCR0                        0x00b8
 
 /* 4 Test Mode Data Pattern Control Register #1 */
-#define MCR_WTMDPCR1                        0x00Bc
+#define MCR_WTMDPCR1                        0x00bc
 
 /* 4 WLAN Packet Length Report Control Register */
-#define MCR_WPLRCR                          0x00D4
+#define MCR_WPLRCR                          0x00d4
 
 /* 4 WLAN Snapshot Register */
 #define MCR_WSR                             0x00D8
 
-#if defined(MT6631)
+#if defined(MT6797)
 /* 4 Abnormal Status Register2 */
 #define MCR_WASR2                           0x00E0
 #endif
@@ -251,7 +255,12 @@ typedef struct _ENHANCE_MODE_DATA_STRUCT_T {
 #define WCIR_REVISION_ID                BITS(16, 19)
 #define WCIR_CHIP_ID                    BITS(0, 15)
 
+#if defined(MT6797)
+#define MTK_CHIP_REV                    0x00006797
+#else
 #define MTK_CHIP_REV                    0x00006630
+#endif
+
 #define MTK_CHIP_MP_REVERSION_ID        0x0
 
 /* 3 WHLPCR 0x0004 */

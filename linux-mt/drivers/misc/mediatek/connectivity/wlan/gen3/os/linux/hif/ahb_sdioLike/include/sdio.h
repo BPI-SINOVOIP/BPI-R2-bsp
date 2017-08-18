@@ -1,17 +1,3 @@
-/*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #ifndef MMC_SDIO_H
 #define MMC_SDIO_H
 
@@ -30,66 +16,70 @@
 #define SDIO_GEN3_CMD53_DATA    (SDIO_GEN3_BASE+0x1000)
 
 enum SDIO_GEN3_RW_TYPE {
-	SDIO_GEN3_READ,
-	SDIO_GEN3_WRITE
+    SDIO_GEN3_READ,
+    SDIO_GEN3_WRITE
 };
 enum SDIO_GEN3_TRANS_MODE {
-	SDIO_GEN3_BYTE_MODE,
-	SDIO_GEN3_BLOCK_MODE
+    SDIO_GEN3_BYTE_MODE,
+    SDIO_GEN3_BLOCK_MODE
 };
 enum SDIO_GEN3_OP_MODE {
-	SDIO_GEN3_FIXED_PORT_MODE,
-	SDIO_GEN3_INCREMENT_MODE
+    SDIO_GEN3_FIXED_PORT_MODE,
+    SDIO_GEN3_INCREMENT_MODE
 };
 
 enum SDIO_GEN3_FUNCTION {
-	SDIO_GEN3_FUNCTION_0,
-	SDIO_GEN3_FUNCTION_WIFI,
-	SDIO_GEN3_FUNCTION_BT,
+    SDIO_GEN3_FUNCTION_0,
+    SDIO_GEN3_FUNCTION_WIFI,
+    SDIO_GEN3_FUNCTION_BT,
 };
 
-typedef struct _sdio_irq_info_tag {
-	BOOLEAN   irq_assert;
-	ENHANCE_MODE_DATA_STRUCT_T  irq_data;
+typedef struct _sdio_irq_info_tag
+{
+    BOOLEAN   irq_assert;
+    ENHANCE_MODE_DATA_STRUCT_T  irq_data;
 } sdio_irq_info_t;
 
-typedef struct _sdio_intr_enhance_arg_tag {
+typedef struct _sdio_intr_enhance_arg_tag
+{
 	unsigned char rxNum;
 	unsigned char totalBytes;
 } sdio_intr_enhance_arg_t;
 
-typedef union _sdio_gen3_cmd52_info {
-	struct{
-		UINT32 data : 8;             /* data for write, dummy for read */
-		UINT32 reserved_8:1;         /* stuff */
-		UINT32 addr : 17;            /* register address */
-		UINT32 reserved_26_27 : 2;    /* raw flag / stuff */
-		UINT32 func_num : 3;          /* function number */
-		UINT32 rw_flag : 1;           /* read / write flag */
-	} field;
-	UINT32 word;
+typedef union _sdio_gen3_cmd52_info
+{
+    struct{
+        UINT32 data : 8;             /* data for write, dummy for read */
+        UINT32 reserved_8:1;         /* stuff */
+        UINT32 addr : 17;            /* register address */
+        UINT32 reserved_26_27: 2;    /* raw flag / stuff */
+        UINT32 func_num: 3;          /* function number */
+        UINT32 rw_flag: 1;           /* read / write flag */
+    } field;
+    UINT32 word;
 } sdio_gen3_cmd52_info;
 
-typedef union _sdio_gen3_cmd53_info {
-	struct {
-		UINT32 count : 9;            /* block count for block mode, byte count for byte mode  */
-		UINT32 addr : 17;            /* register address */
-		UINT32 op_mode :1;            /* 1 for increment mode, 0 for port mode */
-		UINT32 block_mode : 1;        /* 1 for block mode, 0 for byte mode */
-		UINT32 func_num : 3;          /* function number */
-		UINT32 rw_flag : 1;           /* read / write flag */
-	} field;
-	UINT32 word;
+typedef union _sdio_gen3_cmd53_info
+{
+    struct {
+        UINT32 count : 9;            /* block count for block mode, byte count for byte mode  */
+        UINT32 addr : 17;            /* register address */
+        UINT32 op_mode:1;            /* 1 for increment mode, 0 for port mode */
+        UINT32 block_mode: 1;        /* 1 for block mode, 0 for byte mode */
+        UINT32 func_num: 3;          /* function number */
+        UINT32 rw_flag: 1;           /* read / write flag */
+    } field;
+    UINT32 word;
 } sdio_gen3_cmd53_info;
 
 struct sdio_func;
 extern struct sdio_func g_sdio_func;
-extern spinlock_t HifLock;
+
 typedef void (sdio_irq_handler_t)(struct sdio_func *);
 
 struct sdio_func {
 	sdio_irq_handler_t	*irq_handler;	/* IRQ callback */
-	sdio_irq_info_t     irq_info;
+    sdio_irq_info_t     irq_info;
 	unsigned int		num;		/* function number */
 	unsigned		cur_blksize;	/* current block size */
 	unsigned        use_dma;
@@ -110,8 +100,8 @@ int sdio_cccr_write(UINT32 addr, UINT_8 value);
 int sdio_cr_read(UINT32 addr, UINT32 *value);
 int sdio_cr_write(UINT32 addr, UINT32 value);
 
-UINT_32 sdio_cr_readl(volatile UINT_8 *prHifBaseAddr, UINT_32 addr);
-VOID sdio_cr_writel(UINT_32 value, volatile UINT_8 *prHifBaseAddr, UINT_32 addr);
+UINT32 sdio_cr_readl(volatile unsigned int *HifBaseAddr, unsigned int addr);
+void sdio_cr_writel(UINT32 b, volatile unsigned int *HifBaseAddr, unsigned int addr);
 
 int sdio_open(void);
 int sdio_close(void);
@@ -124,11 +114,12 @@ int ahb_sdio_disable_func(struct sdio_func *func);
 int ahb_sdio_set_block_size(struct sdio_func *func, unsigned blksz);
 int ahb_sdio_claim_irq(struct sdio_func *func, sdio_irq_handler_t *handler);
 
+
 #define sdio_f0_readb(func, addr, err_ret) ahb_sdio_f0_readb((func), (addr), (err_ret))
 #define sdio_f0_writeb(func, b, addr, err_ret) ahb_sdio_f0_writeb((func), (b), (addr), (err_ret))
 #define sdio_enable_func(func) ahb_sdio_enable_func((func))
 #define sdio_disable_func(func) ahb_sdio_disable_func((func))
-#define sdio_set_block_size(func, blksz) ahb_sdio_set_block_size((func), (blksz))
+#define sdio_set_block_size(func, blksz) ahb_sdio_set_block_size((func),(blksz))
 #define sdio_claim_irq(func, handler) ahb_sdio_claim_irq((func), (handler))
 
 #define sdio_claim_host(__func)
@@ -139,13 +130,16 @@ int ahb_sdio_claim_irq(struct sdio_func *func, sdio_irq_handler_t *handler);
 extern UINT_8 **g_pHifRegBaseAddr;
 
 #define __disable_irq()						\
-{											\
-	writel(0x01, (volatile UINT_32*)(*g_pHifRegBaseAddr + 0x200));\
+{	UINT32 __RegVal;					\
+	__RegVal = readl((volatile UINT_32 *)(*g_pHifRegBaseAddr + 0x200));\
+	writel((__RegVal | 0x01), (volatile UINT_32 *)(*g_pHifRegBaseAddr + 0x200));\
 }
 #define __enable_irq()						\
-{											\
-	writel(0, (volatile UINT_32*)(*g_pHifRegBaseAddr + 0x200));\
+{	UINT32 __RegVal;					\
+	__RegVal = readl((volatile UINT_32 *)(*g_pHifRegBaseAddr + 0x200));\
+	writel((__RegVal & (~0x01)), (volatile UINT_32 *)(*g_pHifRegBaseAddr + 0x200));\
 }
+
 
 /*  ===========================  PART 2: mmc/sdio.h ============================ */
 /* Following are from include/linux/mmc/sdio.h */
@@ -180,18 +174,18 @@ extern UINT_8 **g_pHifRegBaseAddr;
 #define R4_MEMORY_PRESENT (1 << 27)
 
 /*
- * SDIO status in R5
- * Type
- *	e : error bit
- *	s : status bit
- *	r : detected and set for the actual command response
- *	x : detected and set during command execution. the host must poll
- *		the card by sending status command in order to read these bits.
- * Clear condition
- *	a : according to the card state
- *	b : always related to the previous command. Reception of
- *		a valid command will clear it (with a delay of one command)
- *	c : clear by read
+  SDIO status in R5
+  Type
+	e : error bit
+	s : status bit
+	r : detected and set for the actual command response
+	x : detected and set during command execution. the host must poll
+            the card by sending status command in order to read these bits.
+  Clear condition
+	a : according to the card state
+	b : always related to the previous command. Reception of
+            a valid command will clear it (with a delay of one command)
+	c : clear by read
  */
 
 #define R5_COM_CRC_ERROR	(1 << 15)	/* er, b */
@@ -301,3 +295,4 @@ extern UINT_8 **g_pHifRegBaseAddr;
 #define SDIO_FBR_BLKSIZE	0x10	/* block size (2 bytes) */
 
 #endif
+

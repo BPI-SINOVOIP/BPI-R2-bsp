@@ -1,31 +1,726 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/mgmt/scan.c#4
+*/
+
+/*! \file   "scan.c"
+    \brief  This file defines the scan profile and the processing function of
+	    scan result for SCAN Module.
+
+    The SCAN Profile selection is part of SCAN MODULE and responsible for defining
+    SCAN Parameters - e.g. MIN_CHANNEL_TIME, number of scan channels.
+    In this file we also define the process of SCAN Result including adding, searching
+    and removing SCAN record from the list.
 */
 
 /*
- * Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/mgmt/scan.c#4
- */
-
-/*
- * ! \file   "scan.c"
- * \brief  This file defines the scan profile and the processing function of
- *       scan result for SCAN Module.
+** Log: scan.c
+**
+** 04 15 2014 eason.tsai
+** [ALPS01510349] [6595][KK][HotKnot][Reboot][KE][p2pDevFsmRunEventScanDone]
+** Sender reboot automatically with KE about p2pDevFsmRunEventScanDone.
+** add debug msg for scan
+**
+** 03 12 2014 eason.tsai
+** [ALPS01070904] [Need Patch] [Volunteer Patch][MT6630][Driver]MT6630 Wi-Fi Patch
+** revise for cfg80211 disconnect because of timeout
+**
+** 08 09 2013 cp.wu
+** [BORA00002253] [MT6630 Wi-Fi][Driver][Firmware] Add NLO and timeout mechanism to SCN module
+** 1. integrate scheduled scan functionality
+** 2. condition compilation for linux-3.4 & linux-3.8 compatibility
+** 3. correct CMD queue access to reduce lock scope
+**
+** 08 05 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** 1. Add SW rate definition
+** 2. Add HW default rate selection logic from FW
+**
+** 04 30 2013 eason.tsai
+** [BORA00002255] [MT6630 Wi-Fi][Driver] develop
+** update 11ac channel setting
+**
+** 03 12 2013 tsaiyuan.hsu
+** [BORA00002222] MT6630 unified MAC RXM
+** remove hif_rx_hdr usage.
+**
+** 03 08 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Remove non-used compiling flag and code
+**
+** 02 19 2013 cp.wu
+** [BORA00002227] [MT6630 Wi-Fi][Driver] Update for Makefile and HIFSYS modifications
+** take use of GET_BSS_INFO_BY_INDEX() and MAX_BSS_INDEX macros
+** for correctly indexing of BSS-INFO pointers
+**
+** 01 30 2013 yuche.tsai
+** [BORA00002398] [MT6630][Volunteer Patch] P2P Driver Re-Design for Multiple BSS support
+** Code first update.
+**
+** 01 22 2013 cp.wu
+** [BORA00002253] [MT6630 Wi-Fi][Driver][Firmware] Add NLO and timeout mechanism to SCN module
+** modification for ucBssIndex migration
+**
+** 01 16 2013 cp.wu
+** [BORA00002253] [MT6630 Wi-Fi][Driver][Firmware] Add NLO and timeout mechanism to SCN module
+** sync for MT6620/MT6628 main trunk change
+**
+** 12 27 2012 cp.wu
+** [BORA00002253] [MT6630 Wi-Fi][Driver][Firmware] Add NLO and timeout mechanism to SCN module
+** sync. for AP timestamp reset detection
+**
+** 10 25 2012 cp.wu
+** [BORA00002227] [MT6630 Wi-Fi][Driver] Update for Makefile and HIFSYS modifications
+** sync with MT6630 HIFSYS update.
+**
+** 09 17 2012 cm.chang
+** [BORA00002149] [MT6630 Wi-Fi] Initial software development
+** Duplicate source from MT6620 v2.3 driver branch
+** (Davinci label: MT6620_WIFI_Driver_V2_3_120913_1942_As_MT6630_Base)
+**
+** 08 24 2012 cp.wu
+** [WCXRP00001269] [MT6620 Wi-Fi][Driver] cfg80211 porting merge back to DaVinci
+** .
+**
+** 08 24 2012 cp.wu
+** [WCXRP00001269] [MT6620 Wi-Fi][Driver] cfg80211 porting merge back to DaVinci
+** cfg80211 support merge back from ALPS.JB to DaVinci - MT6620 Driver v2.3 branch.
  *
- * The SCAN Profile selection is part of SCAN MODULE and responsible for defining
- * SCAN Parameters - e.g. MIN_CHANNEL_TIME, number of scan channels.
- * In this file we also define the process of SCAN Result including adding, searching
- * and removing SCAN record from the list.
- */
+ * 07 17 2012 yuche.tsai
+ * NULL
+ * Let netdev bring up.
+ *
+ * 07 17 2012 yuche.tsai
+ * NULL
+ * Compile no error before trial run.
+ *
+ * 06 25 2012 cp.wu
+ * [WCXRP00001258] [MT6620][MT5931][MT6628][Driver] Do not use stale scan result for deciding connection target
+ * drop off scan result which is older than 5 seconds when choosing which BSS to join
+ *
+ * 03 02 2012 terry.wu
+ * NULL
+ * Sync CFG80211 modification from branch 2,2.
+ *
+ * 01 16 2012 cp.wu
+ * [WCXRP00001169] [MT6620 Wi-Fi][Driver] API and behavior modification for preferred band
+ * configuration with corresponding network configuration
+ * correct typo.
+ *
+ * 01 16 2012 cp.wu
+ * [MT6620 Wi-Fi][Driver] API and behavior modification for preferred band configuration
+ * with corresponding network configuration
+ * add wlanSetPreferBandByNetwork() for glue layer to invoke for setting preferred
+ * band configuration corresponding to network type.
+ *
+ * 12 05 2011 cp.wu
+ * [WCXRP00001131] [MT6620 Wi-Fi][Driver][AIS] Implement connect-by-BSSID path
+ * add CONNECT_BY_BSSID policy
+ *
+ * 11 23 2011 cp.wu
+ * [WCXRP00001123] [MT6620 Wi-Fi][Driver] Add option to disable beacon content change detection
+ * add compile option to disable beacon content change detection.
+ *
+ * 11 04 2011 cp.wu
+ * [WCXRP00001085] [MT6628 Wi-Fi][Driver] deprecate old BSS-DESC if timestamp
+ * is reset with received beacon/probe response frames
+ * deprecate old BSS-DESC when timestamp in received beacon/probe response frames showed a smaller value than before
+ *
+ * 10 11 2011 cm.chang
+ * [WCXRP00001031] [All Wi-Fi][Driver] Check HT IE length to avoid wrong SCO parameter
+ * Ignore HT OP IE if its length field is not valid
+ *
+ * 09 30 2011 cp.wu
+ * [WCXRP00001021] [MT5931][Driver] Correct scan result generation for conversion between BSS type and operation mode
+ * correct type casting issue.
+ *
+ * 08 23 2011 yuche.tsai
+ * NULL
+ * Fix multicast address list issue.
+ *
+ * 08 11 2011 cp.wu
+ * [WCXRP00000830] [MT6620 Wi-Fi][Firmware] Use MDRDY counter to detect empty channel for shortening scan time
+ * sparse channel detection:
+ * driver: collect sparse channel information with scan-done event
+ *
+ * 08 10 2011 cp.wu
+ * [WCXRP00000922] [MT6620 Wi-Fi][Driver] traverse whole BSS-DESC list for removing
+ * traverse whole BSS-DESC list because BSSID is not unique anymore.
+ *
+ * 07 12 2011 cp.wu
+ * [WCXRP00000815] [MT6620 Wi-Fi][Driver] allow single BSSID with multiple
+ * SSID settings to work around some tricky AP which use space character as hidden SSID
+ * for multiple BSS descriptior detecting issue:
+ * 1) check BSSID for infrastructure network
+ * 2) check SSID for AdHoc network
+ *
+ * 07 12 2011 cp.wu
+ * [WCXRP00000815] [MT6620 Wi-Fi][Driver] allow single BSSID with multiple
+ * SSID settings to work around some tricky AP which use space character as hidden SSID
+ * check for BSSID for beacons used to update DTIM
+ *
+ * 07 12 2011 cp.wu
+ * [WCXRP00000815] [MT6620 Wi-Fi][Driver] allow single BSSID with multiple
+ * SSID settings to work around some tricky AP which use space character as hidden SSID
+ * do not check BSS descriptor for connected flag due to linksys's hidden
+ * SSID will use another BSS descriptor and never connected
+ *
+ * 07 11 2011 cp.wu
+ * [WCXRP00000815] [MT6620 Wi-Fi][Driver] allow single BSSID with multiple
+ * SSID settings to work around some tricky AP which use space character as hidden SSID
+ * just pass beacons with the same BSSID.
+ *
+ * 07 11 2011 wh.su
+ * [WCXRP00000849] [MT6620 Wi-Fi][Driver] Remove some of the WAPI define
+ * for make sure the value is initialize, for customer not enable WAPI
+ * For make sure wapi initial value is set.
+ *
+ * 06 28 2011 cp.wu
+ * [WCXRP00000815] [MT6620 Wi-Fi][Driver] allow single BSSID with multiple
+ * SSID settings to work around some tricky AP which use space character as hidden SSID
+ * Do not check for SSID as beacon content change due to the existence of
+ * single BSSID with multiple SSID AP configuration
+ *
+ * 06 27 2011 cp.wu
+ * [WCXRP00000815] [MT6620 Wi-Fi][Driver] allow single BSSID with multiple
+ * SSID settings to work around some tricky AP which use space character as hidden SSID
+ * 1. correct logic
+ * 2. replace only BSS-DESC which doesn't have a valid SSID.
+ *
+ * 06 27 2011 cp.wu
+ * [WCXRP00000815] [MT6620 Wi-Fi][Driver] allow single BSSID with multiple SSID
+ * settings to work around some tricky AP which use space character as hidden SSID
+ * remove unused temporal variable reference.
+ *
+ * 06 27 2011 cp.wu
+ * [WCXRP00000815] [MT6620 Wi-Fi][Driver] allow single BSSID with multiple SSID
+ * settings to work around some tricky AP which use space character as hidden SSID
+ * allow to have a single BSSID with multiple SSID to be presented in scanning result
+ *
+ * 06 02 2011 cp.wu
+ * [WCXRP00000757] [MT6620 Wi-Fi][Driver][SCN] take use of RLM API to filter out BSS in disallowed channels
+ * filter out BSS in disallowed channel by
+ * 1. do not add to scan result array if BSS is at disallowed channel
+ * 2. do not allow to search for BSS-DESC in disallowed channels
+ *
+ * 05 02 2011 cm.chang
+ * [WCXRP00000691] [MT6620 Wi-Fi][Driver] Workaround about AP's wrong HT capability IE to have wrong channel number
+ * Refine range of valid channel number
+ *
+ * 05 02 2011 cp.wu
+ * [MT6620 Wi-Fi][Driver] Take parsed result for channel information instead of
+ * hardware channel number passed from firmware domain
+ * take parsed result for generating scanning result with channel information.
+ *
+ * 05 02 2011 cm.chang
+ * [WCXRP00000691] [MT6620 Wi-Fi][Driver] Workaround about AP's wrong HT capability IE to have wrong channel number
+ * Check if channel is valided before record ing BSS channel
+ *
+ * 04 18 2011 terry.wu
+ * [WCXRP00000660] [MT6620 Wi-Fi][Driver] Remove flag CFG_WIFI_DIRECT_MOVED
+ * Remove flag CFG_WIFI_DIRECT_MOVED.
+ *
+ * 04 14 2011 cm.chang
+ * [WCXRP00000634] [MT6620 Wi-Fi][Driver][FW] 2nd BSS will not support 40MHz bandwidth for concurrency
+ * .
+ *
+ * 04 12 2011 eddie.chen
+ * [WCXRP00000617] [MT6620 Wi-Fi][DRV/FW] Fix for sigma
+ * Fix the sta index in processing security frame
+ * Simple flow control for TC4 to avoid mgt frames for PS STA to occupy the TC4
+ * Add debug message.
+ *
+ * 03 25 2011 yuche.tsai
+ * NULL
+ * Always update Bss Type, for Bss Type for P2P Network is changing every time.
+ *
+ * 03 23 2011 yuche.tsai
+ * NULL
+ * Fix concurrent issue when AIS scan result would overwrite p2p scan result.
+ *
+ * 03 14 2011 cp.wu
+ * [WCXRP00000535] [MT6620 Wi-Fi][Driver] Fixed channel operation when AIS and Tethering are operating concurrently
+ * filtering out other BSS coming from adjacent channels
+ *
+ * 03 11 2011 chinglan.wang
+ * [WCXRP00000537] [MT6620 Wi-Fi][Driver] Can not connect to 802.11b/g/n mixed AP with WEP security.
+ * .
+ *
+ * 03 11 2011 cp.wu
+ * [WCXRP00000535] [MT6620 Wi-Fi][Driver] Fixed channel operation when AIS and Tethering are operating concurrently
+ * When fixed channel operation is necessary, AIS-FSM would scan and only connect for BSS on the specific channel
+ *
+ * 02 24 2011 cp.wu
+ * [WCXRP00000490] [MT6620 Wi-Fi][Driver][Win32] modify kalMsleep() implementation because NdisMSleep()
+ * won't sleep long enough for specified interval such as 500ms
+ * implement beacon change detection by checking SSID and supported rate.
+ *
+ * 02 22 2011 yuche.tsai
+ * [WCXRP00000480] [Volunteer Patch][MT6620][Driver] WCS IE format issue
+ * Fix WSC big endian issue.
+ *
+ * 02 21 2011 terry.wu
+ * [WCXRP00000476] [MT6620 Wi-Fi][Driver] Clean P2P scan list while removing P2P
+ * Clean P2P scan list while removing P2P.
+ *
+ * 01 27 2011 yuche.tsai
+ * [WCXRP00000399] [Volunteer Patch][MT6620/MT5931][Driver] Fix scan side effect after P2P module separate.
+ * Fix scan channel extension issue when p2p module is not registered.
+ *
+ * 01 26 2011 cm.chang
+ * [WCXRP00000395] [MT6620 Wi-Fi][Driver][FW] Search STA_REC with additional net type index argument
+ * .
+ *
+ * 01 21 2011 cp.wu
+ * [WCXRP00000380] [MT6620 Wi-Fi][Driver] SSID information should come from buffered
+ * BSS_DESC_T rather than using beacon-carried information
+ * SSID should come from buffered prBssDesc rather than beacon-carried information
+ *
+ * 01 14 2011 yuche.tsai
+ * [WCXRP00000352] [Volunteer Patch][MT6620][Driver] P2P Statsion Record Client List Issue
+ * Fix compile error.
+ *
+ * 01 14 2011 yuche.tsai
+ * [WCXRP00000352] [Volunteer Patch][MT6620][Driver] P2P Statsion Record Client List Issue
+ * Memfree for P2P Descriptor & P2P Descriptor List.
+ *
+ * 01 14 2011 yuche.tsai
+ * [WCXRP00000352] [Volunteer Patch][MT6620][Driver] P2P Statsion Record Client List Issue
+ * Free P2P Descriptor List & Descriptor under BSS Descriptor.
+ *
+ * 01 04 2011 cp.wu
+ * [WCXRP00000338] [MT6620 Wi-Fi][Driver] Separate kalMemAlloc into kmalloc
+ * and vmalloc implementations to ease physically continuous memory demands
+ * 1) correct typo in scan.c
+ * 2) TX descriptors, RX descriptos and management buffer should use virtually
+ * continuous buffer instead of physically contineous one
+ *
+ * 01 04 2011 cp.wu
+ * [WCXRP00000338] [MT6620 Wi-Fi][Driver] Separate kalMemAlloc into kmalloc
+ * and vmalloc implementations to ease physically continuous memory demands
+ * separate kalMemAlloc() into virtually-continuous and physically-continuous type to ease slab system pressure
+ *
+ * 12 31 2010 cp.wu
+ * [WCXRP00000327] [MT6620 Wi-Fi][Driver] Improve HEC WHQA 6972 workaround coverage in driver side
+ * while being unloaded, clear all pending interrupt then set LP-own to firmware
+ *
+ * 12 21 2010 cp.wu
+ * [WCXRP00000280] [MT6620 Wi-Fi][Driver] Enable BSS selection with best RCPI policy in SCN module
+ * SCN: enable BEST RSSI selection policy support
+ *
+ * 11 29 2010 cp.wu
+ * [WCXRP00000210] [MT6620 Wi-Fi][Driver][FW] Set RCPI value in STA_REC
+ * for initial TX rate selection of auto-rate algorithm
+ * update ucRcpi of STA_RECORD_T for AIS when
+ * 1) Beacons for IBSS merge is received
+ * 2) Associate Response for a connecting peer is received
+ *
+ * 11 03 2010 wh.su
+ * [WCXRP00000124] [MT6620 Wi-Fi] [Driver] Support the dissolve P2P Group
+ * Refine the HT rate disallow TKIP pairwise cipher .
+ *
+ * 10 12 2010 cp.wu
+ * [WCXRP00000091] [MT6620 Wi-Fi][Driver] Add scanning logic to filter out
+ * beacons which is received on the folding frequency
+ * trust HT IE if available for 5GHz band
+ *
+ * 10 11 2010 cp.wu
+ * [WCXRP00000091] [MT6620 Wi-Fi][Driver] Add scanning logic to filter out
+ * beacons which is received on the folding frequency
+ * add timing and strenght constraint for filtering out beacons with same SSID/TA but received on different channels
+ *
+ * 10 08 2010 wh.su
+ * [WCXRP00000085] [MT6620 Wif-Fi] [Driver] update the modified p2p state machine
+ * update the frog's new p2p state machine.
+ *
+ * 10 01 2010 yuche.tsai
+ * NULL
+ * [MT6620 P2P] Fix Big Endian Issue when parse P2P device name TLV.
+ *
+ * 09 24 2010 cp.wu
+ * [WCXRP00000052] [MT6620 Wi-Fi][Driver] Eliminate Linux Compile Warning
+ * eliminate unused variables which lead gcc to argue
+ *
+ * 09 08 2010 cp.wu
+ * NULL
+ * use static memory pool for storing IEs of scanning result.
+ *
+ * 09 07 2010 yuche.tsai
+ * NULL
+ * When indicate scan result, append IE buffer information in the scan result.
+ *
+ * 09 03 2010 yuche.tsai
+ * NULL
+ * 1. Update Beacon RX count when running SLT.
+ * 2. Ignore Beacon when running SLT, would not update information from Beacon.
+ *
+ * 09 03 2010 kevin.huang
+ * NULL
+ * Refine #include sequence and solve recursive/nested #include issue
+ *
+ * 08 31 2010 kevin.huang
+ * NULL
+ * Use LINK LIST operation to process SCAN result
+ *
+ * 08 29 2010 yuche.tsai
+ * NULL
+ * 1. Fix P2P Descriptor List to be a link list, to avoid link corrupt after Bss Descriptor Free.
+ * 2.. Fix P2P Device Name Length BE issue.
+ *
+ * 08 23 2010 yuche.tsai
+ * NULL
+ * Add P2P Device Found Indication to supplicant
+ *
+ * 08 20 2010 cp.wu
+ * NULL
+ * reset BSS_DESC_T variables before parsing IE due to peer might have been reconfigured.
+ *
+ * 08 20 2010 yuche.tsai
+ * NULL
+ * Workaround for P2P Descriptor Infinite loop issue.
+ *
+ * 08 16 2010 cp.wu
+ * NULL
+ * Replace CFG_SUPPORT_BOW by CFG_ENABLE_BT_OVER_WIFI.
+ * There is no CFG_SUPPORT_BOW in driver domain source.
+ *
+ * 08 16 2010 yuche.tsai
+ * NULL
+ * Modify code of processing Probe Resonse frame for P2P.
+ *
+ * 08 12 2010 yuche.tsai
+ * NULL
+ * Add function to get P2P descriptor of BSS descriptor directly.
+ *
+ * 08 11 2010 yuche.tsai
+ * NULL
+ * Modify Scan result processing for P2P module.
+ *
+ * 08 05 2010 yuche.tsai
+ * NULL
+ * Update P2P Device Discovery result add function.
+ *
+ * 08 03 2010 cp.wu
+ * NULL
+ * surpress compilation warning.
+ *
+ * 07 26 2010 yuche.tsai
+ *
+ * Add support for Probe Request & Response parsing.
+ *
+ * 07 21 2010 cp.wu
+ *
+ * 1) change BG_SCAN to ONLINE_SCAN for consistent term
+ * 2) only clear scanning result when scan is permitted to do
+ *
+ * 07 21 2010 yuche.tsai
+ *
+ * Fix compile error for SCAN module while disabling P2P feature.
+ *
+ * 07 21 2010 yuche.tsai
+ *
+ * Add P2P Scan & Scan Result Parsing & Saving.
+ *
+ * 07 19 2010 wh.su
+ *
+ * update for security supporting.
+ *
+ * 07 19 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration.
+ * Add Ad-Hoc support to AIS-FSM
+ *
+ * 07 19 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration.
+ * SCN module is now able to handle multiple concurrent scanning requests
+ *
+ * 07 15 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration.
+ * driver no longer generates probe request frames
+ *
+ * 07 14 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration.
+ * remove timer in DRV-SCN.
+ *
+ * 07 09 2010 cp.wu
+ *
+ * 1) separate AIS_FSM state for two kinds of scanning. (OID triggered scan, and scan-for-connection)
+ * 2) eliminate PRE_BSS_DESC_T, Beacon/PrebResp is now parsed in single pass
+ * 3) implment DRV-SCN module, currently only accepts single scan request,
+ * other request will be directly dropped by returning BUSY
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 07 08 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * take use of RLM module for parsing/generating HT IEs for 11n capability
+ *
+ * 07 05 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * 1) ignore RSN checking when RSN is not turned on.
+ * 2) set STA-REC deactivation callback as NULL
+ * 3) add variable initialization API based on PHY configuration
+ *
+ * 07 05 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * correct BSS_DESC_T initialization after allocated.
+ *
+ * 07 02 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * 1) for event packet, no need to fill RFB.
+ * 2) when wlanAdapterStart() failed, no need to initialize state machines
+ * 3) after Beacon/ProbeResp parsing, corresponding BSS_DESC_T should be marked as IE-parsed
+ *
+ * 07 01 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * add scan uninitialization procedure
+ *
+ * 06 30 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * if beacon/probe-resp is received in 2.4GHz bands and there is ELEM_ID_DS_PARAM_SET IE available,
+ * trust IE instead of RMAC information
+ *
+ * 06 29 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * 1) sync to. CMD/EVENT document v0.03
+ * 2) simplify DTIM period parsing in scan.c only, bss.c no longer parses it again.
+ * 3) send command packet to indicate FW-PM after
+ *     a) 1st beacon is received after AIS has connected to an AP
+ *     b) IBSS-ALONE has been created
+ *     c) IBSS-MERGE has occurred
+ *
+ * 06 28 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * send MMPDU in basic rate.
+ *
+ * 06 25 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * modify Beacon/ProbeResp to complete parsing,
+ * because host software has looser memory usage restriction
+ *
+ * 06 23 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * integrate .
+ *
+ * 06 22 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * comment out RLM APIs by CFG_RLM_MIGRATION.
+ *
+ * 06 21 2010 yuche.tsai
+ * [WPD00003839][MT6620 5931][P2P] Feature migration
+ * Update P2P Function call.
+ *
+ * 06 21 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * RSN/PRIVACY compilation flag awareness correction
+ *
+ * 06 21 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * specify correct value for management frames.
+ *
+ * 06 18 2010 cm.chang
+ * [WPD00003841][LITE Driver] Migrate RLM/CNM to host driver
+ * Provide cnmMgtPktAlloc() and alloc/free function of msg/buf
+ *
+ * 06 18 2010 wh.su
+ * [WPD00003840][MT6620 5931] Security migration
+ * migration from MT6620 firmware.
+ *
+ * 06 17 2010 yuche.tsai
+ * [WPD00003839][MT6620 5931][P2P] Feature migration
+ * Fix compile error when enable P2P function.
+ *
+ * 06 15 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * correct when ADHOC support is turned on.
+ *
+ * 06 15 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * add scan.c.
+ *
+ * 06 04 2010 george.huang
+ * [BORA00000678][MT6620]WiFi LP integration
+ * [PM] Support U-APSD for STA mode
+ *
+ * 05 28 2010 wh.su
+ * [BORA00000680][MT6620] Support the statistic for Microsoft os query
+ * adding the TKIP disallow join a HT AP code.
+ *
+ * 05 14 2010 kevin.huang
+ * [BORA00000794][WIFISYS][New Feature]Power Management Support
+ * Add more chance of JOIN retry for BG_SCAN
+ *
+ * 05 12 2010 kevin.huang
+ * [BORA00000794][WIFISYS][New Feature]Power Management Support
+ * Add Power Management - Legacy PS-POLL support.
+ *
+ * 04 29 2010 wh.su
+ * [BORA00000637][MT6620 Wi-Fi] [Bug] WPA2 pre-authentication timer not correctly initialize
+ * adjsut the pre-authentication code.
+ *
+ * 04 27 2010 kevin.huang
+ * [BORA00000663][WIFISYS][New Feature] AdHoc Mode Support
+ * Add Set Slot Time and Beacon Timeout Support for AdHoc Mode
+ *
+ * 04 24 2010 cm.chang
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * g_aprBssInfo[] depends on CFG_SUPPORT_P2P and CFG_SUPPORT_BOW
+ *
+ * 04 19 2010 kevin.huang
+ * [BORA00000714][WIFISYS][New Feature]Beacon Timeout Support
+ * Add Beacon Timeout Support and will send Null frame to diagnose connection
+ *
+ * 04 13 2010 kevin.huang
+ * [BORA00000663][WIFISYS][New Feature] AdHoc Mode Support
+ * Add new HW CH macro support
+ *
+ * 04 06 2010 wh.su
+ * [BORA00000680][MT6620] Support the statistic for Microsoft os query
+ * fixed the firmware return the broadcast frame at wrong tc.
+ *
+ * 03 29 2010 wh.su
+ * [BORA00000605][WIFISYS] Phase3 Integration
+ * let the rsn wapi IE always parsing.
+ *
+ * 03 24 2010 cm.chang
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * Not carry  HT cap when being associated with b/g only AP
+ *
+ * 03 18 2010 kevin.huang
+ * [BORA00000663][WIFISYS][New Feature] AdHoc Mode Support
+ * Solve the compile warning for 'return non-void' function
+ *
+ * 03 16 2010 kevin.huang
+ * [BORA00000663][WIFISYS][New Feature] AdHoc Mode Support
+ * Add AdHoc Mode
+ *
+ * 03 10 2010 kevin.huang
+ * [BORA00000654][WIFISYS][New Feature] CNM Module - Ch Manager Support
+ *
+ *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  * Add Channel Manager for arbitration of JOIN and SCAN Req
+ *
+ * 03 03 2010 wh.su
+ * [BORA00000637][MT6620 Wi-Fi] [Bug] WPA2 pre-authentication timer not correctly initialize
+ * move the AIS specific variable for security to AIS specific structure.
+ *
+ * 03 01 2010 wh.su
+ * [BORA00000605][WIFISYS] Phase3 Integration
+ * Refine the variable and parameter for security.
+ *
+ * 02 26 2010 kevin.huang
+ * [BORA00000603][WIFISYS] [New Feature] AAA Module Support
+ * Fix No PKT_INFO_T issue
+ *
+ * 02 26 2010 kevin.huang
+ * [BORA00000603][WIFISYS] [New Feature] AAA Module Support
+ * Update outgoing ProbeRequest Frame's TX data rate
+ *
+ * 02 23 2010 wh.su
+ * [BORA00000592][MT6620 Wi-Fi] Adding the security related code for driver
+ * refine the scan procedure, reduce the WPA and WAPI IE parsing, and move the parsing to the time for join.
+ *
+ * 02 23 2010 kevin.huang
+ * [BORA00000603][WIFISYS] [New Feature] AAA Module Support
+ * Add support scan channel 1~14 and update scan result's frequency infou1rwduu`wvpghlqg|n`slk+mpdkb
+ *
+ * 02 04 2010 kevin.huang
+ * [BORA00000603][WIFISYS] [New Feature] AAA Module Support
+ * Add AAA Module Support, Revise Net Type to Net Type Index for array lookup
+ *
+ * 01 27 2010 wh.su
+ * [BORA00000476][Wi-Fi][firmware] Add the security module initialize code
+ * add and fixed some security function.
+ *
+ * 01 22 2010 cm.chang
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * Support protection and bandwidth switch
+ *
+ * 01 20 2010 kevin.huang
+ * [BORA00000569][WIFISYS] Phase 2 Integration Test
+ * Add PHASE_2_INTEGRATION_WORK_AROUND and CFG_SUPPORT_BCM flags
+ *
+ * 01 11 2010 kevin.huang
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * Add Deauth and Disassoc Handler
+ *
+ * 01 08 2010 kevin.huang
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ *
+ * Refine Beacon processing, add read RF channel from RX Status
+ *
+ * 01 04 2010 tehuang.liu
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * For working out the first connection Chariot-verified version
+ *
+ * 12 18 2009 cm.chang
+ * [BORA00000018]Integrate WIFI part into BORA for the 1st time
+ * .
+ *
+ * Dec 12 2009 mtk01104
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Modify u2EstimatedExtraIELen for probe request
+ *
+ * Dec 9 2009 mtk01104
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Add HT cap IE to probe request
+ *
+ * Dec 7 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Fix lint warning
+ *
+ *
+ * Dec 3 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Update the process of SCAN Result by adding more Phy Attributes
+ *
+ * Dec 1 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adjust the function and code for meet the new define
+ *
+ * Nov 30 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Rename u4RSSI to i4RSSI
+ *
+ * Nov 30 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Report event of scan result to host
+ *
+ * Nov 26 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Fix SCAN Record update
+ *
+ * Nov 24 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Revise MGMT Handler with Retain Status and Integrate with TXM
+ *
+ * Nov 23 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Add (Ext)Support Rate Set IE to ProbeReq
+ *
+ * Nov 20 2009 mtk02468
+ * [BORA00000337] To check in codes for FPGA emulation
+ * Removed the use of SW_RFB->u2FrameLength
+ *
+ * Nov 20 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Fix uninitial aucMacAddress[] for ProbeReq
+ *
+ * Nov 16 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Add scanSearchBssDescByPolicy()
+ *
+ * Nov 5 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ * Add Send Probe Request Frame
+ *
+ * Oct 30 2009 mtk01461
+ * [BORA00000018] Integrate WIFI part into BORA for the 1st time
+ *
+*/
 
 /*******************************************************************************
 *                         C O M P I L E R   F L A G S
@@ -47,44 +742,6 @@
 #define REPLICATED_BEACON_STRENGTH_THRESHOLD    (32)
 
 #define ROAMING_NO_SWING_RCPI_STEP              (10)
-
-#define RSSI_HI_5GHZ	(-60)
-#define RSSI_MED_5GHZ	(-70)
-#define RSSI_LO_5GHZ	(-80)
-
-#define PREF_HI_5GHZ	(20)
-#define PREF_MED_5GHZ	(15)
-#define PREF_LO_5GHZ	(10)
-
-/*
-  * definition for AP selection algrithm
-*/
-#define BSS_FULL_SCORE                          100
-#define CHNL_BSS_NUM_THRESOLD                   100
-#define BSS_STA_CNT_THRESOLD                    30
-#define SCORE_PER_AP                            1
-#define ROAMING_NO_SWING_SCORE_STEP             10
-#define HARD_TO_CONNECT_RSSI_THRESOLD           -80
-
-#define WEIGHT_IDX_CHNL_UTIL                    2
-#define WEIGHT_IDX_SNR                          3
-#define WEIGHT_IDX_RSSI                         3
-#define WEIGHT_IDX_SCN_MISS_CNT                 2
-#define WEIGHT_IDX_PROBE_RSP                    1
-#define WEIGHT_IDX_CLIENT_CNT                   3
-#define WEIGHT_IDX_AP_NUM                       2
-#define WEIGHT_IDX_5G_BAND                      2
-#define WEIGHT_IDX_BAND_WIDTH                   1
-#define WEIGHT_IDX_STBC                         1
-#define WEIGHT_IDX_DEAUTH_LAST                  1
-#define WEIGHT_IDX_BLACK_LIST                   2
-
-INT_32 rssiRangeHi = RSSI_HI_5GHZ;
-INT_32 rssiRangeMed = RSSI_MED_5GHZ;
-INT_32 rssiRangeLo = RSSI_LO_5GHZ;
-UINT_8 pref5GhzHi = PREF_HI_5GHZ;
-UINT_8 pref5GhzMed = PREF_MED_5GHZ;
-UINT_8 pref5GhzLo = PREF_LO_5GHZ;
 
 /*******************************************************************************
 *                             D A T A   T Y P E S
@@ -128,16 +785,13 @@ VOID scnInit(IN P_ADAPTER_T prAdapter)
 {
 	P_SCAN_INFO_T prScanInfo;
 	P_BSS_DESC_T prBSSDesc;
-	P_ROAM_BSS_DESC_T prRoamBSSDesc;
 	PUINT_8 pucBSSBuff;
-	PUINT_8 pucRoamBSSBuff;
 	UINT_32 i;
 
 	ASSERT(prAdapter);
 
 	prScanInfo = &(prAdapter->rWifiVar.rScanInfo);
 	pucBSSBuff = &prScanInfo->aucScanBuffer[0];
-	pucRoamBSSBuff = &prScanInfo->aucScanRoamBuffer[0];
 
 	DBGLOG(SCN, INFO, "->scnInit()\n");
 
@@ -150,12 +804,9 @@ VOID scnInit(IN P_ADAPTER_T prAdapter)
 
 	/* 4 <2> Reset link list of BSS_DESC_T */
 	kalMemZero((PVOID) pucBSSBuff, SCN_MAX_BUFFER_SIZE);
-	kalMemZero((PVOID) pucRoamBSSBuff, SCN_ROAM_MAX_BUFFER_SIZE);
 
 	LINK_INITIALIZE(&prScanInfo->rFreeBSSDescList);
 	LINK_INITIALIZE(&prScanInfo->rBSSDescList);
-	LINK_INITIALIZE(&prScanInfo->rRoamFreeBSSDescList);
-	LINK_INITIALIZE(&prScanInfo->rRoamBSSDescList);
 
 	for (i = 0; i < CFG_MAX_NUM_BSS_LIST; i++) {
 
@@ -168,52 +819,30 @@ VOID scnInit(IN P_ADAPTER_T prAdapter)
 	/* Check if the memory allocation consist with this initialization function */
 	ASSERT(((ULONG) pucBSSBuff - (ULONG)&prScanInfo->aucScanBuffer[0]) == SCN_MAX_BUFFER_SIZE);
 
-	for (i = 0; i < CFG_MAX_NUM_ROAM_BSS_LIST; i++) {
-		prRoamBSSDesc = (P_ROAM_BSS_DESC_T) pucRoamBSSBuff;
-
-		LINK_INSERT_TAIL(&prScanInfo->rRoamFreeBSSDescList, &prRoamBSSDesc->rLinkEntry);
-
-		pucRoamBSSBuff += ALIGN_4(sizeof(ROAM_BSS_DESC_T));
-	}
-	ASSERT(((ULONG)pucRoamBSSBuff - (ULONG)&prScanInfo->aucScanRoamBuffer[0]) ==
-	       SCN_ROAM_MAX_BUFFER_SIZE);
 	/* reset freest channel information */
 	prScanInfo->fgIsSparseChannelValid = FALSE;
 
 	/* reset NLO state */
 	prScanInfo->fgNloScanning = FALSE;
 #if CFG_SUPPORT_SCN_PSCN
-	prScanInfo->fgPscnOngoing = FALSE;
+	prScanInfo->fgPscnOnnning = FALSE;
+	prScanInfo->prPscnParam = NULL;
 	prScanInfo->fgGScnConfigSet = FALSE;
+	prScanInfo->fgGscnGetResWaiting = FALSE;
 	prScanInfo->fgGScnParamSet = FALSE;
-	prScanInfo->prPscnParam = kalMemAlloc(sizeof(CMD_SET_PSCAN_PARAM), VIR_MEM_TYPE);
-	if (!(prScanInfo->prPscnParam)) {
-		DBGLOG(SCN, ERROR, "Alloc memory for CMD_SET_PSCAN_PARAM fail\n");
-		return;
-	}
-	kalMemZero(prScanInfo->prPscnParam, sizeof(CMD_SET_PSCAN_PARAM));
+	prScanInfo->prPscnParam = kalMemAlloc(sizeof(PSCN_PARAM_T), VIR_MEM_TYPE);
+	kalMemZero(prScanInfo->prPscnParam, sizeof(PSCN_PARAM_T));
 
 	prScanInfo->eCurrentPSCNState = PSCN_IDLE;
-#endif
 
-#if CFG_SUPPORT_GSCN
-	prScanInfo->prGscnFullResult = kalMemAlloc(offsetof(PARAM_WIFI_GSCAN_FULL_RESULT, ie_data)
-			+ CFG_IE_BUFFER_SIZE, VIR_MEM_TYPE);
-	if (!(prScanInfo->prGscnFullResult)) {
-#if CFG_SUPPORT_SCN_PSCN
-		kalMemFree(prScanInfo->prPscnParam, VIR_MEM_TYPE, sizeof(CMD_SET_PSCAN_PARAM));
-#endif
-		DBGLOG(SCN, ERROR, "Alloc memory for PARAM_WIFI_GSCAN_FULL_RESULT fail\n");
-		return;
-	}
-	kalMemZero(prScanInfo->prGscnFullResult,
-		offsetof(PARAM_WIFI_GSCAN_FULL_RESULT, ie_data) + CFG_IE_BUFFER_SIZE);
+	cnmTimerInitTimer(prAdapter,
+			  &prScanInfo->rWaitForGscanResutsTimer,
+			  (PFN_MGMT_TIMEOUT_FUNC) scnGscnGetResultReplyCheckTimeout, (ULONG) NULL);
 #endif
 
 	cnmTimerInitTimer(prAdapter,
 			  &prScanInfo->rScanDoneTimer, (PFN_MGMT_TIMEOUT_FUNC) scnScanDoneTimeout, (ULONG) NULL);
 	prScanInfo->ucScanDoneTimeoutCnt = 0;
-	prScanInfo->u4ScanUpdateIdx = 0;
 
 }				/* end of scnInit() */
 
@@ -276,20 +905,7 @@ VOID scnUninit(IN P_ADAPTER_T prAdapter)
 	/* 4 <2> Reset link list of BSS_DESC_T */
 	LINK_INITIALIZE(&prScanInfo->rFreeBSSDescList);
 	LINK_INITIALIZE(&prScanInfo->rBSSDescList);
-	LINK_INITIALIZE(&prScanInfo->rRoamFreeBSSDescList);
-	LINK_INITIALIZE(&prScanInfo->rRoamBSSDescList);
-#if CFG_SUPPORT_SCN_PSCN
-	kalMemFree(prScanInfo->prPscnParam, VIR_MEM_TYPE, sizeof(CMD_SET_PSCAN_PARAM));
 
-	prScanInfo->eCurrentPSCNState = PSCN_IDLE;
-#endif
-
-#if CFG_SUPPORT_GSCN
-	kalMemFree(prScanInfo->prGscnFullResult, VIR_MEM_TYPE,
-		offsetof(PARAM_WIFI_GSCAN_FULL_RESULT, ie_data) + CFG_IE_BUFFER_SIZE);
-#endif
-
-	cnmTimerStopTimer(prAdapter, &prScanInfo->rScanDoneTimer);
 }				/* end of scnUninit() */
 
 /*----------------------------------------------------------------------------*/
@@ -348,10 +964,8 @@ scanSearchBssDescByBssidAndSsid(IN P_ADAPTER_T prAdapter,
 			} else if (prDstBssDesc == NULL && prBssDesc->fgIsHiddenSSID == TRUE) {
 				prDstBssDesc = prBssDesc;
 			} else if (prBssDesc->eBSSType == BSS_TYPE_P2P_DEVICE) {
-				/*
-				 * 20120206 frog: Equal BSSID but not SSID,
-				 * SSID not hidden, SSID must be updated.
-				 */
+				/* 20120206 frog: Equal BSSID but not SSID,
+				 * SSID not hidden, SSID must be updated. */
 				COPY_SSID(prBssDesc->aucSSID,
 					  prBssDesc->ucSSIDLen, prSsid->aucSsid, (UINT_8) (prSsid->u4SsidLen));
 				return prBssDesc;
@@ -360,6 +974,7 @@ scanSearchBssDescByBssidAndSsid(IN P_ADAPTER_T prAdapter,
 	}
 
 	return prDstBssDesc;
+
 }				/* end of scanSearchBssDescByBssid() */
 
 /*----------------------------------------------------------------------------*/
@@ -445,139 +1060,6 @@ scanSearchExistingBssDesc(IN P_ADAPTER_T prAdapter,
 	return scanSearchExistingBssDescWithSsid(prAdapter, eBSSType, aucBSSID, aucSrcAddr, FALSE, NULL);
 }
 
-VOID scanRemoveRoamBssDescsByTime(IN P_ADAPTER_T prAdapter, IN UINT_32 u4RemoveTime)
-{
-	P_SCAN_INFO_T prScanInfo;
-	P_LINK_T prRoamBSSDescList;
-	P_LINK_T prRoamFreeBSSDescList;
-	P_ROAM_BSS_DESC_T prRoamBssDesc;
-	P_ROAM_BSS_DESC_T prRoamBSSDescNext;
-	OS_SYSTIME rCurrentTime;
-
-	ASSERT(prAdapter);
-
-	prScanInfo = &(prAdapter->rWifiVar.rScanInfo);
-	prRoamBSSDescList = &prScanInfo->rRoamBSSDescList;
-	prRoamFreeBSSDescList = &prScanInfo->rRoamFreeBSSDescList;
-
-	GET_CURRENT_SYSTIME(&rCurrentTime);
-
-	LINK_FOR_EACH_ENTRY_SAFE(prRoamBssDesc, prRoamBSSDescNext, prRoamBSSDescList, rLinkEntry,
-				 ROAM_BSS_DESC_T) {
-
-		if (CHECK_FOR_TIMEOUT(rCurrentTime, prRoamBssDesc->rUpdateTime,
-				      SEC_TO_SYSTIME(u4RemoveTime))) {
-
-			LINK_REMOVE_KNOWN_ENTRY(prRoamBSSDescList, prRoamBssDesc);
-			LINK_INSERT_TAIL(prRoamFreeBSSDescList, &prRoamBssDesc->rLinkEntry);
-		}
-	}
-}
-
-P_ROAM_BSS_DESC_T
-scanSearchRoamBssDescBySsid(IN P_ADAPTER_T prAdapter, IN P_BSS_DESC_T prBssDesc)
-{
-	P_SCAN_INFO_T prScanInfo;
-	P_LINK_T prRoamBSSDescList;
-	P_ROAM_BSS_DESC_T prRoamBssDesc;
-
-	ASSERT(prAdapter);
-
-	prScanInfo = &(prAdapter->rWifiVar.rScanInfo);
-
-	prRoamBSSDescList = &prScanInfo->rRoamBSSDescList;
-
-	/* Search BSS Desc from current SCAN result list. */
-	LINK_FOR_EACH_ENTRY(prRoamBssDesc, prRoamBSSDescList, rLinkEntry, ROAM_BSS_DESC_T) {
-		if (EQUAL_SSID(prRoamBssDesc->aucSSID, prRoamBssDesc->ucSSIDLen,
-				       prBssDesc->aucSSID, prBssDesc->ucSSIDLen)) {
-			return prRoamBssDesc;
-		}
-	}
-
-	return NULL;
-
-}
-
-P_ROAM_BSS_DESC_T scanAllocateRoamBssDesc(IN P_ADAPTER_T prAdapter)
-{
-	P_SCAN_INFO_T prScanInfo;
-	P_LINK_T prRoamFreeBSSDescList;
-	P_ROAM_BSS_DESC_T prRoamBssDesc = NULL;
-
-	ASSERT(prAdapter);
-	prScanInfo = &(prAdapter->rWifiVar.rScanInfo);
-
-	prRoamFreeBSSDescList = &prScanInfo->rRoamFreeBSSDescList;
-
-	LINK_REMOVE_HEAD(prRoamFreeBSSDescList, prRoamBssDesc, P_ROAM_BSS_DESC_T);
-
-	if (prRoamBssDesc) {
-		P_LINK_T prRoamBSSDescList;
-
-		kalMemZero(prRoamBssDesc, sizeof(ROAM_BSS_DESC_T));
-
-		prRoamBSSDescList = &prScanInfo->rRoamBSSDescList;
-
-		LINK_INSERT_HEAD(prRoamBSSDescList, &prRoamBssDesc->rLinkEntry);
-	}
-
-	return prRoamBssDesc;
-}
-
-VOID scanAddToRoamBssDesc(IN P_ADAPTER_T prAdapter, IN P_BSS_DESC_T prBssDesc)
-{
-	P_ROAM_BSS_DESC_T prRoamBssDesc;
-
-	prRoamBssDesc = scanSearchRoamBssDescBySsid(prAdapter, prBssDesc);
-
-	if (prRoamBssDesc == NULL) {
-		UINT_32 u4RemoveTime = REMOVE_TIMEOUT_TWO_DAY;
-
-		do {
-			prRoamBssDesc = scanAllocateRoamBssDesc(prAdapter);
-			if (prRoamBssDesc)
-				break;
-			scanRemoveRoamBssDescsByTime(prAdapter, u4RemoveTime);
-			u4RemoveTime = u4RemoveTime / 2;
-		} while (u4RemoveTime > 0);
-
-		COPY_SSID(prRoamBssDesc->aucSSID, prRoamBssDesc->ucSSIDLen,
-				prBssDesc->aucSSID, prBssDesc->ucSSIDLen);
-	}
-
-	GET_CURRENT_SYSTIME(&prRoamBssDesc->rUpdateTime);
-}
-
-VOID scanSearchBssDescOfRoamSsid(IN P_ADAPTER_T prAdapter)
-{
-#define SSID_ONLY_EXIST_ONE_AP      1    /* If only exist one same ssid AP, avoid unnecessary scan */
-
-	P_SCAN_INFO_T prScanInfo;
-	P_LINK_T prBSSDescList;
-	P_BSS_DESC_T prBssDesc;
-	P_BSS_INFO_T prAisBssInfo;
-	UINT_32	u4SameSSIDCount = 0;
-
-	prAisBssInfo = prAdapter->prAisBssInfo;
-	prScanInfo = &(prAdapter->rWifiVar.rScanInfo);
-	prBSSDescList = &prScanInfo->rBSSDescList;
-
-	if (prAisBssInfo->eConnectionState != PARAM_MEDIA_STATE_CONNECTED)
-		return;
-
-	LINK_FOR_EACH_ENTRY(prBssDesc, prBSSDescList, rLinkEntry, BSS_DESC_T) {
-		if (EQUAL_SSID(prBssDesc->aucSSID, prBssDesc->ucSSIDLen,
-				       prAisBssInfo->aucSSID, prAisBssInfo->ucSSIDLen)) {
-			u4SameSSIDCount++;
-			if (u4SameSSIDCount > SSID_ONLY_EXIST_ONE_AP) {
-				scanAddToRoamBssDesc(prAdapter, prBssDesc);
-				break;
-			}
-		}
-	}
-}
-
 /*----------------------------------------------------------------------------*/
 /*!
 * @brief Find the corresponding BSS Descriptor according to
@@ -611,7 +1093,6 @@ scanSearchExistingBssDescWithSsid(IN P_ADAPTER_T prAdapter,
 	case BSS_TYPE_P2P_DEVICE:
 		fgCheckSsid = FALSE;
 	case BSS_TYPE_INFRASTRUCTURE:
-		scanSearchBssDescOfRoamSsid(prAdapter);
 	case BSS_TYPE_BOW_DEVICE:
 		{
 			prBssDesc = scanSearchBssDescByBssidAndSsid(prAdapter, aucBSSID, fgCheckSsid, prSsid);
@@ -696,7 +1177,6 @@ VOID scanRemoveBssDescsByPolicy(IN P_ADAPTER_T prAdapter, IN UINT_32 u4RemovePol
 	P_LINK_T prBSSDescList;
 	P_LINK_T prFreeBSSDescList;
 	P_BSS_DESC_T prBssDesc;
-	P_LINK_T prEssList = &prAdapter->rWifiVar.rAisSpecificBssInfo.rCurEssLink;
 
 	ASSERT(prAdapter);
 
@@ -726,21 +1206,12 @@ VOID scanRemoveBssDescsByPolicy(IN P_ADAPTER_T prAdapter, IN UINT_32 u4RemovePol
 			if (CHECK_FOR_TIMEOUT(rCurrentTime, prBssDesc->rUpdateTime,
 					      SEC_TO_SYSTIME(SCN_BSS_DESC_REMOVE_TIMEOUT_SEC))) {
 
-				/*
-				 * DBGLOG(SCN, TRACE, ("Remove TIMEOUT BSS DESC(%#x):
-				 * MAC: "MACSTR", Current Time = %08lx, Update Time = %08lx\n",
-				 */
+				/* DBGLOG(SCN, TRACE, ("Remove TIMEOUT BSS DESC(%#x):
+				 * MAC: "MACSTR", Current Time = %08lx, Update Time = %08lx\n", */
 				/* prBssDesc, MAC2STR(prBssDesc->aucBSSID), rCurrentTime, prBssDesc->rUpdateTime)); */
-				if (!prBssDesc->prBlack)
-					aisQueryBlackList(prAdapter, prBssDesc);
-				if (prBssDesc->prBlack)
-					prBssDesc->prBlack->u8DisapperTime = kalGetBootTime();
 
 				/* Remove this BSS Desc from the BSS Desc list */
 				LINK_REMOVE_KNOWN_ENTRY(prBSSDescList, prBssDesc);
-				/* Remove this BSS Desc from the Ess Desc List */
-				if (LINK_ENTRY_IS_VALID(&prBssDesc->rLinkEntryEss))
-					LINK_REMOVE_KNOWN_ENTRY(prEssList, &prBssDesc->rLinkEntryEss);
 
 				/* Return this BSS Desc to the free BSS Desc list. */
 				LINK_INSERT_TAIL(prFreeBSSDescList, &prBssDesc->rLinkEntry);
@@ -771,21 +1242,12 @@ VOID scanRemoveBssDescsByPolicy(IN P_ADAPTER_T prAdapter, IN UINT_32 u4RemovePol
 		}
 
 		if (prBssDescOldest) {
-			/*
-			 * DBGLOG(SCN, TRACE,
-			 * ("Remove OLDEST HIDDEN BSS DESC(%#x): MAC: "MACSTR", Update Time = %08lx\n",
-			 */
+			/* DBGLOG(SCN, TRACE,
+			 * ("Remove OLDEST HIDDEN BSS DESC(%#x): MAC: "MACSTR", Update Time = %08lx\n", */
 			/* prBssDescOldest, MAC2STR(prBssDescOldest->aucBSSID), prBssDescOldest->rUpdateTime)); */
-			if (!prBssDescOldest->prBlack)
-				aisQueryBlackList(prAdapter, prBssDescOldest);
-			if (prBssDescOldest->prBlack)
-				prBssDescOldest->prBlack->u8DisapperTime = kalGetBootTime();
 
 			/* Remove this BSS Desc from the BSS Desc list */
 			LINK_REMOVE_KNOWN_ENTRY(prBSSDescList, prBssDescOldest);
-			/* Remove this BSS Desc from the Ess Desc List */
-			if (LINK_ENTRY_IS_VALID(&prBssDescOldest->rLinkEntryEss))
-				LINK_REMOVE_KNOWN_ENTRY(prEssList, &prBssDescOldest->rLinkEntryEss);
 
 			/* Return this BSS Desc to the free BSS Desc list. */
 			LINK_INSERT_TAIL(prFreeBSSDescList, &prBssDescOldest->rLinkEntry);
@@ -814,8 +1276,6 @@ VOID scanRemoveBssDescsByPolicy(IN P_ADAPTER_T prAdapter, IN UINT_32 u4RemovePol
 					prBssDescWeakestSameSSID = prBssDesc;
 				else if (prBssDesc->ucRCPI < prBssDescWeakestSameSSID->ucRCPI)
 					prBssDescWeakestSameSSID = prBssDesc;
-				if (u4SameSSIDCount < SCN_BSS_DESC_SAME_SSID_THRESHOLD)
-					continue;
 			}
 
 			if (!prBssDescWeakest) {	/* 1st element */
@@ -835,22 +1295,15 @@ VOID scanRemoveBssDescsByPolicy(IN P_ADAPTER_T prAdapter, IN UINT_32 u4RemovePol
 
 			/* DBGLOG(SCN, TRACE, ("Remove WEAKEST BSS DESC(%#x): MAC: "MACSTR", Update Time = %08lx\n", */
 			/* prBssDescOldest, MAC2STR(prBssDescOldest->aucBSSID), prBssDescOldest->rUpdateTime)); */
-			if (!prBssDescWeakest->prBlack)
-				aisQueryBlackList(prAdapter, prBssDescWeakest);
-			if (prBssDescWeakest->prBlack)
-				prBssDescWeakest->prBlack->u8DisapperTime = kalGetBootTime();
 
 			/* Remove this BSS Desc from the BSS Desc list */
 			LINK_REMOVE_KNOWN_ENTRY(prBSSDescList, prBssDescWeakest);
-			/* Remove this BSS Desc from the Ess Desc List */
-			if (LINK_ENTRY_IS_VALID(&prBssDescWeakest->rLinkEntryEss))
-				LINK_REMOVE_KNOWN_ENTRY(prEssList, &prBssDescWeakest->rLinkEntryEss);
+
 			/* Return this BSS Desc to the free BSS Desc list. */
 			LINK_INSERT_TAIL(prFreeBSSDescList, &prBssDescWeakest->rLinkEntry);
 		}
 	} else if (u4RemovePolicy & SCN_RM_POLICY_ENTIRE) {
 		P_BSS_DESC_T prBSSDescNext;
-		UINT_64 u8Current = kalGetBootTime();
 
 		LINK_FOR_EACH_ENTRY_SAFE(prBssDesc, prBSSDescNext, prBSSDescList, rLinkEntry, BSS_DESC_T) {
 
@@ -859,16 +1312,9 @@ VOID scanRemoveBssDescsByPolicy(IN P_ADAPTER_T prAdapter, IN UINT_32 u4RemovePol
 				/* Don't remove the one currently we are connected. */
 				continue;
 			}
-			if (!prBssDesc->prBlack)
-				aisQueryBlackList(prAdapter, prBssDesc);
-			if (prBssDesc->prBlack)
-				prBssDesc->prBlack->u8DisapperTime = u8Current;
 
 			/* Remove this BSS Desc from the BSS Desc list */
 			LINK_REMOVE_KNOWN_ENTRY(prBSSDescList, prBssDesc);
-			/* Remove this BSS Desc from the Ess Desc List */
-			if (LINK_ENTRY_IS_VALID(&prBssDesc->rLinkEntryEss))
-				LINK_REMOVE_KNOWN_ENTRY(prEssList, &prBssDesc->rLinkEntryEss);
 
 			/* Return this BSS Desc to the free BSS Desc list. */
 			LINK_INSERT_TAIL(prFreeBSSDescList, &prBssDesc->rLinkEntry);
@@ -897,7 +1343,6 @@ VOID scanRemoveBssDescByBssid(IN P_ADAPTER_T prAdapter, IN UINT_8 aucBSSID[])
 	P_LINK_T prFreeBSSDescList;
 	P_BSS_DESC_T prBssDesc = (P_BSS_DESC_T) NULL;
 	P_BSS_DESC_T prBSSDescNext;
-	P_LINK_T prEssList = NULL;
 
 	ASSERT(prAdapter);
 	ASSERT(aucBSSID);
@@ -905,27 +1350,22 @@ VOID scanRemoveBssDescByBssid(IN P_ADAPTER_T prAdapter, IN UINT_8 aucBSSID[])
 	prScanInfo = &(prAdapter->rWifiVar.rScanInfo);
 	prBSSDescList = &prScanInfo->rBSSDescList;
 	prFreeBSSDescList = &prScanInfo->rFreeBSSDescList;
-	prEssList = &prAdapter->rWifiVar.rAisSpecificBssInfo.rCurEssLink;
 
 	/* Check if such BSS Descriptor exists in a valid list */
 	LINK_FOR_EACH_ENTRY_SAFE(prBssDesc, prBSSDescNext, prBSSDescList, rLinkEntry, BSS_DESC_T) {
 
 		if (EQUAL_MAC_ADDR(prBssDesc->aucBSSID, aucBSSID)) {
-			if (!prBssDesc->prBlack)
-				aisQueryBlackList(prAdapter, prBssDesc);
-			if (prBssDesc->prBlack)
-				prBssDesc->prBlack->u8DisapperTime = kalGetBootTime();
+
 			/* Remove this BSS Desc from the BSS Desc list */
 			LINK_REMOVE_KNOWN_ENTRY(prBSSDescList, prBssDesc);
-			/* Remove this BSS Desc from the Ess Desc List */
-			if (LINK_ENTRY_IS_VALID(&prBssDesc->rLinkEntryEss))
-				LINK_REMOVE_KNOWN_ENTRY(prEssList, &prBssDesc->rLinkEntryEss);
+
 			/* Return this BSS Desc to the free BSS Desc list. */
 			LINK_INSERT_TAIL(prFreeBSSDescList, &prBssDesc->rLinkEntry);
 
 			/* BSSID is not unique, so need to traverse whols link-list */
 		}
 	}
+
 }				/* end of scanRemoveBssDescByBssid() */
 
 /*----------------------------------------------------------------------------*/
@@ -991,18 +1431,8 @@ VOID scanRemoveBssDescByBandAndNetwork(IN P_ADAPTER_T prAdapter, IN ENUM_BAND_T 
 		}
 
 		if (fgToRemove == TRUE) {
-			P_LINK_T prEssList = &prAdapter->rWifiVar.rAisSpecificBssInfo.rCurEssLink;
-
-			if (!prBssDesc->prBlack)
-				aisQueryBlackList(prAdapter, prBssDesc);
-			if (prBssDesc->prBlack)
-				prBssDesc->prBlack->u8DisapperTime = kalGetBootTime();
-
 			/* Remove this BSS Desc from the BSS Desc list */
 			LINK_REMOVE_KNOWN_ENTRY(prBSSDescList, prBssDesc);
-			/* Remove this BSS Desc from the Ess Desc List */
-			if (LINK_ENTRY_IS_VALID(&prBssDesc->rLinkEntryEss))
-				LINK_REMOVE_KNOWN_ENTRY(prEssList, &prBssDesc->rLinkEntryEss);
 
 			/* Return this BSS Desc to the free BSS Desc list. */
 			LINK_INSERT_TAIL(prFreeBSSDescList, &prBssDesc->rLinkEntry);
@@ -1147,10 +1577,8 @@ P_BSS_DESC_T scanAddToBssDesc(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 		eBSSType = BSS_TYPE_IBSS;
 		break;
 	case 0:
-		/*
-		 * The P2P Device shall set the ESS bit of the Capabilities field
-		 * in the Probe Response fame to 0 and IBSS bit to 0. (3.1.2.1.1)
-		 */
+		/* The P2P Device shall set the ESS bit of the Capabilities field
+		 * in the Probe Response fame to 0 and IBSS bit to 0. (3.1.2.1.1) */
 		eBSSType = BSS_TYPE_P2P_DEVICE;
 		break;
 
@@ -1180,10 +1608,8 @@ P_BSS_DESC_T scanAddToBssDesc(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 				if (IE_LEN(pucIE) == 0)
 					fgIsValidSsid = FALSE;
 				/* Cisco AP1230A - (IE_LEN(pucIE) == 1) && (SSID_IE(pucIE)->aucSSID[0] == '\0') */
-				/*
-				 * Linksys WRK54G/WL520g - (IE_LEN(pucIE) == n) &&
-				 * (SSID_IE(pucIE)->aucSSID[0~(n-1)] == '\0')
-				 */
+				/* Linksys WRK54G/WL520g - (IE_LEN(pucIE) == n) &&
+				 * (SSID_IE(pucIE)->aucSSID[0~(n-1)] == '\0') */
 				else {
 					for (i = 0; i < IE_LEN(pucIE); i++)
 						ucSSIDChar |= SSID_IE(pucIE)->aucSSID[i];
@@ -1342,7 +1768,6 @@ P_BSS_DESC_T scanAddToBssDesc(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 	/* 4 <2.2> reset prBssDesc variables in case that AP has been reconfigured */
 	prBssDesc->fgIsERPPresent = FALSE;
 	prBssDesc->fgIsHTPresent = FALSE;
-	prBssDesc->fgIsVHTPresent = FALSE;
 	prBssDesc->eSco = CHNL_EXT_SCN;
 	prBssDesc->fgIEWAPI = FALSE;
 	prBssDesc->fgIERSN = FALSE;
@@ -1350,8 +1775,7 @@ P_BSS_DESC_T scanAddToBssDesc(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 	prBssDesc->eChannelWidth = CW_20_40MHZ;	/*Reset VHT OP IE relative settings */
 	prBssDesc->ucCenterFreqS1 = 0;
 	prBssDesc->ucCenterFreqS2 = 0;
-	prBssDesc->fgExsitBssLoadIE = FALSE;
-	prBssDesc->fgMultiAnttenaAndSTBC = FALSE;
+
 	/* 4 <3.1> Full IE parsing on SW_RFB_T */
 	pucIE = prWlanBeaconFrame->aucInfoElem;
 
@@ -1370,10 +1794,8 @@ P_BSS_DESC_T scanAddToBssDesc(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 				if (IE_LEN(pucIE) == 0)
 					fgIsHiddenSSID = TRUE;
 				/* Cisco AP1230A - (IE_LEN(pucIE) == 1) && (SSID_IE(pucIE)->aucSSID[0] == '\0') */
-				/*
-				 * Linksys WRK54G/WL520g - (IE_LEN(pucIE) == n) &&
-				 * (SSID_IE(pucIE)->aucSSID[0~(n-1)] == '\0')
-				 */
+				/* Linksys WRK54G/WL520g - (IE_LEN(pucIE) == n) &&
+				 * (SSID_IE(pucIE)->aucSSID[0~(n-1)] == '\0') */
 				else {
 					for (i = 0; i < IE_LEN(pucIE); i++)
 						ucSSIDChar |= SSID_IE(pucIE)->aucSSID[i];
@@ -1443,23 +1865,9 @@ P_BSS_DESC_T scanAddToBssDesc(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 			break;
 
 		case ELEM_ID_HT_CAP:
-		{
-			P_IE_HT_CAP_T prHtCap = (P_IE_HT_CAP_T)pucIE;
-			UINT_8 ucSpatial = 0;
-			UINT_8 i = 0;
-
 			prBssDesc->fgIsHTPresent = TRUE;
-
-			if (prBssDesc->fgMultiAnttenaAndSTBC)
-				break;
-			for (; i < 4; i++) {
-				if (prHtCap->rSupMcsSet.aucRxMcsBitmask[i] > 0)
-					ucSpatial++;
-			}
-			prBssDesc->fgMultiAnttenaAndSTBC =
-				((ucSpatial > 1) && (prHtCap->u2HtCapInfo & HT_CAP_INFO_TX_STBC));
 			break;
-		}
+
 		case ELEM_ID_HT_OP:
 			if (IE_LEN(pucIE) != (sizeof(IE_HT_OP_T) - 2))
 				break;
@@ -1472,24 +1880,9 @@ P_BSS_DESC_T scanAddToBssDesc(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 
 			break;
 		case ELEM_ID_VHT_CAP:
-		{
-			P_IE_VHT_CAP_T prVhtCap = (P_IE_VHT_CAP_T)pucIE;
-			UINT_16 u2TxMcsSet = prVhtCap->rVhtSupportedMcsSet.u2TxMcsMap;
-			UINT_8 ucSpatial = 0;
-			UINT_8 i = 0;
-
 			prBssDesc->fgIsVHTPresent = TRUE;
-
-			if (prBssDesc->fgMultiAnttenaAndSTBC)
-				break;
-			for (; i < 8; i++) {
-				if ((u2TxMcsSet & BITS(2*i, 2*i+1)) != 3)
-					ucSpatial++;
-			}
-			prBssDesc->fgMultiAnttenaAndSTBC =
-				((ucSpatial > 1) && (prVhtCap->u4VhtCapInfo & VHT_CAP_INFO_TX_STBC));
 			break;
-		}
+
 		case ELEM_ID_VHT_OP:
 			if (IE_LEN(pucIE) != (sizeof(IE_VHT_OP_T) - 2))
 				break;
@@ -1506,16 +1899,6 @@ P_BSS_DESC_T scanAddToBssDesc(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 			break;
 #endif
 
-		case ELEM_ID_BSS_LOAD:
-		{
-			struct IE_BSS_LOAD *prBssLoad = (struct IE_BSS_LOAD *)pucIE;
-
-			prBssDesc->u2StaCnt = prBssLoad->u2StaCnt;
-			prBssDesc->ucChnlUtilization = prBssLoad->ucChnlUtilizaion;
-			prBssDesc->u2AvaliableAC = prBssLoad->u2AvailabeAC;
-			prBssDesc->fgExsitBssLoadIE = TRUE;
-			break;
-		}
 		case ELEM_ID_VENDOR:	/* ELEM_ID_P2P, ELEM_ID_WMM */
 			{
 				UINT_8 ucOuiType;
@@ -1583,7 +1966,7 @@ P_BSS_DESC_T scanAddToBssDesc(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 
 		ASSERT(prSwRfb->prRxStatusGroup3);
 		ucRxRCPI = (UINT_8) HAL_RX_STATUS_GET_RCPI(prSwRfb->prRxStatusGroup3);
-		if (prBssDesc->eBand == BAND_2G4) {
+		if (BAND_2G4 == prBssDesc->eBand) {
 
 			/* Update RCPI if in right channel */
 
@@ -1635,7 +2018,7 @@ P_BSS_DESC_T scanAddToBssDesc(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 		DBGLOG(RLM, WARN, "IE Length = %d\n", u2IELength);
 		DBGLOG_MEM8(RLM, WARN, pucDumpIE, u2IELength);
 
-		/* Error Handling for Non-predicted IE - Fixed to set 20MHz */
+		/*Error Handling for Non-predicted IE - Fixed to set 20MHz */
 		prBssDesc->eChannelWidth = CW_20_40MHZ;
 		prBssDesc->ucCenterFreqS1 = 0;
 		prBssDesc->ucCenterFreqS2 = 0;
@@ -1645,7 +2028,7 @@ P_BSS_DESC_T scanAddToBssDesc(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 	/* 4 <6> PHY type setting */
 	prBssDesc->ucPhyTypeSet = 0;
 
-	if (prBssDesc->eBand == BAND_2G4) {
+	if (BAND_2G4 == prBssDesc->eBand) {
 		/* check if support 11n */
 		if (prBssDesc->fgIsHTPresent)
 			prBssDesc->ucPhyTypeSet |= PHY_TYPE_BIT_HT;
@@ -1663,7 +2046,7 @@ P_BSS_DESC_T scanAddToBssDesc(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 					prBssDesc->ucPhyTypeSet |= PHY_TYPE_BIT_HR_DSSS;
 			}
 		}
-	} else {		/* (prBssDesc->eBande == BAND_5G) */
+	} else {		/* (BAND_5G == prBssDesc->eBande) */
 		/* check if support 11n */
 		if (prBssDesc->fgIsVHTPresent)
 			prBssDesc->ucPhyTypeSet |= PHY_TYPE_BIT_VHT;
@@ -1679,98 +2062,13 @@ P_BSS_DESC_T scanAddToBssDesc(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 			/* ASSERT(!(prBssDesc->u2OperationalRateSet & RATE_SET_HR_DSSS)); */
 		}
 	}
-	aisRemoveBeaconTimeoutEntry(prAdapter, prBssDesc);
-	/* update update-index and reset seen-probe-response */
-	if (prBssDesc->u4UpdateIdx != prAdapter->rWifiVar.rScanInfo.u4ScanUpdateIdx) {
-		prBssDesc->fgSeenProbeResp = FALSE;
-		prBssDesc->u4UpdateIdx = prAdapter->rWifiVar.rScanInfo.u4ScanUpdateIdx;
-	}
-	/* check if it is a probe response frame */
-	if ((prWlanBeaconFrame->u2FrameCtrl & 0x50) == 0x50)
-		prBssDesc->fgSeenProbeResp = TRUE;
+
 	/* 4 <7> Update BSS_DESC_T's Last Update TimeStamp. */
 	GET_CURRENT_SYSTIME(&prBssDesc->rUpdateTime);
+
 	return prBssDesc;
 }
-/* clear all ESS scan result */
-VOID scanInitEssResult(P_ADAPTER_T prAdapter)
-{
-	prAdapter->rWlanInfo.u4ScanResultEssNum = 0;
-	kalMemZero(prAdapter->rWlanInfo.arScanResultEss, sizeof(prAdapter->rWlanInfo.arScanResultEss));
-}
-/*
- * print all ESS into log system once scan done
- * it is useful to log that, otherwise, we have no information to identify if hardware has seen a specific AP,
- * if user complained some AP were not found in scan result list
- */
-VOID scanLogEssResult(P_ADAPTER_T prAdapter)
-{
-#define NUMBER_SSID_PER_LINE 16
-	struct ESS_SCAN_RESULT_T *prEssResult = &prAdapter->rWlanInfo.arScanResultEss[0];
-	UINT_32 u4ResultNum = prAdapter->rWlanInfo.u4ScanResultEssNum;
-	UINT_32 u4Index = 0;
 
-	if (u4ResultNum == 0) {
-		DBGLOG(SCN, INFO, "0 Bss is found, %d, %d, %d, %d\n",
-			prAdapter->rWlanInfo.u4ScanDbgTimes1, prAdapter->rWlanInfo.u4ScanDbgTimes2,
-			prAdapter->rWlanInfo.u4ScanDbgTimes3, prAdapter->rWlanInfo.u4ScanDbgTimes4);
-		return;
-	}
-
-	DBGLOG(SCN, INFO,
-		"Total:%u; %s; %s; %s; %s; %s; %s; %s; %s; %s; %s; %s; %s; %s; %s; %s; %s\n",
-		u4ResultNum,
-		prEssResult[0].aucSSID, prEssResult[1].aucSSID, prEssResult[2].aucSSID,
-		prEssResult[3].aucSSID, prEssResult[4].aucSSID, prEssResult[5].aucSSID,
-		prEssResult[6].aucSSID, prEssResult[7].aucSSID, prEssResult[8].aucSSID,
-		prEssResult[9].aucSSID, prEssResult[10].aucSSID, prEssResult[11].aucSSID,
-		prEssResult[12].aucSSID, prEssResult[13].aucSSID, prEssResult[14].aucSSID,
-		prEssResult[15].aucSSID);
-	if (u4ResultNum <= NUMBER_SSID_PER_LINE)
-		return;
-	u4ResultNum -= NUMBER_SSID_PER_LINE;
-	prEssResult = &prEssResult[NUMBER_SSID_PER_LINE];
-	u4ResultNum = u4ResultNum / NUMBER_SSID_PER_LINE;
-	if ((u4ResultNum % NUMBER_SSID_PER_LINE) != 0)
-		u4ResultNum++;
-	for (; u4Index < u4ResultNum; u4Index++) {
-		struct ESS_SCAN_RESULT_T *prEss = &prEssResult[NUMBER_SSID_PER_LINE*u4Index];
-
-		DBGLOG(SCN, INFO,
-			"%s; %s; %s; %s; %s; %s; %s; %s; %s; %s; %s; %s; %s; %s; %s; %s\n",
-			prEss[0].aucSSID,
-			prEss[1].aucSSID, prEss[2].aucSSID, prEss[3].aucSSID,
-			prEss[4].aucSSID, prEss[5].aucSSID, prEss[6].aucSSID,
-			prEss[7].aucSSID, prEss[8].aucSSID, prEss[9].aucSSID,
-			prEss[10].aucSSID, prEss[11].aucSSID, prEss[12].aucSSID,
-			prEss[13].aucSSID, prEss[14].aucSSID, prEss[15].aucSSID);
-	}
-}
-
-/*
- * record all Scanned ESS, only one BSS was saved for each ESS, and AP who is hidden ssid was excluded.
- * maximum we only support record 64 ESSes
- */
-static VOID scanAddEssResult(P_ADAPTER_T prAdapter, IN P_BSS_DESC_T prBssDesc)
-{
-	struct ESS_SCAN_RESULT_T *prEssResult = &prAdapter->rWlanInfo.arScanResultEss[0];
-	UINT_32 u4Index = 0;
-
-	if (prBssDesc->fgIsHiddenSSID)
-		return;
-	if (prAdapter->rWlanInfo.u4ScanResultEssNum >= CFG_MAX_NUM_BSS_LIST)
-		return;
-	for (; u4Index < prAdapter->rWlanInfo.u4ScanResultEssNum; u4Index++) {
-		if (EQUAL_SSID(prEssResult[u4Index].aucSSID, (UINT_8)prEssResult[u4Index].u2SSIDLen,
-			prBssDesc->aucSSID, prBssDesc->ucSSIDLen))
-			return;
-	}
-
-	COPY_SSID(prEssResult[u4Index].aucSSID, prEssResult[u4Index].u2SSIDLen,
-		prBssDesc->aucSSID, prBssDesc->ucSSIDLen);
-	COPY_MAC_ADDR(prEssResult[u4Index].aucBSSID, prBssDesc->aucBSSID);
-	prAdapter->rWlanInfo.u4ScanResultEssNum++;
-}
 /*----------------------------------------------------------------------------*/
 /*!
 * @brief Convert the Beacon or ProbeResp Frame in SW_RFB_T to scan result for query
@@ -1813,7 +2111,6 @@ WLAN_STATUS scanAddScanResult(IN P_ADAPTER_T prAdapter, IN P_BSS_DESC_T prBssDes
 
 	if (prBssDesc->eBSSType == BSS_TYPE_P2P_DEVICE) {
 		/* NOTE(Kevin): Not supported by WZC(TBD) */
-		DBGLOG(SCN, INFO, "Bss Desc type is P2P\n");
 		return WLAN_STATUS_FAILURE;
 	}
 
@@ -1832,7 +2129,7 @@ WLAN_STATUS scanAddScanResult(IN P_ADAPTER_T prAdapter, IN P_BSS_DESC_T prBssDes
 	/* NOTE(Kevin): Set unused entries, if any, at the end of the array to 0.
 	 * from OID_802_11_BSSID_LIST
 	 */
-	for (i = ucRateLen; i < ARRAY_SIZE(aucRatesEx); i++)
+	for (i = ucRateLen; i < sizeof(aucRatesEx) / sizeof(aucRatesEx[0]); i++)
 		aucRatesEx[i] = 0;
 
 	switch (prBssDesc->eBSSType) {
@@ -1865,7 +2162,6 @@ WLAN_STATUS scanAddScanResult(IN P_ADAPTER_T prAdapter, IN P_BSS_DESC_T prBssDes
 			break;
 		}
 	}
-	scanAddEssResult(prAdapter, prBssDesc);
 
 	kalIndicateBssInfo(prAdapter->prGlueInfo,
 			   (PUINT_8) prSwRfb->pvHeader,
@@ -1874,7 +2170,7 @@ WLAN_STATUS scanAddScanResult(IN P_ADAPTER_T prAdapter, IN P_BSS_DESC_T prBssDes
 	nicAddScanResult(prAdapter,
 			 rMacAddr,
 			 &rSsid,
-			 prWlanBeaconFrame->u2CapInfo,
+			 prWlanBeaconFrame->u2CapInfo & CAP_INFO_PRIVACY ? 1 : 0,
 			 RCPI_TO_dBm(prBssDesc->ucRCPI),
 			 eNetworkType,
 			 &rConfiguration,
@@ -1942,7 +2238,6 @@ WLAN_STATUS scanProcessBeaconAndProbeResp(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_
 #ifndef _lint
 		ASSERT(0);
 #endif /* _lint */
-		DBGLOG(SCN, ERROR, "Ignore invalid Beacon Frame\n");
 		return rStatus;
 	}
 #if CFG_SLT_SUPPORT
@@ -1964,7 +2259,6 @@ WLAN_STATUS scanProcessBeaconAndProbeResp(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_
 	/* 4 <1> Parse and add into BSS_DESC_T */
 	prBssDesc = scanAddToBssDesc(prAdapter, prSwRfb);
 
-	prAdapter->rWlanInfo.u4ScanDbgTimes1++;
 	if (prBssDesc) {
 
 		/* 4 <1.1> Beacon Change Detection for Connected BSS */
@@ -1981,30 +2275,7 @@ WLAN_STATUS scanProcessBeaconAndProbeResp(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_
 			if (prAisBssInfo->u2OperationalRateSet != prBssDesc->u2OperationalRateSet)
 				fgNeedDisconnect = TRUE;
 #endif
-#if CFG_SUPPORT_DETECT_SECURITY_MODE_CHANGE
-			if (rsnCheckSecurityModeChanged(prAdapter, prAisBssInfo, prBssDesc)
-#if CFG_SUPPORT_WAPI
-				|| (prAdapter->rWifiVar.rConnSettings.fgWapiMode == TRUE &&
-					!wapiPerformPolicySelection(prAdapter, prBssDesc))
-#endif
-				) {
-				DBGLOG(SCN, INFO, "Beacon security mode change detected\n");
-				DBGLOG_MEM8(SCN, INFO, prSwRfb->pvHeader, prSwRfb->u2PacketLen);
-				fgNeedDisconnect = FALSE;
-				if (!prConnSettings->fgSecModeChangeStartTimer) {
-					cnmTimerStartTimer(prAdapter,
-							&prAdapter->rWifiVar.rAisFsmInfo.rSecModeChangeTimer,
-							SEC_TO_MSEC(3));
-					prConnSettings->fgSecModeChangeStartTimer = TRUE;
-				}
-			} else {
-				if (prConnSettings->fgSecModeChangeStartTimer) {
-					cnmTimerStopTimer(prAdapter,
-							&prAdapter->rWifiVar.rAisFsmInfo.rSecModeChangeTimer);
-					prConnSettings->fgSecModeChangeStartTimer = FALSE;
-				}
-			}
-#endif
+
 			/* <1.1.3> beacon content change detected, disconnect immediately */
 			if (fgNeedDisconnect == TRUE)
 				aisBssBeaconTimeout(prAdapter);
@@ -2014,10 +2285,8 @@ WLAN_STATUS scanProcessBeaconAndProbeResp(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_
 		     || (prBssDesc->eBSSType == BSS_TYPE_IBSS && prConnSettings->eOPMode != NET_TYPE_INFRA))) {
 			if (prAisBssInfo->eConnectionState == PARAM_MEDIA_STATE_CONNECTED) {
 
-				/*
-				 * _not_ checking prBssDesc->fgIsConnected anymore,
-				 * due to Linksys AP uses " " as hidden SSID, and would have different BSS descriptor
-				 */
+				/* *not* checking prBssDesc->fgIsConnected anymore,
+				 * due to Linksys AP uses " " as hidden SSID, and would have different BSS descriptor */
 				if ((!prAisBssInfo->ucDTIMPeriod) &&
 				    EQUAL_MAC_ADDR(prBssDesc->aucBSSID, prAisBssInfo->aucBSSID) &&
 				    (prAisBssInfo->eCurrentOPMode == OP_MODE_INFRASTRUCTURE) &&
@@ -2054,21 +2323,14 @@ WLAN_STATUS scanProcessBeaconAndProbeResp(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_
 			      (prSwRfb->u2PacketLen - prSwRfb->u2HeaderLen) -
 			      (UINT_16) (OFFSET_OF(WLAN_BEACON_FRAME_BODY_T, aucInfoElem[0])));
 
-		prAdapter->rWlanInfo.u4ScanDbgTimes2++;
 		/* 4 <3> Send SW_RFB_T to HIF when we perform SCAN for HOST */
 		if (prBssDesc->eBSSType == BSS_TYPE_INFRASTRUCTURE || prBssDesc->eBSSType == BSS_TYPE_IBSS) {
 			/* for AIS, send to host */
-			prAdapter->rWlanInfo.u4ScanDbgTimes3++;
-			if (prConnSettings->fgIsScanReqIssued || prAdapter->rWifiVar.rScanInfo.fgNloScanning
-#if CFG_SUPPORT_SCN_PSCN
-			|| prAdapter->rWifiVar.rScanInfo.fgPscnOngoing
-#endif
-			) {
+			if (prConnSettings->fgIsScanReqIssued) {
 				BOOLEAN fgAddToScanResult;
 
 				fgAddToScanResult = scanCheckBssIsLegal(prAdapter, prBssDesc);
 
-				prAdapter->rWlanInfo.u4ScanDbgTimes4++;
 				if (fgAddToScanResult == TRUE)
 					rStatus = scanAddScanResult(prAdapter, prBssDesc, prSwRfb);
 			}
@@ -2082,29 +2344,6 @@ WLAN_STATUS scanProcessBeaconAndProbeResp(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_
 	return rStatus;
 
 }				/* end of scanProcessBeaconAndProbeResp() */
-
-INT_32 scanResultsAdjust5GPref(P_BSS_DESC_T prBssDesc)
-{
-	INT_32 rssi = RCPI_TO_dBm(prBssDesc->ucRCPI);
-	INT_32 orgRssi = rssi;
-
-	if (prBssDesc->eBand == BAND_5G) {
-		if (rssi >= rssiRangeHi)
-			rssi += pref5GhzHi;
-		else if (rssi >= rssiRangeMed)
-			rssi += pref5GhzMed;
-		else if (rssi >= rssiRangeLo)
-			rssi += pref5GhzLo;
-	}
-	/* Reduce chances of roam ping-pong */
-	if (prBssDesc->fgIsConnected)
-		rssi += (ROAMING_NO_SWING_RCPI_STEP >> 1);
-
-	if (prBssDesc->eBand == BAND_5G || prBssDesc->fgIsConnected)
-		DBGLOG(SCN, TRACE, "Adjust 5G band RSSI: " MACSTR " band=%d, orgRssi=%d afterRssi=%d\n",
-			MAC2STR(prBssDesc->aucBSSID), prBssDesc->eBand, orgRssi, rssi);
-	return rssi;
-}
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -2146,7 +2385,6 @@ P_BSS_DESC_T scanSearchBssDescByPolicy(IN P_ADAPTER_T prAdapter, IN UINT_8 ucBss
 	BOOLEAN fgIsFixedChannel;
 	ENUM_BAND_T eBand;
 	UINT_8 ucChannel;
-	UINT_32 u4ScnAdhocBssDescTimeout = 0;
 
 	ASSERT(prAdapter);
 
@@ -2204,24 +2442,8 @@ P_BSS_DESC_T scanSearchBssDescByPolicy(IN P_ADAPTER_T prAdapter, IN UINT_8 ucBss
 		if (rlmDomainIsLegalChannel(prAdapter, prBssDesc->eBand, prBssDesc->ucChannelNum) == FALSE)
 			continue;
 		/* 4 <2.5> Check if this BSS_DESC_T is stale */
-		u4ScnAdhocBssDescTimeout = SCN_BSS_DESC_STALE_SEC;
-#if CFG_ENABLE_WIFI_DIRECT
-#if CFG_SUPPORT_WFD
-		if (prAdapter->rWifiVar.rWfdConfigureSettings.ucWfdEnable)
-			u4ScnAdhocBssDescTimeout = SCN_BSS_DESC_STALE_SEC_WFD;
-#endif
-#endif
-#if CFG_SUPPORT_RN
-		if (prBssInfo->fgDisConnReassoc == FALSE)
-#endif
-			if (CHECK_FOR_TIMEOUT(rCurrentTime,
-				prBssDesc->rUpdateTime,
-				SEC_TO_SYSTIME(u4ScnAdhocBssDescTimeout))) {
-				DBGLOG(SCN, LOUD,
-					"SEARCH: BSS_DESC is not stale: CurrentTime(%u) and upDatetime (%u)\n",
-					rCurrentTime, prBssDesc->rUpdateTime);
-				continue;
-			}
+		if (CHECK_FOR_TIMEOUT(rCurrentTime, prBssDesc->rUpdateTime, SEC_TO_SYSTIME(SCN_BSS_DESC_STALE_SEC)))
+			continue;
 		/* 4 <3> Check if reach the excessive join retry limit */
 		/* NOTE(Kevin): STA_RECORD_T is recorded by TA. */
 		prStaRec = cnmGetStaRecByAddress(prAdapter, ucBssIndex, prBssDesc->aucSrcAddr);
@@ -2300,8 +2522,6 @@ P_BSS_DESC_T scanSearchBssDescByPolicy(IN P_ADAPTER_T prAdapter, IN UINT_8 ucBss
 			if (prBssDesc->eBSSType == BSS_TYPE_IBSS) {
 				OS_SYSTIME rCurrentTime;
 
-				u4ScnAdhocBssDescTimeout = SCN_ADHOC_BSS_DESC_TIMEOUT_SEC;
-
 				/* 4 <4.3.1> Check if this SCAN record has been updated recently for IBSS. */
 				/* NOTE(Kevin): Because some STA may change its BSSID frequently after it
 				 * create the IBSS - e.g. IPN2220, so we need to make sure we get the new one.
@@ -2309,21 +2529,11 @@ P_BSS_DESC_T scanSearchBssDescByPolicy(IN P_ADAPTER_T prAdapter, IN UINT_8 ucBss
 				 * the Join Process later.
 				 */
 				GET_CURRENT_SYSTIME(&rCurrentTime);
-#if CFG_ENABLE_WIFI_DIRECT
-#if CFG_SUPPORT_WFD
-				if (prAdapter->rWifiVar.rWfdConfigureSettings.ucWfdEnable)
-					u4ScnAdhocBssDescTimeout = SCN_ADHOC_BSS_DESC_TIMEOUT_SEC_WFD;
-#endif
-#endif
-
 				if (CHECK_FOR_TIMEOUT(rCurrentTime, prBssDesc->rUpdateTime,
-						      SEC_TO_SYSTIME(u4ScnAdhocBssDescTimeout))) {
+						      SEC_TO_SYSTIME(SCN_ADHOC_BSS_DESC_TIMEOUT_SEC))) {
 					DBGLOG(SCN, LOUD,
-					       "SEARCH: Now(%zd) Skip old record of BSS Descriptor(%zd) - BSSID:["
-					       MACSTR "]\n\n",
-					       rCurrentTime,
-					       prBssDesc->rUpdateTime,
-					       MAC2STR(prBssDesc->aucBSSID));
+					       "SEARCH: Skip old record of BSS Descriptor - BSSID:["
+					       MACSTR "]\n\n", MAC2STR(prBssDesc->aucBSSID));
 					continue;
 				}
 				/* 4 <4.3.2> Check Peer's capability */
@@ -2447,10 +2657,8 @@ P_BSS_DESC_T scanSearchBssDescByPolicy(IN P_ADAPTER_T prAdapter, IN UINT_8 ucBss
 			continue;
 		}
 
-		/*
-		 * or RSN Pre-authentication, update the PMKID canidate list for
-		 * same SSID and encrypt status
-		 */
+		/* For RSN Pre-authentication, update the PMKID canidate list for
+		   same SSID and encrypt status */
 		/* Update PMKID candicate list. */
 		if (prAdapter->rWifiVar.rConnSettings.eAuthMode == AUTH_MODE_WPA2) {
 			rsnUpdatePmkidCandidateList(prPrimaryBssDesc);
@@ -2466,8 +2674,7 @@ P_BSS_DESC_T scanSearchBssDescByPolicy(IN P_ADAPTER_T prAdapter, IN UINT_8 ucBss
 		case CONNECT_BY_SSID_BEST_RSSI:
 			/* Choose Hidden SSID to join only if the `fgIsEnableJoin...` is TRUE */
 			if (prAdapter->rWifiVar.fgEnableJoinToHiddenSSID && prBssDesc->fgIsHiddenSSID) {
-				/*
-				 * NOTE(Kevin): following if () statement means that
+				/* NOTE(Kevin): following if () statement means that
 				 * If Target is hidden, then we won't connect when user specify SSID_ANY policy.
 				 */
 				if (prConnSettings->ucSSIDLen) {
@@ -2486,8 +2693,7 @@ P_BSS_DESC_T scanSearchBssDescByPolicy(IN P_ADAPTER_T prAdapter, IN UINT_8 ucBss
 			break;
 
 		case CONNECT_BY_SSID_ANY:
-			/*
-			 * NOTE(Kevin): In this policy, we don't know the desired
+			/* NOTE(Kevin): In this policy, we don't know the desired
 			 * SSID from user, so we should exclude the Hidden SSID from scan list.
 			 * And because we refuse to connect to Hidden SSID node at the beginning, so
 			 * when the JOIN Module deal with a BSS_DESC_T which has fgIsHiddenSSID == TRUE,
@@ -2568,29 +2774,21 @@ P_BSS_DESC_T scanSearchBssDescByPolicy(IN P_ADAPTER_T prAdapter, IN UINT_8 ucBss
 
 			/* 4 <6E> Condition - Choose the one with better RCPI(RSSI). */
 			if (fgIsFindBestRSSI) {
-				/*
-				 * TODO(Kevin): We shouldn't compare the actual value, we should
+				/* TODO(Kevin): We shouldn't compare the actual value, we should
 				 * allow some acceptable tolerance of some RSSI percentage here.
 				 */
-				INT_32 u4PrimAdjRssi = scanResultsAdjust5GPref(prPrimaryBssDesc);
-				INT_32 u4CandAdjRssi = scanResultsAdjust5GPref(prCandidateBssDesc);
-
 				DBGLOG(SCN, TRACE,
-				       "Candidate [" MACSTR "]: RCPI=%d, RSSI=%d, joinFailCnt=%d, Primary ["
-				       MACSTR "]: RCPI=%d, RSSI=%d, joinFailCnt=%d\n",
-				       MAC2STR(prCandidateBssDesc->aucBSSID),
-				       prCandidateBssDesc->ucRCPI, u4CandAdjRssi,
-				       prCandidateBssDesc->ucJoinFailureCount,
+				       "Candidate [" MACSTR "]: RCPI = %d, joinFailCnt=%d, Primary [" MACSTR
+				       "]: RCPI = %d, joinFailCnt=%d\n", MAC2STR(prCandidateBssDesc->aucBSSID),
+				       prCandidateBssDesc->ucRCPI, prCandidateBssDesc->ucJoinFailureCount,
 				       MAC2STR(prPrimaryBssDesc->aucBSSID),
-				       prPrimaryBssDesc->ucRCPI, u4PrimAdjRssi,
+				       prPrimaryBssDesc->ucRCPI,
 				       prPrimaryBssDesc->ucJoinFailureCount);
 
 				ASSERT(!(prCandidateBssDesc->fgIsConnected && prPrimaryBssDesc->fgIsConnected));
 				if (prPrimaryBssDesc->ucJoinFailureCount >= SCN_BSS_JOIN_FAIL_THRESOLD) {
-					/*
-					 * give a chance to do join if join fail before
-					 * SCN_BSS_DECRASE_JOIN_FAIL_CNT_SEC seconds
-					 */
+					/* give a chance to do join if join fail before
+					 * SCN_BSS_DECRASE_JOIN_FAIL_CNT_SEC seconds */
 					if (CHECK_FOR_TIMEOUT(rCurrentTime, prBssDesc->rJoinFailTime,
 							      SEC_TO_SYSTIME(SCN_BSS_JOIN_FAIL_CNT_RESET_SEC))) {
 						prBssDesc->ucJoinFailureCount -= SCN_BSS_JOIN_FAIL_RESET_STEP;
@@ -2600,20 +2798,22 @@ P_BSS_DESC_T scanSearchBssDescByPolicy(IN P_ADAPTER_T prAdapter, IN UINT_8 ucBss
 						       prBssDesc->ucJoinFailureCount, SCN_BSS_JOIN_FAIL_CNT_RESET_SEC);
 					}
 				}
-				/*
-				 * NOTE: To prevent SWING, we do roaming only if target AP
-				 * has at least 5dBm larger than us.
-				 */
+				/* NOTE: To prevent SWING, we do roaming only if target AP
+				 * has at least 5dBm larger than us. */
 				if (prCandidateBssDesc->fgIsConnected) {
-					if (u4CandAdjRssi < u4PrimAdjRssi
+					if ((prCandidateBssDesc->ucRCPI + ROAMING_NO_SWING_RCPI_STEP <=
+					     prPrimaryBssDesc->ucRCPI)
 					    && prPrimaryBssDesc->ucJoinFailureCount < SCN_BSS_JOIN_FAIL_THRESOLD) {
+
 						prCandidateBssDesc = prPrimaryBssDesc;
 						prCandidateStaRec = prPrimaryStaRec;
 						continue;
 					}
 				} else if (prPrimaryBssDesc->fgIsConnected) {
-					if (u4CandAdjRssi < u4PrimAdjRssi
+					if ((prCandidateBssDesc->ucRCPI <
+					     prPrimaryBssDesc->ucRCPI + ROAMING_NO_SWING_RCPI_STEP)
 					    || (prCandidateBssDesc->ucJoinFailureCount >= SCN_BSS_JOIN_FAIL_THRESOLD)) {
+
 						prCandidateBssDesc = prPrimaryBssDesc;
 						prCandidateStaRec = prPrimaryStaRec;
 						continue;
@@ -2621,15 +2821,15 @@ P_BSS_DESC_T scanSearchBssDescByPolicy(IN P_ADAPTER_T prAdapter, IN UINT_8 ucBss
 				} else if (prPrimaryBssDesc->ucJoinFailureCount >= SCN_BSS_JOIN_FAIL_THRESOLD)
 					continue;
 				else if (prCandidateBssDesc->ucJoinFailureCount >= SCN_BSS_JOIN_FAIL_THRESOLD ||
-					 u4CandAdjRssi < u4PrimAdjRssi) {
+					 prCandidateBssDesc->ucRCPI < prPrimaryBssDesc->ucRCPI) {
+
 					prCandidateBssDesc = prPrimaryBssDesc;
 					prCandidateStaRec = prPrimaryStaRec;
 					continue;
 				}
 			}
 #if 0
-			/*
-			 * If reach here, that means they have the same Encryption Score, and
+			/* If reach here, that means they have the same Encryption Score, and
 			 * both RSSI value are close too.
 			 */
 			/* 4 <6F> Seek the minimum Channel Load for less interference. */
@@ -2645,79 +2845,79 @@ P_BSS_DESC_T scanSearchBssDescByPolicy(IN P_ADAPTER_T prAdapter, IN UINT_8 ucBss
 
 }				/* end of scanSearchBssDescByPolicy() */
 
-VOID scanReportBss2Cfg80211(IN P_ADAPTER_T prAdapter, IN ENUM_BSS_TYPE_T eBSSType, IN P_BSS_DESC_T prSpecificBssDesc)
+VOID scanReportBss2Cfg80211(IN P_ADAPTER_T prAdapter, IN ENUM_BSS_TYPE_T eBSSType, IN P_BSS_DESC_T SpecificprBssDesc)
 {
+	P_SCAN_INFO_T prScanInfo = NULL;
 	P_LINK_T prBSSDescList = NULL;
 	P_BSS_DESC_T prBssDesc = NULL;
 	RF_CHANNEL_INFO_T rChannelInfo;
 
 	ASSERT(prAdapter);
 
+	prScanInfo = &(prAdapter->rWifiVar.rScanInfo);
+
+	prBSSDescList = &prScanInfo->rBSSDescList;
+
 	DBGLOG(SCN, TRACE, "scanReportBss2Cfg80211\n");
-	if (prSpecificBssDesc) {
-		/* check BSSID is legal channel */
-		if (!scanCheckBssIsLegal(prAdapter, prSpecificBssDesc))
-			return;
 
-		/* Check BSSID is legal channel */
-		if (!scanCheckBssIsLegal(prAdapter, prSpecificBssDesc)) {
-			DBGLOG(SCN, TRACE, "Remove specific SSID[%s] on channel %d\n",
-			       prSpecificBssDesc->aucSSID, prSpecificBssDesc->ucChannelNum);
-			return;
-		}
+	if (SpecificprBssDesc) {
+		{
+			/* check BSSID is legal channel */
+			if (!scanCheckBssIsLegal(prAdapter, SpecificprBssDesc))
+				return;
 
-		DBGLOG(SCN, TRACE, "Report specific SSID[%s]\n", prSpecificBssDesc->aucSSID);
+			DBGLOG(SCN, TRACE, "Report Specific SSID[%s]\n", SpecificprBssDesc->aucSSID);
+			if (eBSSType == BSS_TYPE_INFRASTRUCTURE) {
 
-		if (eBSSType == BSS_TYPE_INFRASTRUCTURE) {
-			kalIndicateBssInfo(prAdapter->prGlueInfo,
-					   (PUINT_8) prSpecificBssDesc->aucRawBuf,
-					   prSpecificBssDesc->u2RawLength,
-					   prSpecificBssDesc->ucChannelNum,
-					   RCPI_TO_dBm(prSpecificBssDesc->ucRCPI));
-		} else {
-			rChannelInfo.ucChannelNum = prSpecificBssDesc->ucChannelNum;
-			rChannelInfo.eBand = prSpecificBssDesc->eBand;
-			kalP2PIndicateBssInfo(prAdapter->prGlueInfo,
-					      (PUINT_8) prSpecificBssDesc->aucRawBuf,
-					      prSpecificBssDesc->u2RawLength,
-					      &rChannelInfo,
-					      RCPI_TO_dBm(prSpecificBssDesc->ucRCPI));
-		}
+				kalIndicateBssInfo(prAdapter->prGlueInfo,
+						   (PUINT_8) SpecificprBssDesc->aucRawBuf,
+						   SpecificprBssDesc->u2RawLength,
+						   SpecificprBssDesc->ucChannelNum,
+						   RCPI_TO_dBm(SpecificprBssDesc->ucRCPI));
+			} else {
+
+				rChannelInfo.ucChannelNum = SpecificprBssDesc->ucChannelNum;
+				rChannelInfo.eBand = SpecificprBssDesc->eBand;
+				kalP2PIndicateBssInfo(prAdapter->prGlueInfo,
+						      (PUINT_8) SpecificprBssDesc->aucRawBuf,
+						      SpecificprBssDesc->u2RawLength,
+						      &rChannelInfo, RCPI_TO_dBm(SpecificprBssDesc->ucRCPI));
+
+			}
 
 #if CFG_ENABLE_WIFI_DIRECT
-		prSpecificBssDesc->fgIsP2PReport = FALSE;
+			SpecificprBssDesc->fgIsP2PReport = FALSE;
 #endif
-
+		}
 	} else {
 		/* Search BSS Desc from current SCAN result list. */
-		prBSSDescList = &(prAdapter->rWifiVar.rScanInfo.rBSSDescList);
-
 		LINK_FOR_EACH_ENTRY(prBssDesc, prBSSDescList, rLinkEntry, BSS_DESC_T) {
-
 #if CFG_AUTO_CHANNEL_SEL_SUPPORT
-			/* Record channel loading with channel's AP number */
-			UINT_8 ucIdx = 0;
+			/* Auto Channel Selection:Record the AP Number */
+			P_PARAM_CHN_LOAD_INFO prChnLoad = NULL;
 
-			if (prBssDesc->ucChannelNum <= 14)
-				ucIdx = prBssDesc->ucChannelNum - 1;
-			else if (prBssDesc->ucChannelNum >= 36 && prBssDesc->ucChannelNum <= 64)
-				ucIdx = 14 + (prBssDesc->ucChannelNum - 36) / 4;
-			else if (prBssDesc->ucChannelNum >= 100 && prBssDesc->ucChannelNum <= 144)
-				ucIdx = 14 + 8 + (prBssDesc->ucChannelNum - 100) / 4;
-			else if (prBssDesc->ucChannelNum >= 149)
-				ucIdx = 14 + 8 + 12 + (prBssDesc->ucChannelNum - 149) / 4;
-
-			if (ucIdx < MAX_CHN_NUM) {
-				prAdapter->rWifiVar.rChnLoadInfo.rEachChnLoad[ucIdx].ucChannel =
-					prBssDesc->ucChannelNum;
-				prAdapter->rWifiVar.rChnLoadInfo.rEachChnLoad[ucIdx].u2APNum++;
+			if ((prBssDesc->ucChannelNum <= 48) && (prBssDesc->ucChannelNum >= 1)) {
+				if (prBssDesc->ucChannelNum <= 14)
+					prChnLoad =
+					    (P_PARAM_CHN_LOAD_INFO)&(prAdapter->rWifiVar.
+								       rChnLoadInfo.rEachChnLoad[prBssDesc->
+												 ucChannelNum - 1]);
+				else
+					prChnLoad =
+					    (P_PARAM_CHN_LOAD_INFO)&(prAdapter->rWifiVar.
+								       rChnLoadInfo.rEachChnLoad[(prBssDesc->
+												  ucChannelNum / 4) +
+												 5]);
+				prChnLoad->u2APNum++;
+				prChnLoad->ucChannel = prBssDesc->ucChannelNum;
 			}
+			if (prChnLoad)
+				DBGLOG(SCN, TRACE, "chNum=%d,apNum=%d\n", prBssDesc->ucChannelNum, prChnLoad->u2APNum);
 #endif
 
-			/* Check BSSID is legal channel */
+			/* check BSSID is legal channel */
 			if (!scanCheckBssIsLegal(prAdapter, prBssDesc)) {
-				DBGLOG(SCN, TRACE, "Remove SSID[%s] on channel %d\n",
-				       prBssDesc->aucSSID, prBssDesc->ucChannelNum);
+				DBGLOG(SCN, TRACE, "Remove SSID[%s %d]\n", prBssDesc->aucSSID, prBssDesc->ucChannelNum);
 				continue;
 			}
 
@@ -2727,7 +2927,8 @@ VOID scanReportBss2Cfg80211(IN P_ADAPTER_T prAdapter, IN ENUM_BSS_TYPE_T eBSSTyp
 #endif
 			    ) {
 
-				DBGLOG(SCN, TRACE, "Report SSID[%s]\n", prBssDesc->aucSSID);
+				DBGLOG(SCN, TRACE, "Report ALL SSID[%s %d]\n",
+				       prBssDesc->aucSSID, prBssDesc->ucChannelNum);
 
 				if (eBSSType == BSS_TYPE_INFRASTRUCTURE) {
 					if (prBssDesc->u2RawLength != 0) {
@@ -2738,6 +2939,7 @@ VOID scanReportBss2Cfg80211(IN P_ADAPTER_T prAdapter, IN ENUM_BSS_TYPE_T eBSSTyp
 								   RCPI_TO_dBm(prBssDesc->ucRCPI));
 						kalMemZero(prBssDesc->aucRawBuf, CFG_RAW_BUFFER_SIZE);
 						prBssDesc->u2RawLength = 0;
+
 #if CFG_ENABLE_WIFI_DIRECT
 						prBssDesc->fgIsP2PReport = FALSE;
 #endif
@@ -2752,15 +2954,15 @@ VOID scanReportBss2Cfg80211(IN P_ADAPTER_T prAdapter, IN ENUM_BSS_TYPE_T eBSSTyp
 						kalP2PIndicateBssInfo(prAdapter->prGlueInfo,
 								      (PUINT_8) prBssDesc->aucRawBuf,
 								      prBssDesc->u2RawLength,
-								      &rChannelInfo,
-								      RCPI_TO_dBm(prBssDesc->ucRCPI));
+								      &rChannelInfo, RCPI_TO_dBm(prBssDesc->ucRCPI));
 
-						/* Do not clear it then we can pass the bss in Specific report */
+						/* do not clear it then we can pass the bss in Specific report */
 						/* kalMemZero(prBssDesc->aucRawBuf,CFG_RAW_BUFFER_SIZE); */
 
-						/* The BSS entry will not be cleared after scan done.
-						 * So if we dont receive the BSS in next scan, we cannot
-						 * pass it. We use u2RawLength for the purpose.
+						/*
+						   the BSS entry will not be cleared after scan done.
+						   So if we dont receive the BSS in next scan, we cannot
+						   pass it. We use u2RawLength for the purpose.
 						 */
 						/* prBssDesc->u2RawLength=0; */
 #if CFG_ENABLE_WIFI_DIRECT
@@ -2769,11 +2971,12 @@ VOID scanReportBss2Cfg80211(IN P_ADAPTER_T prAdapter, IN ENUM_BSS_TYPE_T eBSSTyp
 #endif
 				}
 			}
-		}
 
+		}
 #if CFG_AUTO_CHANNEL_SEL_SUPPORT
 		prAdapter->rWifiVar.rChnLoadInfo.fgDataReadyBit = TRUE;
 #endif
+
 	}
 
 }
@@ -2855,473 +3058,3 @@ VOID scanReportScanResultToAgps(P_ADAPTER_T prAdapter)
 	kalMemFree(prAgpsApList, VIR_MEM_TYPE, sizeof(AGPS_AP_LIST_T));
 }
 #endif /* CFG_SUPPORT_AGPS_ASSIST */
-
-VOID scanGetCurrentEssChnlList(P_ADAPTER_T prAdapter)
-{
-	P_BSS_DESC_T prBssDesc = NULL;
-	P_LINK_T prBSSDescList = &prAdapter->rWifiVar.rScanInfo.rBSSDescList;
-	P_CONNECTION_SETTINGS_T prConnSettings = &prAdapter->rWifiVar.rConnSettings;
-	struct ESS_CHNL_INFO *prEssChnlInfo = &prAdapter->rWifiVar.rAisSpecificBssInfo.arCurEssChnlInfo[0];
-	P_LINK_T prCurEssLink = &prAdapter->rWifiVar.rAisSpecificBssInfo.rCurEssLink;
-	UINT_8 aucChnlBitMap[30] = {0,};
-	UINT_8 aucChnlApNum[215] = {0,};
-	UINT_8 aucChnlUtil[215] = {0,};
-	UINT_8 ucByteNum = 0;
-	UINT_8 ucBitNum = 0;
-	UINT_8 ucChnlCount = 0;
-	UINT_8 j = 0;
-	/*UINT_8 i = 0;*/
-
-	if (prConnSettings->ucSSIDLen == 0) {
-		DBGLOG(SCN, INFO, "No Ess are expected to connect\n");
-		return;
-	}
-	kalMemZero(prEssChnlInfo, CFG_MAX_NUM_OF_CHNL_INFO * sizeof(struct ESS_CHNL_INFO));
-	while (!LINK_IS_EMPTY(prCurEssLink)) {
-		prBssDesc = LINK_PEEK_HEAD(prCurEssLink, BSS_DESC_T, rLinkEntryEss);
-		LINK_REMOVE_KNOWN_ENTRY(prCurEssLink, &prBssDesc->rLinkEntryEss);
-	}
-	LINK_FOR_EACH_ENTRY(prBssDesc, prBSSDescList, rLinkEntry, BSS_DESC_T) {
-		if (prBssDesc->ucChannelNum > 214)
-			continue;
-		/* Statistic AP num for each channel */
-		if (aucChnlApNum[prBssDesc->ucChannelNum] < 255)
-			aucChnlApNum[prBssDesc->ucChannelNum]++;
-		if (aucChnlUtil[prBssDesc->ucChannelNum] < prBssDesc->ucChnlUtilization)
-			aucChnlUtil[prBssDesc->ucChannelNum] = prBssDesc->ucChnlUtilization;
-		if (!EQUAL_SSID(prConnSettings->aucSSID, prConnSettings->ucSSIDLen,
-			prBssDesc->aucSSID, prBssDesc->ucSSIDLen))
-			continue;
-		/* Record same BSS list */
-		LINK_INSERT_HEAD(prCurEssLink, &prBssDesc->rLinkEntryEss);
-		ucByteNum = prBssDesc->ucChannelNum / 8;
-		ucBitNum = prBssDesc->ucChannelNum % 8;
-		if (aucChnlBitMap[ucByteNum] & BIT(ucBitNum))
-			continue;
-		aucChnlBitMap[ucByteNum] |= BIT(ucBitNum);
-		prEssChnlInfo[ucChnlCount].ucChannel = prBssDesc->ucChannelNum;
-		ucChnlCount++;
-		if (ucChnlCount >= CFG_MAX_NUM_OF_CHNL_INFO)
-			break;
-	}
-	prAdapter->rWifiVar.rAisSpecificBssInfo.ucCurEssChnlInfoNum = ucChnlCount;
-	for (j = 0; j < ucChnlCount; j++) {
-		UINT_8 ucChnl = prEssChnlInfo[j].ucChannel;
-
-		prEssChnlInfo[j].ucApNum = aucChnlApNum[ucChnl];
-		prEssChnlInfo[j].ucUtilization = aucChnlUtil[ucChnl];
-	}
-#if 0
-	/* Sort according to AP number */
-	for (j = 0; j < ucChnlCount; j++) {
-		for (i = j + 1; i < ucChnlCount; i++)
-			if (prEssChnlInfo[j].ucApNum > prEssChnlInfo[i].ucApNum) {
-				struct ESS_CHNL_INFO rTemp = prEssChnlInfo[j];
-
-				prEssChnlInfo[j] = prEssChnlInfo[i];
-				prEssChnlInfo[i] = rTemp;
-			}
-	}
-#endif
-	DBGLOG(SCN, INFO, "Find %s in %d BSSes, result %d\n",
-		prConnSettings->aucSSID, prBSSDescList->u4NumElem, prCurEssLink->u4NumElem);
-}
-
-#define CALCULATE_SCORE_BY_PROBE_RSP(prBssDesc) \
-	(WEIGHT_IDX_PROBE_RSP * (prBssDesc->fgSeenProbeResp ? BSS_FULL_SCORE : 0))
-
-#define CALCULATE_SCORE_BY_MISS_CNT(prAdapter, prBssDesc) \
-	(WEIGHT_IDX_SCN_MISS_CNT * \
-	(prAdapter->rWifiVar.rScanInfo.u4ScanUpdateIdx - prBssDesc->u4UpdateIdx > 3 ? 0 : \
-	(BSS_FULL_SCORE - (prAdapter->rWifiVar.rScanInfo.u4ScanUpdateIdx - prBssDesc->u4UpdateIdx) * 25)))
-
-#define CALCULATE_SCORE_BY_BAND(prAdapter, prBssDesc, cRssi) \
-	(WEIGHT_IDX_5G_BAND * \
-	((prBssDesc->eBand == BAND_5G && prAdapter->fgEnable5GBand && cRssi > -70) ? BSS_FULL_SCORE : 0))
-
-#define CALCULATE_SCORE_BY_STBC(prAdapter, prBssDesc) \
-	(WEIGHT_IDX_STBC * \
-	((prBssDesc->fgMultiAnttenaAndSTBC && prAdapter->rWifiVar.ucRxStbc) ? BSS_FULL_SCORE:0))
-
-#define CALCULATE_SCORE_BY_DEAUTH(prBssDesc) \
-	(WEIGHT_IDX_DEAUTH_LAST * (prBssDesc->fgDeauthLastTime ? 0:BSS_FULL_SCORE))
-
-#if 0/* we don't take it into account now */
-/* Channel Utilization: weight index will be */
-static UINT_16 scanCalculateScoreByChnlInfo(
-	P_AIS_SPECIFIC_BSS_INFO_T prAisSpecificBssInfo, UINT_8 ucChannel)
-{
-	struct ESS_CHNL_INFO *prEssChnlInfo = &prAisSpecificBssInfo->arCurEssChnlInfo[0];
-	UINT_8 i = 0;
-	UINT_16 u2Score = 0;
-
-	for (; i < prAisSpecificBssInfo->ucCurEssChnlInfoNum; i++) {
-		if (ucChannel == prEssChnlInfo[i].ucChannel) {
-#if 0	/* currently, we don't take channel utilization into account */
-			/* the channel utilization max value is 255. great utilization means little weight value.
-			 * the step of weight value is 2.6
-			*/
-			u2Score = WEIGHT_IDX_CHNL_UTIL *
-				(BSS_FULL_SCORE - (prEssChnlInfo[i].ucUtilization * 10 / 26));
-#endif
-			/* if AP num on this channel is greater than 100, the weight will be 0.
-			 * otherwise, the weight value decrease 1 if AP number increase 1
-			*/
-			if (prEssChnlInfo[i].ucApNum <= CHNL_BSS_NUM_THRESOLD)
-				u2Score += WEIGHT_IDX_AP_NUM *
-					(BSS_FULL_SCORE - prEssChnlInfo[i].ucApNum * SCORE_PER_AP);
-			DBGLOG(SCN, INFO, "channel %d\n", ucChannel);
-			break;
-		}
-	}
-	return u2Score;
-}
-#endif
-static UINT_16 scanCalculateScoreByBandwidth(P_ADAPTER_T prAdapter, P_BSS_DESC_T prBssDesc)
-{
-	UINT_16 u2Score = 0;
-	ENUM_CHANNEL_WIDTH_T eChannelWidth = prBssDesc->eChannelWidth;
-	UINT_8 ucSta5GBW = prAdapter->rWifiVar.ucSta5gBandwidth;
-	UINT_8 ucSta2GBW = prAdapter->rWifiVar.ucSta2gBandwidth;
-	UINT_8 ucStaBW = prAdapter->rWifiVar.ucStaBandwidth;
-
-	if (prBssDesc->fgIsVHTPresent && prAdapter->fgEnable5GBand) {
-		if (ucSta5GBW > ucStaBW)
-			ucSta5GBW = ucStaBW;
-		switch (ucSta5GBW) {
-		case MAX_BW_20MHZ:
-		case MAX_BW_40MHZ:
-			eChannelWidth = CW_20_40MHZ;
-			break;
-		case MAX_BW_80MHZ:
-			eChannelWidth = CW_80MHZ;
-			break;
-		}
-		switch (eChannelWidth) {
-		case CW_20_40MHZ:
-			u2Score = 60;
-			break;
-		case CW_80MHZ:
-			u2Score = 80;
-			break;
-		case CW_160MHZ:
-		case CW_80P80MHZ:
-			u2Score = BSS_FULL_SCORE;
-			break;
-		}
-	} else if (prBssDesc->fgIsHTPresent) {
-		if (prBssDesc->eBand == BAND_2G4) {
-			if (ucSta2GBW > ucStaBW)
-				ucSta2GBW = ucStaBW;
-			u2Score = (prBssDesc->eSco == 0 || ucSta2GBW == MAX_BW_20MHZ) ? 40:60;
-		} else if (prBssDesc->eBand == BAND_5G) {
-			if (ucSta5GBW > ucStaBW)
-				ucSta5GBW = ucStaBW;
-			u2Score = (prBssDesc->eSco == 0 || ucSta5GBW == MAX_BW_20MHZ) ? 40:60;
-		}
-	} else if (prBssDesc->u2BSSBasicRateSet & RATE_SET_OFDM)
-		u2Score = 20;
-	else
-		u2Score = 10;
-	/* DBGLOG(SCN, INFO, "eCW %d, vht %d, ht %d, eband %d, esco %d, u2Score %d\n",
-	  * eChannelWidth, prBssDesc->fgIsVHTPresent,
-	  * prBssDesc->fgIsHTPresent, prBssDesc->eBand, prBssDesc->eSco, u2Score);
-	  */
-	return u2Score * WEIGHT_IDX_BAND_WIDTH;
-}
-
-static UINT_16 scanCalculateScoreByClientCnt(P_BSS_DESC_T prBssDesc)
-{
-	UINT_16 u2Score = 0;
-
-	if (!prBssDesc->fgExsitBssLoadIE || prBssDesc->u2StaCnt > BSS_STA_CNT_THRESOLD) {
-		DBGLOG(SCN, TRACE, "exist bss load %d, sta cnt %d\n",
-			prBssDesc->fgExsitBssLoadIE, prBssDesc->u2StaCnt);
-		return 0;
-	}
-	u2Score = BSS_FULL_SCORE - prBssDesc->u2StaCnt * 3;
-	return u2Score * WEIGHT_IDX_CLIENT_CNT;
-}
-
-static UINT_16 scanCalculateScoreBySnrRssi(P_BSS_DESC_T prBssDesc)
-{
-	UINT_16 u2Score = 0;
-	INT_8 cRssi = RCPI_TO_dBm(prBssDesc->ucRCPI);
-	/*UINT_8 ucSNR = prBssDesc->ucSNR;*/
-	DBGLOG(SCN, TRACE, "cRSSI %d\n", cRssi);
-	if (cRssi >= -20)
-		u2Score = 60;
-	else if (cRssi <= -70 && cRssi > HARD_TO_CONNECT_RSSI_THRESOLD)
-		u2Score = 20;
-	else if (cRssi <= HARD_TO_CONNECT_RSSI_THRESOLD)
-		u2Score = 0;
-	else
-		u2Score = 8 * ((cRssi + 69)/5) + 28;
-	u2Score *= WEIGHT_IDX_RSSI;
-
-	/* TODO: we don't know the valid value for SNR, so don't take it into account */
-	return u2Score;
-}
-
-static BOOLEAN scanSanityCheckBssDesc(P_ADAPTER_T prAdapter,
-	P_BSS_DESC_T prBssDesc, ENUM_BAND_T eBand, UINT_8 ucChannel, BOOLEAN fgIsFixedChannel)
-{
-	if (!(prBssDesc->ucPhyTypeSet & (prAdapter->rWifiVar.ucAvailablePhyTypeSet))) {
-		DBGLOG(SCN, WARN, "SEARCH: Ignore unsupported ucPhyTypeSet = %x\n",
-			prBssDesc->ucPhyTypeSet);
-		return FALSE;
-	}
-	if (prBssDesc->fgIsUnknownBssBasicRate)
-		return FALSE;
-	if (fgIsFixedChannel &&
-		(eBand != prBssDesc->eBand || ucChannel != prBssDesc->ucChannelNum)) {
-		DBGLOG(SCN, INFO, "Fix channel required band %d, channel %d\n", eBand, ucChannel);
-		return FALSE;
-	}
-	if (!rlmDomainIsLegalChannel(prAdapter, prBssDesc->eBand, prBssDesc->ucChannelNum)) {
-		DBGLOG(SCN, WARN, "Band %d channel %d is not legal\n",
-			prBssDesc->eBand, prBssDesc->ucChannelNum);
-		return FALSE;
-	}
-#if CFG_SUPPORT_RN
-	if (prAdapter->prAisBssInfo->fgDisConnReassoc == FALSE)
-#endif
-		if (CHECK_FOR_TIMEOUT(kalGetTimeTick(), prBssDesc->rUpdateTime,
-					SEC_TO_SYSTIME(SCN_BSS_DESC_STALE_SEC)))
-			return FALSE;
-#if CFG_SUPPORT_WAPI
-	if (prAdapter->rWifiVar.rConnSettings.fgWapiMode) {
-		if (!wapiPerformPolicySelection(prAdapter, prBssDesc))
-			return FALSE;
-	} else
-#endif
-	if (!rsnPerformPolicySelection(prAdapter, prBssDesc))
-		return FALSE;
-	if (prAdapter->rWifiVar.rAisSpecificBssInfo.fgCounterMeasure) {
-		DBGLOG(SCN, WARN, "Skip while at counter measure period!!!\n");
-		return FALSE;
-	}
-	return TRUE;
-}
-
-/*****
-* Bss Characteristics to be taken into account when calculate Score:
-* Channel Loading Group:
-* 1. Client Count (in BSS Load IE).
-* 2. AP number on the Channel.
-*
-* RF Group:
-* 1. Channel utilization.
-* 2. SNR.
-* 3. RSSI.
-*
-* Misc Group:
-* 1. Deauth Last time.
-* 2. Scan Missing Count.
-* 3. Has probe response in scan result.
-*
-* Capability Group:
-* 1. Prefer 5G band.
-* 2. Bandwidth.
-* 3. STBC and Multi Anttena.
-*/
-P_BSS_DESC_T scanSearchBssDescByScoreForAis(P_ADAPTER_T prAdapter)
-{
-	P_AIS_SPECIFIC_BSS_INFO_T prAisSpecificBssInfo = NULL;
-	P_LINK_T prEssLink = NULL;
-	P_CONNECTION_SETTINGS_T prConnSettings = NULL;
-	P_BSS_DESC_T prBssDesc = NULL;
-	P_BSS_DESC_T prCandBssDesc = NULL;
-	P_BSS_DESC_T prCandBssDescForLowRssi = NULL;
-	UINT_16 u2ScoreBand = 0;
-	UINT_16 u2ScoreChnlInfo = 0;
-	UINT_16 u2ScoreStaCnt = 0;
-	UINT_16 u2ScoreProbeRsp = 0;
-	UINT_16 u2ScoreScanMiss = 0;
-	UINT_16 u2ScoreBandwidth = 0;
-	UINT_16 u2ScoreSTBC = 0;
-	UINT_16 u2ScoreDeauth = 0;
-	UINT_16 u2ScoreSnrRssi = 0;
-	UINT_16 u2ScoreTotal = 0;
-	UINT_16 u2CandBssScore = 0;
-	UINT_16 u2CandBssScoreForLowRssi = 0;
-	UINT_16 u2BlackListScore = 0;
-	BOOLEAN fgSearchBlackList = FALSE;
-	BOOLEAN fgIsFixedChannel = FALSE;
-	ENUM_BAND_T eBand = BAND_2G4;
-	UINT_8 ucChannel = 0;
-	INT_8 cRssi = -128;
-	INT_8 cMaxRssi = HARD_TO_CONNECT_RSSI_THRESOLD;
-
-	if (!prAdapter) {
-		DBGLOG(SCN, ERROR, "prAdapter is NULL!\n");
-		return NULL;
-	}
-	prAisSpecificBssInfo = &prAdapter->rWifiVar.rAisSpecificBssInfo;
-	prConnSettings = &(prAdapter->rWifiVar.rConnSettings);
-	prEssLink = &prAisSpecificBssInfo->rCurEssLink;
-#if CFG_SUPPORT_CHNL_CONFLICT_REVISE
-	fgIsFixedChannel = cnmAisDetectP2PChannel(prAdapter, &eBand, &ucChannel);
-#else
-	fgIsFixedChannel = cnmAisInfraChannelFixed(prAdapter, &eBand, &ucChannel);
-#endif
-	aisRemoveTimeoutBlacklist(prAdapter);
-
-#if CFG_SELECT_BSS_BASE_ON_RSSI
-	if (prConnSettings->eConnectionPolicy != CONNECT_BY_BSSID) {
-		LINK_FOR_EACH_ENTRY(prBssDesc, prEssLink, rLinkEntryEss, BSS_DESC_T) {
-			if (!fgSearchBlackList) {
-				prBssDesc->prBlack = aisQueryBlackList(prAdapter, prBssDesc);
-				if (prBssDesc->prBlack)
-					continue;
-			} else if (!prBssDesc->prBlack)
-				continue;
-			else
-				u2BlackListScore = WEIGHT_IDX_BLACK_LIST *
-					aisCalculateBlackListScore(prAdapter, prBssDesc);
-
-			if (!scanSanityCheckBssDesc(prAdapter, prBssDesc, eBand, ucChannel, fgIsFixedChannel))
-				continue;
-			cRssi = RCPI_TO_dBm(prBssDesc->ucRCPI);
-			if (cRssi > cMaxRssi)
-				cMaxRssi = cRssi;
-		}
-	}
-#endif
-	DBGLOG(SCN, TRACE, "Max RSSI %d\n", cMaxRssi);
-try_again:
-	LINK_FOR_EACH_ENTRY(prBssDesc, prEssLink, rLinkEntryEss, BSS_DESC_T) {
-		if (prConnSettings->eConnectionPolicy == CONNECT_BY_BSSID) {
-			if (!EQUAL_MAC_ADDR(prBssDesc->aucBSSID, prConnSettings->aucBSSID))
-				continue;
-			if (!scanSanityCheckBssDesc(prAdapter, prBssDesc, eBand, ucChannel, fgIsFixedChannel))
-				continue;
-			prCandBssDesc = prBssDesc;
-			break;
-		} else if (!fgSearchBlackList) {
-			prBssDesc->prBlack = aisQueryBlackList(prAdapter, prBssDesc);
-			if (prBssDesc->prBlack)
-				continue;
-		} else if (!prBssDesc->prBlack)
-			continue;
-		else
-			u2BlackListScore = WEIGHT_IDX_BLACK_LIST *
-				aisCalculateBlackListScore(prAdapter, prBssDesc);
-
-		cRssi = RCPI_TO_dBm(prBssDesc->ucRCPI);
-		DBGLOG(SCN, TRACE, "cRSSI %d, %pM\n", cRssi, prBssDesc->aucBSSID);
-#if CFG_SELECT_BSS_BASE_ON_RSSI
-		if (cMaxRssi >= -55) {
-			if (cRssi < -55)
-				continue;
-		} else if (cMaxRssi >= -65) {
-			if (cRssi < -65)
-				continue;
-		} else if (cMaxRssi >= -77) {
-			if (cRssi < -77)
-				continue;
-		} else if (cMaxRssi >= -88) {
-			if (cRssi < -88)
-				continue;
-		} else if (cMaxRssi >= -100) {
-			if (cRssi < -100)
-				continue;
-		}
-#endif
-		if (!scanSanityCheckBssDesc(prAdapter, prBssDesc, eBand, ucChannel, fgIsFixedChannel))
-			continue;
-
-		u2ScoreBandwidth = scanCalculateScoreByBandwidth(prAdapter, prBssDesc);
-		u2ScoreStaCnt = scanCalculateScoreByClientCnt(prBssDesc);
-		u2ScoreSTBC = CALCULATE_SCORE_BY_STBC(prAdapter, prBssDesc);
-#if 0	/* currently, we don't take these factors into account */
-		u2ScoreChnlInfo = scanCalculateScoreByChnlInfo(prAisSpecificBssInfo, prBssDesc->ucChannelNum);
-#endif
-		u2ScoreSnrRssi = scanCalculateScoreBySnrRssi(prBssDesc);
-
-		u2ScoreDeauth = CALCULATE_SCORE_BY_DEAUTH(prBssDesc);
-		u2ScoreProbeRsp = CALCULATE_SCORE_BY_PROBE_RSP(prBssDesc);
-		u2ScoreScanMiss = CALCULATE_SCORE_BY_MISS_CNT(prAdapter, prBssDesc);
-		u2ScoreBand = CALCULATE_SCORE_BY_BAND(prAdapter, prBssDesc, cRssi);
-		u2ScoreTotal = u2ScoreBandwidth + u2ScoreChnlInfo + u2ScoreDeauth + u2ScoreProbeRsp +
-			u2ScoreScanMiss + u2ScoreSnrRssi + u2ScoreStaCnt + u2ScoreSTBC + u2ScoreBand + u2BlackListScore;
-
-		DBGLOG(SCN, INFO,
-		"%pM Score, Total %d: BW[%d], CI[%d], DE[%d], PR[%d], SM[%d], SC[%d], SR[%d,%d], ST[%d], BD[%d]\n",
-			prBssDesc->aucBSSID, u2ScoreTotal, u2ScoreBandwidth, u2ScoreChnlInfo, u2ScoreDeauth,
-			u2ScoreProbeRsp, u2ScoreScanMiss, u2ScoreStaCnt, u2ScoreSnrRssi,
-			RCPI_TO_dBm(prBssDesc->ucRCPI), u2ScoreSTBC, u2ScoreBand);
-		if (cRssi < HARD_TO_CONNECT_RSSI_THRESOLD) {
-			if (!prCandBssDescForLowRssi) {
-				prCandBssDescForLowRssi = prBssDesc;
-				u2CandBssScoreForLowRssi = u2ScoreTotal;
-			} else if (prCandBssDescForLowRssi->fgIsConnected) {
-				if ((u2CandBssScoreForLowRssi + ROAMING_NO_SWING_SCORE_STEP) < u2ScoreTotal) {
-					prCandBssDescForLowRssi = prBssDesc;
-					u2CandBssScoreForLowRssi = u2ScoreTotal;
-				}
-			} else if (prBssDesc->fgIsConnected) {
-				if (u2CandBssScoreForLowRssi > (u2ScoreTotal + ROAMING_NO_SWING_SCORE_STEP)) {
-					prCandBssDescForLowRssi = prBssDesc;
-					u2CandBssScoreForLowRssi = u2ScoreTotal;
-				}
-			} else if (u2CandBssScoreForLowRssi < u2ScoreTotal) {
-				prCandBssDescForLowRssi = prBssDesc;
-				u2CandBssScoreForLowRssi = u2ScoreTotal;
-			}
-		} else if (!prCandBssDesc) {
-			prCandBssDesc = prBssDesc;
-			u2CandBssScore = u2ScoreTotal;
-		} else if (prCandBssDesc->fgIsConnected) {
-			if ((u2CandBssScore + ROAMING_NO_SWING_SCORE_STEP) < u2ScoreTotal) {
-				prCandBssDesc = prBssDesc;
-				u2CandBssScore = u2ScoreTotal;
-			}
-		} else if (prBssDesc->fgIsConnected) {
-			if (u2CandBssScore <= (u2ScoreTotal + ROAMING_NO_SWING_SCORE_STEP)) {
-				prCandBssDesc = prBssDesc;
-				u2CandBssScore = u2ScoreTotal;
-			}
-		} else if (u2CandBssScore < u2ScoreTotal) {
-			prCandBssDesc = prBssDesc;
-			u2CandBssScore = u2ScoreTotal;
-		}
-	} /* end of LINK_FOR_EACH */
-	if (prCandBssDesc) {
-		if (prCandBssDesc->fgIsConnected && !fgSearchBlackList && prEssLink->u4NumElem > 0) {
-			fgSearchBlackList = TRUE;
-			DBGLOG(SCN, TRACE, "Can't roam out, try blacklist\n");
-			goto try_again;
-		}
-		if (prConnSettings->eConnectionPolicy == CONNECT_BY_BSSID)
-			DBGLOG(SCN, INFO,
-				"Selected %pM base on bssid, when find %s, %pM in %d BSSes, fix channel %d.\n",
-				prCandBssDesc->aucBSSID, prConnSettings->aucSSID,
-				prConnSettings->aucBSSID, prEssLink->u4NumElem, ucChannel);
-		else
-			DBGLOG(SCN, INFO,
-				"Selected %pM, Score %d when find %s, %pM in %d BSSes, fix channel %d, blacklist %d\n",
-				prCandBssDesc->aucBSSID, u2CandBssScore, prConnSettings->aucSSID,
-				prConnSettings->aucBSSID, prEssLink->u4NumElem, ucChannel, fgSearchBlackList);
-		return prCandBssDesc;
-	} else if (prCandBssDescForLowRssi) {
-		DBGLOG(SCN, INFO,
-			"Selected %pM, Score %d when find %s, %pM in %d BSSes, fix channel %d, blacklist %d\n",
-			prCandBssDescForLowRssi->aucBSSID, u2CandBssScoreForLowRssi, prConnSettings->aucSSID,
-			prConnSettings->aucBSSID, prEssLink->u4NumElem, ucChannel, fgSearchBlackList);
-		return prCandBssDescForLowRssi;
-	}
-
-	/* if No Candidate BSS is found, try BSSes which are in blacklist */
-	if (!fgSearchBlackList && prEssLink->u4NumElem > 0) {
-		fgSearchBlackList = TRUE;
-		DBGLOG(SCN, TRACE, "No Bss is found, Try blacklist\n");
-		goto try_again;
-	}
-
-	DBGLOG(SCN, INFO, "Selected None when find %s, %pM in %d BSSes, fix channel %d, blacklist %d\n",
-				prConnSettings->aucSSID, prConnSettings->aucBSSID,
-				prEssLink->u4NumElem, ucChannel, fgSearchBlackList);
-	return NULL;
-}
-

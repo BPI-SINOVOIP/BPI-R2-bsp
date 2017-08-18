@@ -12,11 +12,11 @@
 * If not, see <http://www.gnu.org/licenses/>.
 */
 
-/*
- *  ! \file
- *  \brief  Declaration of library functions
- *  Any definitions in this file will be shared among GLUE Layer and internal Driver Stack.
- */
+/*! \file
+    \brief  Declaration of library functions
+
+    Any definitions in this file will be shared among GLUE Layer and internal Driver Stack.
+*/
 
 /*******************************************************************************
 *                         C O M P I L E R   F L A G S
@@ -46,7 +46,7 @@ do { \
 #define CMB_STUB_LOG_DBG(fmt, arg...) \
 do { \
 	if (gCmbStubLogLevel >= CMB_STUB_DBG_LOG) \
-		pr_warn(fmt, ##arg); \
+		pr_debug(fmt, ##arg); \
 } while (0)
 
 /*******************************************************************************
@@ -82,16 +82,18 @@ do { \
 #endif
 
 #if MTK_WCN_CMB_FOR_SDIO_1V_AUTOK
-struct work_struct *g_sdio_1v_autok_wk;
+struct work_struct *g_sdio_1v_autok_wk = NULL;
 #endif
 int gConnectivityChipId = -1;
 
+#ifdef MTK_WCN_COMBO_CHIP_SUPPORT
 /*
 * current used uart port name, default is "ttyMT2",
 * will be changed when wmt driver init
 */
 char *wmt_uart_port_desc = "ttyMT2";
 EXPORT_SYMBOL(wmt_uart_port_desc);
+#endif
 
 static void mtk_wcn_cmb_sdio_request_eirq(msdc_sdio_irq_handler_t irq_handler, void *data);
 static void mtk_wcn_cmb_sdio_enable_eirq(void);
@@ -184,7 +186,7 @@ static int mtk_wcn_cmb_stub_drv_status(unsigned int type)
  *
  * \param void
  *
- * \retval int,mt6630&mt6632 state:0/off,1/power on,2/func on, -1/null
+ * \retval int,mt6630 state:0/off,1/power on,2/func on, -1/null
  */
 int mtk_wcn_cmb_stub_1vautok_for_dvfs(void)
 {
@@ -193,16 +195,16 @@ int mtk_wcn_cmb_stub_1vautok_for_dvfs(void)
 	CMB_STUB_LOG_WARN("DVFS driver call sdio 1v autok\n");
 
 	wmt_status = mtk_wcn_cmb_stub_drv_status(4);
-	CMB_STUB_LOG_WARN("current mt6630&mt6632 status is %d\n", wmt_status);
-	if (wmt_status == 0) {
+	CMB_STUB_LOG_WARN("current mt6630 status is %d\n", wmt_status);
+	if (0 == wmt_status) {
 		if (g_sdio_1v_autok_wk)
 			schedule_work(g_sdio_1v_autok_wk);
 		else
 			CMB_STUB_LOG_WARN("g_sdio_1v_autok_wk is NULL\n");
-	} else if ((wmt_status == 2) || (wmt_status == 1)) {
-		CMB_STUB_LOG_WARN("mt6630&mt6632 is on state,skip AUTOK\n");
+	} else if ((2 == wmt_status) || (1 == wmt_status)) {
+		CMB_STUB_LOG_WARN("mt6630 is on state,skip AUTOK\n");
 	} else {
-		CMB_STUB_LOG_WARN("mt6630&mt6632 is unknown state(%d)\n", wmt_status);
+		CMB_STUB_LOG_WARN("mt6630 is unknown state(%d)\n", wmt_status);
 	}
 
 	return wmt_status;
@@ -282,8 +284,8 @@ int mtk_wcn_cmb_stub_aif_ctrl(CMB_STUB_AIF_X state, CMB_STUB_AIF_CTRL ctrl)
 {
 	int ret;
 
-	if ((state >= CMB_STUB_AIF_MAX)
-	    || (ctrl >= CMB_STUB_AIF_CTRL_MAX)) {
+	if ((CMB_STUB_AIF_MAX <= state)
+	    || (CMB_STUB_AIF_CTRL_MAX <= ctrl)) {
 
 		CMB_STUB_LOG_WARN("[cmb_stub] aif_ctrl invalid (%d, %d)\n", state, ctrl);
 		return -1;
@@ -347,10 +349,8 @@ static int _mt_combo_plt_do_deep_idle(COMBO_IF src, int enter)
 	if (src >= 0 && src < COMBO_IF_MAX)
 		CMB_STUB_LOG_INFO("src = %s, to enter deep idle? %d\n", combo_if_name[src], enter);
 #endif
-	/*
-	 *  TODO: For Common SDIO configuration, we need to do some judgement between STP and WIFI
-	 *  to decide if the msdc will enter deep idle safely
-	 */
+	/*TODO: For Common SDIO configuration, we need to do some judgement between STP and WIFI
+	   to decide if the msdc will enter deep idle safely */
 
 	switch (src) {
 	case COMBO_IF_UART:
@@ -425,7 +425,6 @@ EXPORT_SYMBOL(mt_combo_plt_exit_deep_idle);
 
 int mtk_wcn_wmt_chipid_query(void)
 {
-	CMB_STUB_LOG_INFO("query current consys chipid (0x%x)\n", gConnectivityChipId);
 	return gConnectivityChipId;
 }
 EXPORT_SYMBOL(mtk_wcn_wmt_chipid_query);
@@ -474,7 +473,7 @@ static void mtk_wcn_cmb_sdio_disable_eirq(void)
 
 irqreturn_t mtk_wcn_cmb_sdio_eirq_handler_stub(int irq, void *data)
 {
-	if ((mtk_wcn_cmb_sdio_eirq_handler != NULL) && (atomic_read(&sdio_claim_irq_enable_flag) != 0))
+	if ((NULL != mtk_wcn_cmb_sdio_eirq_handler)&&(0 != atomic_read(&sdio_claim_irq_enable_flag)))
 		mtk_wcn_cmb_sdio_eirq_handler(mtk_wcn_cmb_sdio_eirq_data);
 	return IRQ_HANDLED;
 }
@@ -489,7 +488,7 @@ static void mtk_wcn_cmb_sdio_request_eirq(msdc_sdio_irq_handler_t irq_handler, v
 
 	CMB_STUB_LOG_INFO("enter %s\n", __func__);
 	mtk_wcn_sdio_irq_flag_set(0);
-	atomic_set(&irq_enable_flag, 1);
+	atomic_set(&irq_enable_flag, 0);
 	mtk_wcn_cmb_sdio_eirq_data = data;
 	mtk_wcn_cmb_sdio_eirq_handler = irq_handler;
 
@@ -538,8 +537,7 @@ static void mtk_wcn_cmb_sdio_on(int sdio_port_num)
 	/* 2. call sd callback */
 	if (mtk_wcn_cmb_sdio_pm_cb) {
 		/* pr_warn("mtk_wcn_cmb_sdio_pm_cb(PM_EVENT_USER_RESUME, 0x%p, 0x%p)\n",
-		 * mtk_wcn_cmb_sdio_pm_cb, mtk_wcn_cmb_sdio_pm_data);
-		 */
+		 * mtk_wcn_cmb_sdio_pm_cb, mtk_wcn_cmb_sdio_pm_data); */
 		mtk_wcn_cmb_sdio_pm_cb(state, mtk_wcn_cmb_sdio_pm_data);
 	} else
 		CMB_STUB_LOG_WARN("mtk_wcn_cmb_sdio_on no sd callback!!\n");
@@ -554,8 +552,7 @@ static void mtk_wcn_cmb_sdio_off(int sdio_port_num)
 	/* 1. call sd callback */
 	if (mtk_wcn_cmb_sdio_pm_cb) {
 		/* pr_warn("mtk_wcn_cmb_sdio_off(PM_EVENT_USER_SUSPEND, 0x%p, 0x%p)\n",
-		 * mtk_wcn_cmb_sdio_pm_cb, mtk_wcn_cmb_sdio_pm_data);
-		*/
+		 * mtk_wcn_cmb_sdio_pm_cb, mtk_wcn_cmb_sdio_pm_data); */
 		mtk_wcn_cmb_sdio_pm_cb(state, mtk_wcn_cmb_sdio_pm_data);
 	} else
 		CMB_STUB_LOG_WARN("mtk_wcn_cmb_sdio_off no sd callback!!\n");
@@ -595,7 +592,7 @@ EXPORT_SYMBOL(board_sdio_ctrl);
 
 int mtk_wcn_sdio_irq_flag_set(int flag)
 {
-	if (flag != 0)
+	if (0 != flag)
 		atomic_set(&sdio_claim_irq_enable_flag, 1);
 	else
 		atomic_set(&sdio_claim_irq_enable_flag, 0);

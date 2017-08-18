@@ -1,28 +1,13 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
 ** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/queue.h#1
 */
 
-/*
- * ! \file   queue.h
- * \brief  Definition for singly queue operations.
- *
- *  In this file we define the singly queue data structure and its
- * queue operation MACROs.
- */
+/*! \file   queue.h
+    \brief  Definition for singly queue operations.
+
+    In this file we define the singly queue data structure and its
+    queue operation MACROs.
+*/
 
 #ifndef _QUEUE_H
 #define _QUEUE_H
@@ -147,9 +132,9 @@ typedef struct _QUE_T {
 
 #define QUEUE_CONCATENATE_QUEUES(prDestQueue, prSrcQueue) \
 	{ \
-		ASSERT(prDestQueue); \
-		ASSERT(prSrcQueue); \
-		if (prSrcQueue->u4NumElem > 0) { \
+	    ASSERT(prDestQueue); \
+	    ASSERT(prSrcQueue); \
+	    if (prSrcQueue->u4NumElem > 0) { \
 			if ((prDestQueue)->prTail) { \
 				((prDestQueue)->prTail)->prNext = (prSrcQueue)->prHead; \
 			} else { \

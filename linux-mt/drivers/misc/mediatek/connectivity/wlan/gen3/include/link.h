@@ -1,28 +1,13 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
 ** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/link.h#1
 */
 
-/*
- * !\file   link.h
- * \brief  Definition for simple doubly linked list operations.
- *
- * In this file we define the simple doubly linked list data structure and its
- * operation MACROs and INLINE functions.
- */
+/*! \file   link.h
+    \brief  Definition for simple doubly linked list operations.
+
+    In this file we define the simple doubly linked list data structure and its
+    operation MACROs and INLINE functions.
+*/
 
 #ifndef _LINK_H
 #define _LINK_H
@@ -64,10 +49,6 @@ typedef struct _LINK_T {
 	UINT_32 u4NumElem;
 } LINK_T, *P_LINK_T;
 
-struct LINK_MGMT {
-	LINK_T rUsingLink;
-	LINK_T rFreeLink;
-};
 /*******************************************************************************
 *                            P U B L I C   D A T A
 ********************************************************************************
@@ -96,37 +77,6 @@ struct LINK_MGMT {
 		((P_LINK_T)(prLink))->u4NumElem = 0; \
 	} while (0)
 
-#define LINK_MGMT_INIT(prLinkMgmt) \
-	do { \
-		LINK_INITIALIZE(&((struct LINK_MGMT *)prLinkMgmt)->rUsingLink); \
-		LINK_INITIALIZE(&((struct LINK_MGMT *)prLinkMgmt)->rFreeLink); \
-	} while (0)
-
-#define LINK_MGMT_GET_ENTRY(prLinkMgmt, prEntry, EntryType, memType) \
-	do { \
-		LINK_REMOVE_HEAD(&((struct LINK_MGMT *)prLinkMgmt)->rFreeLink, \
-			prEntry, EntryType*); \
-		if (!prEntry) \
-			prEntry = kalMemAlloc(sizeof(EntryType), memType); \
-	} while (0)
-
-#define LINK_MGMT_UNINIT(prLinkMgmt, EntryType, memType) \
-	do { \
-		EntryType *prEntry = NULL; \
-		P_LINK_T prFreeList = &((struct LINK_MGMT *)prLinkMgmt)->rFreeLink; \
-		P_LINK_T prUsingList = &((struct LINK_MGMT *)prLinkMgmt)->rUsingLink; \
-		LINK_REMOVE_HEAD(prFreeList, prEntry, EntryType *); \
-		while (prEntry) { \
-			kalMemFree(prEntry, memType, sizeof(EntryType)); \
-			LINK_REMOVE_HEAD(prFreeList, prEntry, EntryType *); \
-		} \
-		LINK_REMOVE_HEAD(prUsingList, prEntry, EntryType *); \
-		while (prEntry) { \
-			kalMemFree(prEntry, memType, sizeof(EntryType)); \
-			LINK_REMOVE_HEAD(prUsingList, prEntry, EntryType *); \
-		} \
-	} while (0)
-
 #define LINK_ENTRY_INITIALIZE(prEntry) \
 	do { \
 		((P_LINK_ENTRY_T)(prEntry))->prNext = (P_LINK_ENTRY_T)NULL; \
@@ -138,12 +88,6 @@ struct LINK_MGMT {
 		((P_LINK_ENTRY_T)(prEntry))->prNext = (P_LINK_ENTRY_T)INVALID_LINK_POISON1; \
 		((P_LINK_ENTRY_T)(prEntry))->prPrev = (P_LINK_ENTRY_T)INVALID_LINK_POISON2; \
 	} while (0)
-
-#define LINK_ENTRY_IS_VALID(prEntry) \
-		(((P_LINK_ENTRY_T)(prEntry))->prNext != (P_LINK_ENTRY_T)NULL && \
-			((P_LINK_ENTRY_T)(prEntry))->prNext != (P_LINK_ENTRY_T)INVALID_LINK_POISON1 && \
-			((P_LINK_ENTRY_T)(prEntry))->prPrev != (P_LINK_ENTRY_T)NULL && \
-			((P_LINK_ENTRY_T)(prEntry))->prPrev != (P_LINK_ENTRY_T)INVALID_LINK_POISON2)
 
 #define LINK_IS_EMPTY(prLink)           (((P_LINK_T)(prLink))->prNext == (P_LINK_ENTRY_T)(prLink))
 
@@ -174,14 +118,14 @@ struct LINK_MGMT {
 #define LINK_PEEK_HEAD(prLink, _type, _member) \
 	( \
 	    LINK_IS_EMPTY(prLink) ? \
-	    (_type *)NULL : LINK_ENTRY((prLink)->prNext, _type, _member) \
+	    NULL : LINK_ENTRY((prLink)->prNext, _type, _member) \
 	)
 
 /* Peek tail entry, but keep still in link list */
 #define LINK_PEEK_TAIL(prLink, _type, _member) \
 	( \
 	    LINK_IS_EMPTY(prLink) ? \
-	    (_type *)NULL : LINK_ENTRY((prLink)->prPrev, _type, _member) \
+	    NULL : LINK_ENTRY((prLink)->prPrev, _type, _member) \
 	)
 
 /* Get first entry from a link list */

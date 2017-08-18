@@ -1,27 +1,111 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
 ** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/nic/hal.h#1
 */
 
-/*!
- * \file   "hal.h"
- * \brief  The declaration of hal functions
+/*! \file   "hal.h"
+    \brief  The declaration of hal functions
+
+    N/A
+*/
+
+/*
+** Log: hal.h
+**
+** 03 19 2013 cp.wu
+** [BORA00002227] [MT6630 Wi-Fi][Driver] Update for Makefile and HIFSYS modifications
+** restore to max RX length = 16 because RTL has been configured to 16 instead of 64 in data sheet definition
+**
+** 03 18 2013 cp.wu
+** [BORA00002227] [MT6630 Wi-Fi][Driver] Update for Makefile and HIFSYS modifications
+** use RX default maximum length to 16 (max. 64)
+**
+** 01 22 2013 cm.chang
+** [BORA00002149] [MT6630 Wi-Fi] Initial software development
+** Remove compiling warning about print argument of long format
+**
+** 10 25 2012 cp.wu
+** [BORA00002227] [MT6630 Wi-Fi][Driver] Update for Makefile and HIFSYS modifications
+** sync with MT6630 HIFSYS update.
+**
+** 09 17 2012 cm.chang
+** [BORA00002149] [MT6630 Wi-Fi] Initial software development
+** Duplicate source from MT6620 v2.3 driver branch
+** (Davinci label: MT6620_WIFI_Driver_V2_3_120913_1942_As_MT6630_Base)
  *
- * N/A
- */
+ * 04 01 2011 tsaiyuan.hsu
+ * [WCXRP00000615] [MT 6620 Wi-Fi][Driver] Fix klocwork issues
+ * fix the klocwork issues, 57500, 57501, 57502 and 57503.
+ *
+ * 03 21 2011 cp.wu
+ * [WCXRP00000540] [MT5931][Driver] Add eHPI8/eHPI16 support to Linux Glue Layer
+ * portability improvement
+ *
+ * 03 07 2011 terry.wu
+ * [WCXRP00000521] [MT6620 Wi-Fi][Driver] Remove non-standard debug message
+ * Toggle non-standard debug messages to comments.
+ *
+ * 11 08 2010 cp.wu
+ * [WCXRP00000166] [MT6620 Wi-Fi][Driver] use SDIO CMD52 for enabling/disabling interrupt to reduce transaction period
+ * change to use CMD52 for enabling/disabling interrupt to reduce SDIO transaction time
+ *
+ * 09 01 2010 cp.wu
+ * NULL
+ * move HIF CR initialization from where after sdioSetupCardFeature() to wlanAdapterStart()
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 06 15 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * change zero-padding for TX port access to HAL.
+ *
+ * 06 06 2010 kevin.huang
+ * [WPD00003832][MT6620 5931] Create driver base
+ * [MT6620 5931] Create driver base
+ *
+ * 04 06 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * eliminate direct access for prGlueInfo->fgIsCardRemoved in non-glue layer
+ *
+ * 01 27 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1. eliminate improper variable in rHifInfo
+ *  *  *  * 2. block TX/ordinary OID when RF test mode is engaged
+ *  *  *  * 3. wait until firmware finish operation when entering into and leaving from RF test mode
+ *  *  *  * 4. correct some HAL implementation
+**  \main\maintrunk.MT6620WiFiDriver_Prj\17 2009-12-16 18:02:26 GMT mtk02752
+**  include precomp.h
+**  \main\maintrunk.MT6620WiFiDriver_Prj\16 2009-12-10 16:43:16 GMT mtk02752
+**  code clean
+**  \main\maintrunk.MT6620WiFiDriver_Prj\15 2009-11-13 13:54:15 GMT mtk01084
+**  \main\maintrunk.MT6620WiFiDriver_Prj\14 2009-11-11 10:36:01 GMT mtk01084
+**  modify HAL functions
+**  \main\maintrunk.MT6620WiFiDriver_Prj\13 2009-11-09 22:56:28 GMT mtk01084
+**  modify HW access routines
+**  \main\maintrunk.MT6620WiFiDriver_Prj\12 2009-10-29 19:50:09 GMT mtk01084
+**  add new macro HAL_TX_PORT_WR
+**  \main\maintrunk.MT6620WiFiDriver_Prj\11 2009-10-23 16:08:10 GMT mtk01084
+**  \main\maintrunk.MT6620WiFiDriver_Prj\10 2009-10-13 21:58:50 GMT mtk01084
+**  update for new HW architecture design
+**  \main\maintrunk.MT6620WiFiDriver_Prj\9 2009-05-18 14:28:10 GMT mtk01084
+**  fix issue in HAL_DRIVER_OWN_BY_SDIO_CMD52()
+**  \main\maintrunk.MT6620WiFiDriver_Prj\8 2009-05-11 17:26:33 GMT mtk01084
+**  modify the bit definition to check driver own status
+**  \main\maintrunk.MT6620WiFiDriver_Prj\7 2009-04-28 10:30:22 GMT mtk01461
+**  Fix typo
+**  \main\maintrunk.MT6620WiFiDriver_Prj\6 2009-04-01 10:50:34 GMT mtk01461
+**  Redefine HAL_PORT_RD/WR macro for SW pre test
+**  \main\maintrunk.MT6620WiFiDriver_Prj\5 2009-03-24 09:46:49 GMT mtk01084
+**  fix LINT error
+**  \main\maintrunk.MT6620WiFiDriver_Prj\4 2009-03-23 16:53:38 GMT mtk01084
+**  add HAL_DRIVER_OWN_BY_SDIO_CMD52()
+**  \main\maintrunk.MT6620WiFiDriver_Prj\3 2009-03-18 20:53:13 GMT mtk01426
+**  Fixed lint warn
+**  \main\maintrunk.MT6620WiFiDriver_Prj\2 2009-03-10 20:16:20 GMT mtk01426
+**  Init for develop
+**
+*/
 
 #ifndef _HAL_H
 #define _HAL_H
@@ -69,9 +153,6 @@
 
 #if defined(_HIF_SDIO)
 #define HAL_MCR_RD(_prAdapter, _u4Offset, _pu4Value) \
-	HAL_MCR_HIF_RD(_prAdapter, _u4Offset, _pu4Value)
-
-#define HAL_MCR_HIF_RD(_prAdapter, _u4Offset, _pu4Value) \
 do { \
 	if (HAL_TEST_FLAG(_prAdapter, ADAPTER_FLAG_HW_ERR) == FALSE) { \
 		if (_prAdapter->rAcpiState == ACPI_STATE_D3) { \
@@ -80,20 +161,16 @@ do { \
 		if (kalDevRegRead(_prAdapter->prGlueInfo, _u4Offset, _pu4Value) == FALSE) {\
 			HAL_SET_FLAG(_prAdapter, ADAPTER_FLAG_HW_ERR); \
 			fgIsBusAccessFailed = TRUE; \
-			DBGLOG(HAL, ERROR, "HAL_MCR_RD access fail! 0x%x: 0x%x\n", \
+			DBGLOG(HAL, ERROR, "HAL_MCR_RD access fail! 0x%lx: 0x%lx\n", \
 				(UINT_32) (_u4Offset), *((PUINT_32) (_pu4Value))); \
-			glResetTrigger(_prAdapter); \
 		} \
 	} else { \
-		DBGLOG(HAL, WARN, "ignore HAL_MCR_RD access! 0x%x\n", \
+		DBGLOG(HAL, WARN, "ignore HAL_MCR_RD access! 0x%lx\n", \
 			(UINT_32) (_u4Offset)); \
 	} \
 } while (0)
 
 #define HAL_MCR_WR(_prAdapter, _u4Offset, _u4Value) \
-	HAL_MCR_HIF_WR(_prAdapter, _u4Offset, _u4Value)
-
-#define HAL_MCR_HIF_WR(_prAdapter, _u4Offset, _u4Value) \
 do { \
 	if (HAL_TEST_FLAG(_prAdapter, ADAPTER_FLAG_HW_ERR) == FALSE) { \
 		if (_prAdapter->rAcpiState == ACPI_STATE_D3) { \
@@ -102,18 +179,18 @@ do { \
 		if (kalDevRegWrite(_prAdapter->prGlueInfo, _u4Offset, _u4Value) == FALSE) {\
 			HAL_SET_FLAG(_prAdapter, ADAPTER_FLAG_HW_ERR); \
 			fgIsBusAccessFailed = TRUE; \
-			DBGLOG(HAL, ERROR, "HAL_MCR_WR access fail! 0x%x: 0x%x\n", \
+			DBGLOG(HAL, ERROR, "HAL_MCR_WR access fail! 0x%lx: 0x%lx\n", \
 				(UINT_32) (_u4Offset), (UINT_32) (_u4Value)); \
-			glResetTrigger(_prAdapter); \
 		} \
 	} else { \
-		DBGLOG(HAL, WARN, "ignore HAL_MCR_WR access! 0x%x: 0x%x\n", \
+		DBGLOG(HAL, WARN, "ignore HAL_MCR_WR access! 0x%lx: 0x%lx\n", \
 			(UINT_32) (_u4Offset), (UINT_32) (_u4Value)); \
 	} \
 } while (0)
 
 #define HAL_PORT_RD(_prAdapter, _u4Port, _u4Len, _pucBuf, _u4ValidBufSize) \
 { \
+	/*fgResult = FALSE; */\
 	if (_prAdapter->rAcpiState == ACPI_STATE_D3) { \
 		ASSERT(0); \
 	} \
@@ -126,19 +203,20 @@ do { \
 			} \
 			HAL_SET_FLAG(_prAdapter, ADAPTER_FLAG_HW_ERR); \
 			fgIsBusAccessFailed = TRUE; \
-			DBGLOG(HAL, ERROR, "HAL_PORT_RD access fail! 0x%x\n", \
+			DBGLOG(HAL, ERROR, "HAL_PORT_RD access fail! 0x%lx\n", \
 				(UINT_32) (_u4Port)); \
 			glResetTrigger(_prAdapter); \
 			break; \
 		} \
 	} else { \
-		DBGLOG(HAL, WARN, "ignore HAL_PORT_RD access! 0x%x\n", \
+		DBGLOG(HAL, WARN, "ignore HAL_PORT_RD access! 0x%lx\n", \
 			(UINT_32) (_u4Port)); \
 	} \
 }
 
 #define HAL_PORT_WR(_prAdapter, _u4Port, _u4Len, _pucBuf, _u4ValidBufSize) \
 { \
+	/*fgResult = FALSE; */\
 	if (_prAdapter->rAcpiState == ACPI_STATE_D3) { \
 		ASSERT(0); \
 	} \
@@ -151,13 +229,13 @@ do { \
 			} \
 			HAL_SET_FLAG(_prAdapter, ADAPTER_FLAG_HW_ERR); \
 			fgIsBusAccessFailed = TRUE; \
-			DBGLOG(HAL, ERROR, "HAL_PORT_WR access fail! 0x%x\n", \
+			DBGLOG(HAL, ERROR, "HAL_PORT_WR access fail! 0x%lx\n", \
 				(UINT_32) (_u4Port)); \
 			glResetTrigger(_prAdapter); \
 			break; \
 		} \
 	} else { \
-		DBGLOG(HAL, WARN, "ignore HAL_PORT_WR access! 0x%x\n", \
+		DBGLOG(HAL, WARN, "ignore HAL_PORT_WR access! 0x%lx\n", \
 			(UINT_32) (_u4Port)); \
 	} \
 }
@@ -171,7 +249,7 @@ do { \
 		if (kalDevWriteWithSdioCmd52(_prAdapter->prGlueInfo, _u4Port, _ucBuf) == FALSE) {\
 			HAL_SET_FLAG(_prAdapter, ADAPTER_FLAG_HW_ERR); \
 			fgIsBusAccessFailed = TRUE; \
-			DBGLOG(HAL, ERROR, "HAL_BYTE_WR access fail! 0x%x\n", \
+			DBGLOG(HAL, ERROR, "HAL_BYTE_WR access fail! 0x%lx\n", \
 				(UINT_32)(_u4Port)); \
 		} \
 		else { \
@@ -179,7 +257,7 @@ do { \
 		} \
 	} \
 	else { \
-		DBGLOG(HAL, WARN, "ignore HAL_BYTE_WR access! 0x%x\n", \
+		DBGLOG(HAL, WARN, "ignore HAL_BYTE_WR access! 0x%lx\n", \
 			(UINT_32) (_u4Port)); \
 	} \
 }
@@ -204,81 +282,38 @@ do { \
 	} \
 }
 
-#else
-/* #if defined(_HIF_SDIO) */
-/*
- * Now rx_thread don't access hif register, so if someone call HAL_MCR_RD,
- * no need to use spinlock to protect u4Register and prRegValue.
- */
+#else /* #if defined(_HIF_SDIO) */
 #define HAL_MCR_RD(_prAdapter, _u4Offset, _pu4Value) \
-do { \
-	if ((!_prAdapter->prGlueInfo->hif_thread) || !kalStrnCmp(current->comm, "hif_thread", 10)) { \
-		HAL_MCR_HIF_RD(_prAdapter, _u4Offset, _pu4Value); \
-	} else { \
-		_prAdapter->prGlueInfo->u4Register = _u4Offset; \
-		_prAdapter->prGlueInfo->prRegValue = _pu4Value; \
-		KAL_WAKE_LOCK_TIMEOUT(_prAdapter, &_prAdapter->prGlueInfo->rTimeoutWakeLock, \
-							MSEC_TO_JIFFIES(WAKE_LOCK_THREAD_WAKEUP_TIMEOUT)); \
-		set_bit(GLUE_FLAG_HAL_MCR_RD_BIT, &_prAdapter->prGlueInfo->ulFlag); \
-		wake_up_interruptible(&_prAdapter->prGlueInfo->waitq_hif); \
-		wait_for_completion_interruptible(&_prAdapter->prGlueInfo->rHalRDMCRComp); \
-	} \
-} while (0)
-
-#define HAL_MCR_HIF_RD(_prAdapter, _u4Offset, _pu4Value) \
-do { \
+do{ \
 	if (_prAdapter->rAcpiState == ACPI_STATE_D3) { \
 		ASSERT(0); \
 	} \
 	kalDevRegRead(_prAdapter->prGlueInfo, _u4Offset, _pu4Value); \
-} while (0)
+}while(0)
 
 #define HAL_MCR_WR(_prAdapter, _u4Offset, _u4Value) \
-do { \
-	if ((!_prAdapter->prGlueInfo->hif_thread) || !kalStrnCmp(current->comm, "hif_thread", 10)) { \
-		HAL_MCR_HIF_WR(_prAdapter, _u4Offset, _u4Value); \
-	} else { \
-		_prAdapter->prGlueInfo->u4Register = _u4Offset; \
-		_prAdapter->prGlueInfo->u4RegValue = _u4Value; \
-		KAL_WAKE_LOCK_TIMEOUT(_prAdapter, &_prAdapter->prGlueInfo->rTimeoutWakeLock, \
-							MSEC_TO_JIFFIES(WAKE_LOCK_THREAD_WAKEUP_TIMEOUT)); \
-		set_bit(GLUE_FLAG_HAL_MCR_WR_BIT, &_prAdapter->prGlueInfo->ulFlag); \
-		wake_up_interruptible(&_prAdapter->prGlueInfo->waitq_hif); \
-		wait_for_completion_interruptible(&_prAdapter->prGlueInfo->rHalWRMCRComp); \
-	} \
-} while (0)
-
-#define HAL_MCR_HIF_WR(_prAdapter, _u4Offset, _u4Value) \
-do { \
+do{ \
 	if (_prAdapter->rAcpiState == ACPI_STATE_D3) { \
 		ASSERT(0); \
 	} \
 	kalDevRegWrite(_prAdapter->prGlueInfo, _u4Offset, _u4Value); \
-} while (0)
+}while(0)
 
 #define HAL_PORT_RD(_prAdapter, _u4Port, _u4Len, _pucBuf, _u4ValidBufSize) \
-do { \
+do{ \
 	if (_prAdapter->rAcpiState == ACPI_STATE_D3) { \
 		ASSERT(0); \
 	} \
-	if (_prAdapter->fgIsFwOwn == TRUE) { \
-		DBGLOG(HAL, ERROR, "Power control is FW own!! ignore HAL_PORT_RD access!!\n"); \
-	} else { \
-		kalDevPortRead(_prAdapter->prGlueInfo, _u4Port, _u4Len, _pucBuf, _u4ValidBufSize); \
-	} \
-} while (0)
+	kalDevPortRead(_prAdapter->prGlueInfo, _u4Port, _u4Len, _pucBuf, _u4ValidBufSize); \
+}while(0)
 
 #define HAL_PORT_WR(_prAdapter, _u4Port, _u4Len, _pucBuf, _u4ValidBufSize) \
-do { \
+do{ \
 	if (_prAdapter->rAcpiState == ACPI_STATE_D3) { \
 		ASSERT(0); \
 	} \
-	if (_prAdapter->fgIsFwOwn == TRUE) { \
-		DBGLOG(HAL, ERROR, "Power control is FW own!! ignore HAL_PORT_WR access!!\n"); \
-	} else { \
-		kalDevPortWrite(_prAdapter->prGlueInfo, _u4Port, _u4Len, _pucBuf, _u4ValidBufSize); \
-	} \
-} while (0)
+	kalDevPortWrite(_prAdapter->prGlueInfo, _u4Port, _u4Len, _pucBuf, _u4ValidBufSize); \
+}while(0)
 
 #endif /* #if defined(_HIF_SDIO) */
 
@@ -294,9 +329,8 @@ do { \
 
 #define HAL_WRITE_TX_PORT(_prAdapter, _u4Len, _pucBuf, _u4ValidBufSize) \
 { \
-	if ((_u4ValidBufSize - ALIGN_4(_u4Len)) >= sizeof(UINT_32)) { \
-		/* Fill with single dword of zero as TX-aggregation termination */ \
-		/* for block mode transaction that Tx-aggregation length may be less than block size */ \
+	if ((_u4ValidBufSize - _u4Len) >= sizeof(UINT_32)) { \
+		/* fill with single dword of zero as TX-aggregation termination */ \
 		*(PUINT_32) (&((_pucBuf)[ALIGN_4(_u4Len)])) = 0; \
 	} \
 	HAL_PORT_WR(_prAdapter, \
@@ -306,10 +340,8 @@ do { \
 		_u4ValidBufSize/*temp!!*//*4KByte*/); \
 }
 
-/*
- * The macro to read the given MCR several times to check if the wait
- * condition come true.
- */
+/* The macro to read the given MCR several times to check if the wait
+   condition come true. */
 #define HAL_MCR_RD_AND_WAIT(_pAdapter, _offset, _pReadValue, _waitCondition, _waitDelay, _waitCount, _status) \
 	{ \
 		UINT_32 count; \
@@ -324,10 +356,8 @@ do { \
 		} \
 	}
 
-/*
- * The macro to write 1 to a R/S bit and read it several times to check if the
- * command is done
- */
+/* The macro to write 1 to a R/S bit and read it several times to check if the
+   command is done */
 #define HAL_MCR_WR_AND_WAIT(_pAdapter, _offset, _writeValue, _busyMask, _waitDelay, _waitCount, _status) \
 	{ \
 		UINT_32 u4Temp; \
@@ -345,14 +375,14 @@ do { \
 		} while (u4Count); \
 	}
 
-#define HAL_GET_CHIP_ID_VER(_prAdapter, pu2ChipId, pucRevId) \
+#define HAL_GET_CHIP_ID_VER(_prAdapter, pu2ChipId, pu2Version) \
 { \
 	UINT_32 u4Value; \
 	HAL_MCR_RD(_prAdapter, \
 		MCR_WCIR, \
 		&u4Value); \
 	*pu2ChipId = (UINT_16)(u4Value & WCIR_CHIP_ID); \
-	*pucRevId = (UINT_8)(u4Value & WCIR_REVISION_ID) >> 16; \
+	*pu2Version = (UINT_16)(u4Value & WCIR_REVISION_ID) >> 16; \
 }
 
 #define HAL_WAIT_WIFI_FUNC_READY(_prAdapter) \
@@ -485,10 +515,8 @@ do { \
 	prAdapter->prGlueInfo->rHifInfo.fgIntReadClear = FALSE;\
 }
 
-/*
- * Note: enhance mode structure may also carried inside the buffer,
- * if the length of the buffer is long enough
- */
+/* Note: enhance mode structure may also carried inside the buffer,
+	 if the length of the buffer is long enough */
 #define HAL_READ_INTR_STATUS(prAdapter, length, pvBuf) \
 	HAL_PORT_RD(prAdapter, \
 		MCR_WHISR, \

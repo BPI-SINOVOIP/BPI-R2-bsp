@@ -1,25 +1,192 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
 ** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/mgmt/swcr.c#1
 */
 
+/*! \file   "swcr.c"
+    \brief
+
+*/
+
 /*
- * ! \file   "swcr.c"
- *  \brief
- */
+** Log: swcr.c
+**
+** 09 03 2013 jeffrey.chang
+** [BORA00002710] [MT6630][Wi-Fi] PM driver development
+** fix build error
+**
+** 08 28 2013 jeffrey.chang
+** [BORA00002710] [MT6630][Wi-Fi] PM driver development
+** fix bug
+**
+** 08 28 2013 jeffrey.chang
+** [BORA00002710] [MT6630][Wi-Fi] PM driver development
+** modify set ip address logic
+**
+** 08 28 2013 jeffrey.chang
+** [BORA00002710] [MT6630][Wi-Fi] PM driver development
+** 1) clear the IP buffer
+**
+** 08 28 2013 jeffrey.chang
+** [BORA00002710] [MT6630][Wi-Fi] PM driver development
+** 1) modify code which may cause assert
+**
+** 08 26 2013 jeffrey.chang
+** [BORA00002710] [MT6630][Wi-Fi] PM driver development
+** 1) fix bug
+**
+** 08 26 2013 jeffrey.chang
+** [BORA00002710] [MT6630][Wi-Fi] PM driver development
+** 1) Add SwCr for enable/disable ARP filter
+**
+** 08 26 2013 jeffrey.chang
+** [BORA00002710] [MT6630][Wi-Fi] PM driver development
+** 1) change the naming convetion of RX filter to be more general
+** (following Android rules)
+**
+** 08 23 2013 jeffrey.chang
+** [BORA00002710] [MT6630][Wi-Fi] PM driver development
+** 1) align Android design, only allow MC packet with table lookup passed.
+** 2) For mulicast routing, kernel driver will turn on and pass all MC packet through
+** by itself
+**
+** 08 22 2013 tsaiyuan.hsu
+** [BORA00002222] MT6630 unified MAC RXM
+** add mDNS filter for Android.
+**
+** 08 13 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** Remove unused code
+**
+** 08 05 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** 1. Add SW rate definition
+** 2. Add HW default rate selection logic from FW
+**
+** 06 25 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** Update for 1st connection
+**
+** 03 29 2013 cp.wu
+** [BORA00002227] [MT6630 Wi-Fi][Driver] Update for Makefile and HIFSYS modifications
+** 1. remove unused HIF definitions
+** 2. enable NDIS 5.1 build success
+**
+** 03 12 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** Update Tx utility function for management frame
+**
+** 03 06 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** submit some code related with security.
+**
+** 02 19 2013 cp.wu
+** [BORA00002227] [MT6630 Wi-Fi][Driver] Update for Makefile and HIFSYS modifications
+** take use of GET_BSS_INFO_BY_INDEX() and MAX_BSS_INDEX macros
+** for correctly indexing of BSS-INFO pointers
+**
+** 01 28 2013 cm.chang
+** [BORA00002149] [MT6630 Wi-Fi] Initial software development
+** Sync CMD format
+**
+** 01 22 2013 cp.wu
+** [BORA00002253] [MT6630 Wi-Fi][Driver][Firmware] Add NLO and timeout mechanism to SCN module
+** modification for ucBssIndex migration
+**
+** 01 15 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** Update Tx done resource release mechanism.
+**
+** 09 17 2012 cm.chang
+** [BORA00002149] [MT6630 Wi-Fi] Initial software development
+** Duplicate source from MT6620 v2.3 driver branch
+** (Davinci label: MT6620_WIFI_Driver_V2_3_120913_1942_As_MT6630_Base)
+ *
+ * 06 04 2012 tsaiyuan.hsu
+ * [WCXRP00001249] [ALPS.ICS] Daily build warning on "wlan/mgmt/swcr.c#1"
+ * resolve build waring for "WNM_UNIT_TEST not defined".
+ *
+ * 03 02 2012 terry.wu
+ * NULL
+ * Sync CFG80211 modification from branch 2,2.
+ *
+ * 01 05 2012 tsaiyuan.hsu
+ * [WCXRP00001157] [MT6620 Wi-Fi][FW][DRV] add timing measurement support for 802.11v
+ * add timing measurement support for 802.11v.
+ *
+ * 11 22 2011 tsaiyuan.hsu
+ * [WCXRP00001083] [MT6620 Wi-Fi][DRV]] dump debug counter or frames when debugging is triggered
+ * keep debug counter setting after wake up.
+ *
+ * 11 15 2011 cm.chang
+ * NULL
+ * Fix compiling warning
+ *
+ * 11 11 2011 tsaiyuan.hsu
+ * [WCXRP00001083] [MT6620 Wi-Fi][DRV]] dump debug counter or frames when debugging is triggered
+ * fix debug counters of rx in driver.
+ *
+ * 11 11 2011 tsaiyuan.hsu
+ * [WCXRP00001083] [MT6620 Wi-Fi][DRV]] dump debug counter or frames when debugging is triggered
+ * add debug counters of bb and ar for xlog.
+ *
+ * 11 10 2011 eddie.chen
+ * [WCXRP00001096] [MT6620 Wi-Fi][Driver/FW] Enhance the log function (xlog)
+ * Modify the QM xlog level and remove LOG_FUNC.
+ *
+ * 11 08 2011 tsaiyuan.hsu
+ * [WCXRP00001083] [MT6620 Wi-Fi][DRV]] dump debug counter or frames when debugging is triggered
+ * add debug counters, eCurPsProf, for PS.
+ *
+ * 11 07 2011 tsaiyuan.hsu
+ * [WCXRP00001083] [MT6620 Wi-Fi][DRV]] dump debug counter or frames when debugging is triggered
+ * add debug counters and periodically dump counters for debugging.
+ *
+ * 11 03 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * change the DBGLOG for "\n" and "\r\n". LABEL to LOUD for XLOG
+ *
+ * 08 31 2011 tsaiyuan.hsu
+ * [WCXRP00000931] [MT5931 Wi-Fi][DRV/FW] add swcr to disable roaming from driver
+ * remove obsolete code.
+ *
+ * 08 15 2011 tsaiyuan.hsu
+ * [WCXRP00000931] [MT5931 Wi-Fi][DRV/FW] add swcr to disable roaming from driver
+ * add swcr in driver reg, 0x9fxx0000, to disable roaming .
+ *
+ * 05 11 2011 eddie.chen
+ * [WCXRP00000709] [MT6620 Wi-Fi][Driver] Check free number before copying broadcast packet
+ * Fix dest type when GO packet copying.
+ *
+ * 05 09 2011 eddie.chen
+ * [WCXRP00000709] [MT6620 Wi-Fi][Driver] Check free number before copying broadcast packet
+ * Check free number before copying broadcast packet.
+ *
+ * 04 14 2011 eddie.chen
+ * [WCXRP00000603] [MT6620 Wi-Fi][DRV] Fix Klocwork warning
+ * Check the SW RFB free. Fix the compile warning..
+ *
+ * 04 12 2011 eddie.chen
+ * [WCXRP00000617] [MT6620 Wi-Fi][DRV/FW] Fix for sigma
+ * Fix the sta index in processing security frame
+ * Simple flow control for TC4 to avoid mgt frames for PS STA to occupy the TC4
+ * Add debug message.
+ *
+ * 03 28 2011 eddie.chen
+ * [WCXRP00000603] [MT6620 Wi-Fi][DRV] Fix Klocwork warning
+ * Fix Klockwork warning.
+ *
+ * 03 15 2011 eddie.chen
+ * [WCXRP00000554] [MT6620 Wi-Fi][DRV] Add sw control debug counter
+ * Add sw debug counter for QM.
+ *
+ * 01 11 2011 eddie.chen
+ * [WCXRP00000322] Add WMM IE in beacon,
+Add per station flow control when STA is in PS
+
+ * Add swcr for test.
+ *
+*
+*/
 
 /*******************************************************************************
 *                         C O M P I L E R   F L A G S
@@ -47,7 +214,7 @@
 UINT_32 g_au4SwCr[SWCR_CR_NUM];	/*: 0: command other: data */
 
 /* JB mDNS Filter*/
-UINT_32 g_u4RXFilter;	/* [31] 0: stop 1: start, [3] IPv6 [2] IPv4 */
+UINT_32 g_u4RXFilter = 0;	/* [31] 0: stop 1: start, [3] IPv6 [2] IPv4 */
 
 static TIMER_T g_rSwcrDebugTimer;
 static BOOLEAN g_fgSwcrDebugTimer = FALSE;
@@ -240,7 +407,7 @@ void dumpSTA(P_ADAPTER_T prAdapter, P_STA_RECORD_T prStaRec)
 	prBssInfo = GET_BSS_INFO_BY_INDEX(prAdapter, prStaRec->ucBssIndex);
 	ASSERT(prBssInfo);
 
-	DBGLOG(SW4, INFO, "Mac address: " MACSTR " Rcpi %u\n", MAC2STR(prStaRec->aucMacAddr),
+	DBGLOG(SW4, INFO, "Mac address: " MACSTR " Rcpi %u" "\n", MAC2STR(prStaRec->aucMacAddr),
 			prStaRec->ucRCPI);
 
 	DBGLOG(SW4, INFO, "Idx %u Wtbl %u Used %u State %u Bss Phy 0x%x Sta DesiredPhy 0x%x\n",
@@ -354,6 +521,9 @@ VOID swCtrlCmdCategory0(P_ADAPTER_T prAdapter, UINT_8 ucCate, UINT_8 ucAction, U
 	if (ucRead == SWCR_WRITE) {
 		switch (ucIndex) {
 		case SWCTRL_DEBUG:
+#if DBG
+			aucDebugModule[ucOpt0] = (UINT_8) g_au4SwCr[1];
+#endif
 			break;
 		case SWCTRL_WIFI_VAR:
 			break;
@@ -412,10 +582,8 @@ VOID swCtrlCmdCategory0(P_ADAPTER_T prAdapter, UINT_8 ucCate, UINT_8 ucAction, U
 				if (fgUpdate == TRUE)
 					rStatus = wlanoidSetPacketFilter(prAdapter, u4rxfilter, FALSE, NULL, 0);
 
-				/*
-				 * DBGLOG(SW4, INFO,("SWCTRL_RX_FILTER:
-				 * g_u4RXFilter %x ucOpt0 %x ucOpt1 %x fgUpdate %x u4rxfilter %x, rStatus %x\n",
-				 */
+				/* DBGLOG(SW4, INFO,("SWCTRL_RX_FILTER:
+				 * g_u4RXFilter %x ucOpt0 %x ucOpt1 %x fgUpdate %x u4rxfilter %x, rStatus %x\n", */
 				/* g_u4RXFilter, ucOpt0, ucOpt1, fgUpdate, u4rxfilter, rStatus)); */
 			}
 			break;
@@ -522,6 +690,9 @@ VOID swCtrlCmdCategory0(P_ADAPTER_T prAdapter, UINT_8 ucCate, UINT_8 ucAction, U
 	} else {
 		switch (ucIndex) {
 		case SWCTRL_DEBUG:
+#if DBG
+			g_au4SwCr[1] = aucDebugModule[ucOpt0];
+#endif
 			break;
 		case SWCTRL_MAGIC:
 			g_au4SwCr[1] = _SWCTRL_MAGIC;
@@ -956,7 +1127,7 @@ VOID swCtrlSwCr(P_ADAPTER_T prAdapter, UINT_8 ucRead, UINT_16 u2Addr, UINT_32 *p
 
 			u4Cmd = g_au4SwCr[0];
 			ucCate = (UINT_8) (u4Cmd >> 24);
-			if (ucCate < ARRAY_SIZE(g_arSwCtrlCmd)) {
+			if (ucCate < sizeof(g_arSwCtrlCmd) / sizeof(g_arSwCtrlCmd[0])) {
 				if (g_arSwCtrlCmd[ucCate] != NULL) {
 					g_arSwCtrlCmd[ucCate] (prAdapter, ucCate,
 							       (UINT_8) (u4Cmd >> 16 & 0xFF),
@@ -980,7 +1151,8 @@ VOID swCrReadWriteCmd(P_ADAPTER_T prAdapter, UINT_8 ucRead, UINT_16 u2Addr, UINT
 	DEBUGFUNC("swCrReadWriteCmd");
 	DBGLOG(SW4, TRACE, "%u addr 0x%x data 0x%x\n", ucRead, u2Addr, *pu4Data);
 
-	if (ucMod < ARRAY_SIZE(g_arSwCrModHandle)) {
+	if (ucMod < (sizeof(g_arSwCrModHandle) / sizeof(g_arSwCrModHandle[0]))) {
+
 		if (g_arSwCrModHandle[ucMod] != NULL)
 			g_arSwCrModHandle[ucMod] (prAdapter, ucRead, u2Addr, pu4Data);
 	}			/* ucMod */

@@ -1,25 +1,80 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
 ** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/os/linux/include/gl_wext.h#1
 */
 
+/*! \file   gl_wext.h
+    \brief  This file is for Portable Driver linux wireless extension support.
+*/
+
 /*
- * ! \file   gl_wext.h
- *   \brief  This file is for Portable Driver linux wireless extension support.
- */
+** Log: gl_wext.h
+**
+** 09 17 2012 cm.chang
+** [BORA00002149] [MT6630 Wi-Fi] Initial software development
+** Duplicate source from MT6620 v2.3 driver branch
+** (Davinci label: MT6620_WIFI_Driver_V2_3_120913_1942_As_MT6630_Base)
+ *
+ * 10 12 2011 wh.su
+ * [WCXRP00001036] [MT6620 Wi-Fi][Driver][FW] Adding the 802.11w code for MFP
+ * adding the 802.11w related function and define .
+ *
+ * 09 20 2011 chinglan.wang
+ * [WCXRP00000989] [WiFi Direct] [Driver] Add a new io control API to start the formation for the sigma test.
+ * .
+ *
+ * 09 20 2011 chinglan.wang
+ * [WCXRP00000989] [WiFi Direct] [Driver] Add a new io control API to start the formation for the sigma test.
+ * .
+ *
+ * 01 11 2011 chinglan.wang
+ * NULL
+ * Modify to reslove the CR :[ALPS00028994] Use WEP security to connect Marvell 11N AP.
+ * Connection establish successfully.
+ * Use the WPS function to connect AP, the privacy bit always is set to 1. .
+ *
+ * 09 27 2010 wh.su
+ * NULL
+ * [WCXRP00000067][MT6620 Wi-Fi][Driver] Support the android+ WAPI function.
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 06 06 2010 kevin.huang
+ * [WPD00003832][MT6620 5931] Create driver base
+ * [MT6620 5931] Create driver base
+ *
+ * 03 31 2010 wh.su
+ * [WPD00003816][MT6620 Wi-Fi] Adding the security support
+ * modify the wapi related code for new driver's design.
+ *
+ * 03 24 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * initial import for Linux port
+**  \main\maintrunk.MT5921\12 2009-10-20 17:38:33 GMT mtk01090
+**  Refine driver unloading and clean up procedure.
+**  Block requests, stop main thread and clean up queued requests, and then stop hw.
+**  \main\maintrunk.MT5921\11 2009-09-28 20:19:28 GMT mtk01090
+**  Add private ioctl to carry OID structures. Restructure public/private ioctl interfaces to Linux kernel.
+**  \main\maintrunk.MT5921\10 2009-09-03 12:12:35 GMT mtk01088
+**  adding the function declaration
+**  \main\maintrunk.MT5921\9 2009-08-18 22:57:17 GMT mtk01090
+**  Add Linux SDIO (with mmc core) support.
+**  Add Linux 2.6.21, 2.6.25, 2.6.26.
+**  Fix compile warning in Linux.
+**  \main\maintrunk.MT5921\8 2008-08-29 16:59:07 GMT mtk01088
+**  fixed compiling error
+**  \main\maintrunk.MT5921\7 2008-08-29 14:13:28 GMT mtk01088
+**  adjust the header file for code refine
+**  \main\maintrunk.MT5921\6 2008-03-28 10:40:31 GMT mtk01461
+**  Add set desired rate in Linux STD IOCTL
+**  \main\maintrunk.MT5921\5 2008-03-11 14:51:08 GMT mtk01461
+**  Refine private IOCTL functions
+**  \main\maintrunk.MT5921\4 2008-02-12 23:45:45 GMT mtk01461
+**  Add Set Frequency & Channel oid support for Linux
+**  \main\maintrunk.MT5921\3 2007-11-06 19:36:19 GMT mtk01088
+**  add the WPS related code
+*/
 
 #ifndef _GL_WEXT_H
 #define _GL_WEXT_H
@@ -94,12 +149,10 @@ struct iw_mlme {
 /* SIOCSIWAUTH/SIOCGIWAUTH struct iw_param flags */
 #define IW_AUTH_INDEX       0x0FFF
 #define IW_AUTH_FLAGS       0xF000
-/*
- * SIOCSIWAUTH/SIOCGIWAUTH parameters (0 .. 4095)
+/* SIOCSIWAUTH/SIOCGIWAUTH parameters (0 .. 4095)
  * (IW_AUTH_INDEX mask in struct iw_param flags; this is the index of the
  * parameter that is being set/get to; value will be read/written to
- * struct iw_param value field)
- */
+ * struct iw_param value field) */
 #define IW_AUTH_WPA_VERSION             0
 #define IW_AUTH_CIPHER_PAIRWISE         1
 #define IW_AUTH_CIPHER_GROUP            2
@@ -143,10 +196,8 @@ struct iw_mlme {
 
 /* IW_AUTH_ROAMING_CONTROL values */
 #define IW_AUTH_ROAMING_ENABLE  0	/* driver/firmware based roaming */
-#define IW_AUTH_ROAMING_DISABLE 1	/*
-					 * user space program used for roaming
-					 * control
-					 */
+#define IW_AUTH_ROAMING_DISABLE 1	/* user space program used for roaming
+					 * control */
 
 #define SIOCSIWENCODEEXT 0x8B34	/* set encoding token & mode */
 #define SIOCGIWENCODEEXT 0x8B35	/* get encoding token & mode */
@@ -171,12 +222,10 @@ struct iw_encode_ext {
 	__u32 ext_flags;	/*!< IW_ENCODE_EXT_* */
 	__u8 tx_seq[IW_ENCODE_SEQ_MAX_SIZE];	/*!< LSB first */
 	__u8 rx_seq[IW_ENCODE_SEQ_MAX_SIZE];	/*!< LSB first */
-	struct sockaddr addr;	/*
-				 * !< ff:ff:ff:ff:ff:ff for broadcast/multicast
+	struct sockaddr addr;	/*!< ff:ff:ff:ff:ff:ff for broadcast/multicast
 				 *   (group) keys or unicast address for
-				 *   individual keys
-				 */
-	__u16 alg;		/* !< IW_ENCODE_ALG_* */
+				 *   individual keys */
+	__u16 alg;		/*!< IW_ENCODE_ALG_* */
 	__u16 key_len;
 	__u8 key[0];
 };
@@ -194,20 +243,16 @@ struct iw_pmksa {
 	__u8 pmkid[IW_PMKID_LEN];
 };
 
-#define IWEVGENIE   0x8C05	/*
-				 * Generic IE (WPA, RSN, WMM, ..)
+#define IWEVGENIE   0x8C05	/* Generic IE (WPA, RSN, WMM, ..)
 				 * (scan results); This includes id and
 				 * length fields. One IWEVGENIE may
 				 * contain more than one IE. Scan
 				 * results may contain one or more
-				 * IWEVGENIE events.
-				 */
-#define IWEVMICHAELMICFAILURE 0x8C06	/*
-					 * Michael MIC failure
+				 * IWEVGENIE events. */
+#define IWEVMICHAELMICFAILURE 0x8C06	/* Michael MIC failure
 					 * (struct iw_michaelmicfailure)
 					 */
-#define IWEVASSOCREQIE  0x8C07	/*
-				 * IEs used in (Re)Association Request.
+#define IWEVASSOCREQIE  0x8C07	/* IEs used in (Re)Association Request.
 				 * The data includes id and length
 				 * fields and may contain more than one
 				 * IE. This event is required in
@@ -215,22 +260,17 @@ struct iw_pmksa {
 				 * generates its own WPA/RSN IE. This
 				 * should be sent just before
 				 * IWEVREGISTERED event for the
-				 * association.
-				 */
-#define IWEVASSOCRESPIE 0x8C08	/*
-				 * IEs used in (Re)Association
+				 * association. */
+#define IWEVASSOCRESPIE 0x8C08	/* IEs used in (Re)Association
 				 * Response. The data includes id and
 				 * length fields and may contain more
 				 * than one IE. This may be sent
 				 * between IWEVASSOCREQIE and
 				 * IWEVREGISTERED events for the
-				 * association.
-				 */
-#define IWEVPMKIDCAND   0x8C09	/*
-				 * PMKID candidate for RSN
+				 * association. */
+#define IWEVPMKIDCAND   0x8C09	/* PMKID candidate for RSN
 				 * pre-authentication
-				 * (struct iw_pmkid_cand)
-				 */
+				 * (struct iw_pmkid_cand) */
 
 #endif /* WIRELESS_EXT < 18 */
 

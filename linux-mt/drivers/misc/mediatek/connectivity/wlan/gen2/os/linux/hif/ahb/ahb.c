@@ -1,12 +1,134 @@
+/******************************************************************************
+*[File]             ahb.c
+*[Version]          v1.0
+*[Revision Date]    2013-01-16
+*[Author]
+*[Description]
+*    The program provides AHB HIF driver
+*[Copyright]
+*    Copyright (C) 2013 MediaTek Incorporation. All Rights Reserved.
+******************************************************************************/
+
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Log: ahb.c
+ *
+ * 01 16 2013 vend_samp.lin
+ * Port sdio.c to ahb.c on MT6572/MT6582
+ * 1) Initial version
+ *
+ * 04 12 2012 terry.wu
+ * NULL
+ * Add AEE message support
+ * 1) Show AEE warning(red screen) if SDIO access error occurs
+ *
+ * 02 14 2012 cp.wu
+ * [WCXRP00000851] [MT6628 Wi-Fi][Driver] Add HIFSYS related definition to driver source tree
+ * include correct header file upon setting.
+ *
+ * 11 10 2011 cp.wu
+ * [WCXRP00001098] [MT6620 Wi-Fi][Driver] Replace printk by DBG LOG macros in linux porting layer
+ * 1. eliminaite direct calls to printk in porting layer.
+ * 2. replaced by DBGLOG, which would be XLOG on ALPS platforms.
+ *
+ * 09 20 2011 cp.wu
+ * [WCXRP00000994] [MT6620 Wi-Fi][Driver] dump message for bus error and reset bus error flag while re-initialized
+ * 1. always show error message for SDIO bus errors.
+ * 2. reset bus error flag when re-initialization
+ *
+ * 08 17 2011 cp.wu
+ * [WCXRP00000851] [MT6628 Wi-Fi][Driver] Add HIFSYS related definition to driver source tree
+ * add MT6628 related definitions for Linux/Android driver.
+ *
+ * 05 18 2011 cp.wu
+ * [WCXRP00000702] [MT5931][Driver] Modify initialization sequence for E1 ASIC
+ * add device ID for MT5931.
+ *
+ * 04 08 2011 pat.lu
+ * [WCXRP00000623] [MT6620 Wi-Fi][Driver] use ARCH define to distinguish PC Linux driver
+ * Use CONFIG_X86 instead of PC_LINUX_DRIVER_USE option to have proper compile setting for PC Linux driver
+ *
+ * 03 22 2011 pat.lu
+ * [WCXRP00000592] [MT6620 Wi-Fi][Driver] Support PC Linux Environment Driver Build
+ * Add a compiler option "PC_LINUX_DRIVER_USE" for building driver in PC Linux environment.
+ *
+ * 03 18 2011 cp.wu
+ * [WCXRP00000559] [MT6620 Wi-Fi][Driver] Combine TX/RX DMA buffers into a single one to reduce physically continuous
+ * memory consumption
+ * deprecate CFG_HANDLE_IST_IN_SDIO_CALLBACK.
+ *
+ * 03 15 2011 cp.wu
+ * [WCXRP00000559] [MT6620 Wi-Fi][Driver] Combine TX/RX DMA buffers into a single one to reduce physically continuous
+ * memory consumption
+ * 1. deprecate CFG_HANDLE_IST_IN_SDIO_CALLBACK
+ * 2. Use common coalescing buffer for both TX/RX directions
+ *
+ *
+ * 03 07 2011 terry.wu
+ * [WCXRP00000521] [MT6620 Wi-Fi][Driver] Remove non-standard debug message
+ * Toggle non-standard debug messages to comments.
+ *
+ * 11 15 2010 jeffrey.chang
+ * [WCXRP00000181] [MT6620 Wi-Fi][Driver] fix the driver message "GLUE_FLAG_HALT skip INT" during unloading
+ * Fix GLUE_FALG_HALT message which cause driver to hang
+ *
+ * 11 08 2010 cp.wu
+ * [WCXRP00000166] [MT6620 Wi-Fi][Driver] use SDIO CMD52 for enabling/disabling interrupt to reduce transaction period
+ * correct typo
+ *
+ * 11 08 2010 cp.wu
+ * [WCXRP00000166] [MT6620 Wi-Fi][Driver] use SDIO CMD52 for enabling/disabling interrupt to reduce transaction period
+ * change to use CMD52 for enabling/disabling interrupt to reduce SDIO transaction time
+ *
+ * 11 01 2010 yarco.yang
+ * [WCXRP00000149] [MT6620 WI-Fi][Driver]Fine tune performance on MT6516 platform
+ * Add code to run WlanIST in SDIO callback.
+ *
+ * 10 19 2010 cp.wu
+ * [WCXRP00000122] [MT6620 Wi-Fi][Driver] Preparation for YuSu source tree integration
+ * remove HIF_SDIO_ONE flags because the settings could be merged for runtime detection instead of compile-time.
+ *
+ * 10 19 2010 jeffrey.chang
+ * [WCXRP00000120] [MT6620 Wi-Fi][Driver] Refine linux kernel module to the license of MTK propietary and enable MTK
+ * HIF by default
+ * Refine linux kernel module to the license of MTK and enable MTK HIF
+ *
+ * 08 21 2010 jeffrey.chang
+ * NULL
+ * 1) add sdio two setting
+ * 2) bug fix of sdio glue
+ *
+ * 08 18 2010 jeffrey.chang
+ * NULL
+ * support multi-function sdio
+ *
+ * 08 18 2010 cp.wu
+ * NULL
+ * #if defined(__X86__) is not working, change to use #ifdef CONFIG_X86.
+ *
+ * 08 17 2010 cp.wu
+ * NULL
+ * add ENE SDIO host workaround for x86 linux platform.
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 06 06 2010 kevin.huang
+ * [WPD00003832][MT6620 5931] Create driver base
+ * [MT6620 5931] Create driver base
+ *
+ * 05 07 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * Fix hotplug bug
+ *
+ * 03 28 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * clear sdio interrupt
+ *
+ * 03 24 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * initial import for Linux port
+**
 */
 
 /*******************************************************************************
@@ -40,10 +162,8 @@
 
 #endif
 
-/*
- * #include <mach/mt_pm_ldo.h>
- * #include <mach/mt_gpt.h>
- */
+/* #include <mach/mt_pm_ldo.h>
+#include <mach/mt_gpt.h> */
 
 #include "gl_os.h"
 
@@ -322,15 +442,8 @@ VOID glSetHifInfo(GLUE_INFO_T *GlueInfo, ULONG ulCookie)
 #endif /* CONF_HIF_DEV_MISC */
 	SET_NETDEV_DEV(GlueInfo->prDevHandler, HifInfo->Dev);
 
-	if (HifInfo->HifRegBaseAddr == NULL)
-		HifInfo->HifRegBaseAddr = ioremap(HIF_DRV_BASE, HIF_DRV_LENGTH);
-
-	if (HifInfo->McuRegBaseAddr == NULL)
-		HifInfo->McuRegBaseAddr = ioremap(CONN_MCU_DRV_BASE, CONN_MCU_REG_LENGTH);
-
-	if (HifInfo->APMcuRegBaseAddr == NULL)
-		HifInfo->APMcuRegBaseAddr = ioremap(AP_MCU_DRV_BASE, AP_MCU_TX_RX_LENGTH);
-
+	HifInfo->HifRegBaseAddr = ioremap(HIF_DRV_BASE, HIF_DRV_LENGTH);
+	HifInfo->McuRegBaseAddr = ioremap(CONN_MCU_DRV_BASE, CONN_MCU_REG_LENGTH);
 	DBGLOG(INIT, INFO, "[WiFi/HIF]HifInfo->HifRegBaseAddr=0x%p, HifInfo->McuRegBaseAddr=0x%p\n",
 	       HifInfo->HifRegBaseAddr, HifInfo->McuRegBaseAddr);
 
@@ -344,20 +457,10 @@ VOID glSetHifInfo(GLUE_INFO_T *GlueInfo, ULONG ulCookie)
 	} else {
 		/* read chip ID */
 		HifInfo->ChipID = HIF_REG_READL(HifInfo, MCR_WCIR) & 0xFFFF;
-		switch (HifInfo->ChipID) {
-		case 0x0321:
-		case 0x0335:
-		case 0x0337:
+		if (HifInfo->ChipID == 0x0321 || HifInfo->ChipID == 0x0335 || HifInfo->ChipID == 0x0337)
 			HifInfo->ChipID = 0x6735;	/* Denali ChipID transition */
-			break;
-		case 0x0326:
-		case 0x0551:
+		if (HifInfo->ChipID == 0x0326)
 			HifInfo->ChipID = 0x6755;
-			break;
-		case 0x0633:
-			HifInfo->ChipID = 0x6570;
-			break;
-		}
 	}
 	DBGLOG(INIT, INFO, "[WiFi/HIF] ChipID = 0x%x\n", HifInfo->ChipID);
 #ifdef CONFIG_OF
@@ -418,11 +521,6 @@ VOID glClearHifInfo(GLUE_INFO_T *GlueInfo)
 	iounmap(GlueInfo->rHifInfo.HifRegBaseAddr);
 	iounmap(GlueInfo->rHifInfo.DmaRegBaseAddr);
 	iounmap(GlueInfo->rHifInfo.McuRegBaseAddr);
-	iounmap(GlueInfo->rHifInfo.APMcuRegBaseAddr);
-	GlueInfo->rHifInfo.HifRegBaseAddr = NULL;
-	GlueInfo->rHifInfo.DmaRegBaseAddr = NULL;
-	GlueInfo->rHifInfo.McuRegBaseAddr = NULL;
-	GlueInfo->rHifInfo.APMcuRegBaseAddr = NULL;
 	return;
 
 } /* end of glClearHifInfo() */
@@ -447,9 +545,7 @@ VOID glGetChipInfo(GLUE_INFO_T *GlueInfo, UINT_8 *pucChipBuf)
 	case MTK_CHIP_ID_8127:
 	case MTK_CHIP_ID_6752:
 	case MTK_CHIP_ID_8163:
-	case MTK_CHIP_ID_8167:
 	case MTK_CHIP_ID_6735:
-	case MTK_CHIP_ID_6570:
 	case MTK_CHIP_ID_6580:
 	case MTK_CHIP_ID_6755:
 	case MTK_CHIP_ID_7623:
@@ -827,17 +923,17 @@ kalDevPortRead(IN P_GLUE_INFO_T GlueInfo, IN UINT_16 Port, IN UINT_32 Size, OUT 
 		}
 #else
 		/*
-		 * http://kernelnewbies.org/KernelMemoryAllocation
-		 * Since the cache-coherent mapping may be expensive, also a streaming allocation exists.
-		 *
-		 *  This is a buffer for one-way communication, which means coherency is limited to
-		 *  flushing the data from the cache after a write finishes. The buffer has to be
-		 *  pre-allocated (e.g. using kmalloc()). DMA for it is set up with dma_map_single().
-		 *
-		 *  When the DMA is finished (e.g. when the device has sent an interrupt signaling end of
-		 *  DMA), call dma_unmap_single(). Between map and unmap, the device is in control of the
-		 *  buffer: if you write to the device, do it before dma_map_single(), if you read from
-		 *  it, do it after dma_unmap_single().
+		   http://kernelnewbies.org/KernelMemoryAllocation
+		   Since the cache-coherent mapping may be expensive, also a streaming allocation exists.
+
+		   This is a buffer for one-way communication, which means coherency is limited to
+		   flushing the data from the cache after a write finishes. The buffer has to be
+		   pre-allocated (e.g. using kmalloc()). DMA for it is set up with dma_map_single().
+
+		   When the DMA is finished (e.g. when the device has sent an interrupt signaling end of
+		   DMA), call dma_unmap_single(). Between map and unmap, the device is in control of the
+		   buffer: if you write to the device, do it before dma_map_single(), if you read from
+		   it, do it after dma_unmap_single().
 		 */
 		/* DMA_FROM_DEVICE invalidated (without writeback) the cache */
 		/* TODO: if dst_off was not cacheline aligned */
@@ -872,10 +968,8 @@ kalDevPortRead(IN P_GLUE_INFO_T GlueInfo, IN UINT_16 Port, IN UINT_32 Size, OUT 
 			break;
 		} while (!prDmaOps->DmaPollIntr(HifInfo));
 #endif /* CONF_HIF_DMA_INT */
-		/*
-		 * we should disable dma interrupt then clear dma interrupt, otherwise,
-		 *  for dma timeout case, interrupt may be set after we clear it
-		 */
+		/* we should disable dma interrupt then clear dma interrupt, otherwise,
+			for dma timeout case, interrupt may be set after we clear it */
 		prDmaOps->DmaStop(HifInfo);
 		prDmaOps->DmaAckIntr(HifInfo);
 
@@ -1051,10 +1145,8 @@ kalDevPortWrite(IN P_GLUE_INFO_T GlueInfo, IN UINT_16 Port, IN UINT_32 Size, IN 
 			break;
 		} while (!prDmaOps->DmaPollIntr(HifInfo));
 #endif /* CONF_HIF_DMA_INT */
-		/*
-		 * we should disable dma interrupt then clear dma interrupt, otherwise,
-		 * for dma timeout case, interrupt may be set after we clear it
-		 */
+		/* we should disable dma interrupt then clear dma interrupt, otherwise,
+			for dma timeout case, interrupt may be set after we clear it */
 		prDmaOps->DmaStop(HifInfo);
 		prDmaOps->DmaAckIntr(HifInfo);
 
@@ -1367,7 +1459,7 @@ static int HifAhbBusCntClr(VOID)
 * \return void
 */
 /*----------------------------------------------------------------------------*/
-static UINT_32 HifAhbDmaEnhanceModeConf(IN GLUE_INFO_T *GlueInfo, UINT_32 BurstLen, UINT_32 PortId, UINT_32 TransByte)
+static UINT_32 HifAhbDmaEnhanceModeConf(IN GLUE_INFO_T * GlueInfo, UINT_32 BurstLen, UINT_32 PortId, UINT_32 TransByte)
 {
 	GL_HIF_INFO_T *HifInfo;
 	UINT_32 RegHSTCR;

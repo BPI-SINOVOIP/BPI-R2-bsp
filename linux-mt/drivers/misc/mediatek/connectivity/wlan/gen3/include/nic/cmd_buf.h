@@ -1,28 +1,54 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
 ** Id:
 */
 
+/*! \file   "cmd_buf.h"
+    \brief  In this file we define the structure for Command Packet.
+
+		In this file we define the structure for Command Packet and the control unit
+    of MGMT Memory Pool.
+*/
+
 /*
- * ! \file   "cmd_buf.h"
- *  \brief  In this file we define the structure for Command Packet.
+** Log: cmd_buf.h
+**
+** 01 21 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** Update TX path based on new ucBssIndex modifications.
+**
+** 01 17 2013 cm.chang
+** [BORA00002149] [MT6630 Wi-Fi] Initial software development
+** Use ucBssIndex to replace eNetworkTypeIndex
+**
+** 09 17 2012 cm.chang
+** [BORA00002149] [MT6630 Wi-Fi] Initial software development
+** Duplicate source from MT6620 v2.3 driver branch
+** (Davinci label: MT6620_WIFI_Driver_V2_3_120913_1942_As_MT6630_Base)
  *
- *    In this file we define the structure for Command Packet and the control unit
- *    of MGMT Memory Pool.
- */
+ * 10 04 2010 cp.wu
+ * [WCXRP00000077] [MT6620 Wi-Fi][Driver][FW] Eliminate use of ENUM_NETWORK_TYPE_T and replaced by
+ * ENUM_NETWORK_TYPE_INDEX_T only
+ * remove ENUM_NETWORK_TYPE_T definitions
+ *
+ * 09 03 2010 kevin.huang
+ * NULL
+ * Refine #include sequence and solve recursive/nested #include issue
+ *
+ * 07 13 2010 cp.wu
+ *
+ * 1) MMPDUs are now sent to MT6620 by CMD queue for keeping strict order of 1X/MMPDU/CMD packets
+ * 2) integrate with qmGetFrameAction() for deciding which MMPDU/1X could pass checking for sending
+ * 2) enhance CMD_INFO_T descriptor number from 10 to 32 to avoid descriptor underflow
+ * under concurrent network operation
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 07 01 2010 cm.chang
+ * [WPD00003841][LITE Driver] Migrate RLM/CNM to host driver
+ * Enable change log
+*/
 
 #ifndef _CMD_BUF_H
 #define _CMD_BUF_H
@@ -130,20 +156,6 @@ wlanSendSetQueryCmd(IN P_ADAPTER_T prAdapter,
 		    PFN_CMD_TIMEOUT_HANDLER pfCmdTimeoutHandler,
 		    UINT_32 u4SetQueryInfoLen,
 		    PUINT_8 pucInfoBuffer, OUT PVOID pvSetQueryBuffer, IN UINT_32 u4SetQueryBufferLen);
-
-#if CFG_SUPPORT_TX_BF
-WLAN_STATUS
-wlanSendSetQueryExtCmd(IN P_ADAPTER_T prAdapter,
-		       UINT_8 ucCID,
-		       UINT_8 ucExtCID,
-		       BOOLEAN fgSetQuery,
-		       BOOLEAN fgNeedResp,
-		       BOOLEAN fgIsOid,
-		       PFN_CMD_DONE_HANDLER pfCmdDoneHandler,
-		       PFN_CMD_TIMEOUT_HANDLER pfCmdTimeoutHandler,
-		       UINT_32 u4SetQueryInfoLen,
-		       PUINT_8 pucInfoBuffer, OUT PVOID pvSetQueryBuffer, IN UINT_32 u4SetQueryBufferLen);
-#endif
 
 VOID cmdBufDumpCmdQueue(P_QUE_T prQueue, CHAR *queName);
 #if (CFG_SUPPORT_TRACE_TC4 == 1)

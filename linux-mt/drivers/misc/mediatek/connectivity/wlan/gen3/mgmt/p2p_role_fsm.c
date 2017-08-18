@@ -1,17 +1,3 @@
-/*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #include "precomp.h"
 #include "p2p_role_state.h"
 
@@ -438,8 +424,6 @@ VOID p2pRoleFsmRunEventRxDeauthentication(IN P_ADAPTER_T prAdapter, IN P_STA_REC
 {
 	P_BSS_INFO_T prP2pBssInfo = (P_BSS_INFO_T) NULL;
 	UINT_16 u2ReasonCode = 0;
-	P_P2P_INFO_T prP2pInfo;
-	UINT_32 u4CurrentTime;
 
 	do {
 		ASSERT_BREAK((prAdapter != NULL) && (prSwRfb != NULL));
@@ -459,17 +443,6 @@ VOID p2pRoleFsmRunEventRxDeauthentication(IN P_ADAPTER_T prAdapter, IN P_STA_REC
 
 		switch (prP2pBssInfo->eCurrentOPMode) {
 		case OP_MODE_INFRASTRUCTURE:
-			prP2pInfo = prAdapter->prP2pInfo;
-			if (prP2pInfo->fgWaitEapFailure) {
-				u4CurrentTime = kalGetTimeTick();
-				if (TIME_BEFORE(u4CurrentTime, prP2pInfo->u4EapWscDoneTxTime + MSEC_TO_SYSTIME(500))) {
-					DBGLOG(P2P, INFO, "Waiting EAP-Failure, ignore Deauth frame\n");
-					break;
-				}
-				DBGLOG(P2P, INFO, "Should ignore Deauth frame while waiting EAP-failure %d:%d\n",
-					u4CurrentTime, prP2pInfo->u4EapWscDoneTxTime + MSEC_TO_SYSTIME(500));
-			}
-
 			if (authProcessRxDeauthFrame(prSwRfb,
 						     prStaRec->aucMacAddr, &u2ReasonCode) == WLAN_STATUS_SUCCESS) {
 				P_WLAN_DEAUTH_FRAME_T prDeauthFrame = (P_WLAN_DEAUTH_FRAME_T) prSwRfb->pvHeader;
@@ -481,11 +454,12 @@ VOID p2pRoleFsmRunEventRxDeauthentication(IN P_ADAPTER_T prAdapter, IN P_STA_REC
 				prStaRec->u2ReasonCode = u2ReasonCode;
 				u2IELength = prSwRfb->u2PacketLen - (WLAN_MAC_HEADER_LEN + REASON_CODE_FIELD_LEN);
 
+				ASSERT(prP2pBssInfo->prStaRecOfAP == prStaRec);
+
 				/* Indicate disconnect to Host. */
 				kalP2PGCIndicateConnectionStatus(prAdapter->prGlueInfo,
 								 (UINT_8) prP2pBssInfo->u4PrivateData, NULL,
-								 prDeauthFrame->aucInfoElem, u2IELength, u2ReasonCode,
-								 WLAN_STATUS_MEDIA_DISCONNECT);
+								 prDeauthFrame->aucInfoElem, u2IELength, u2ReasonCode);
 
 				prP2pBssInfo->prStaRecOfAP = NULL;
 
@@ -504,10 +478,39 @@ VOID p2pRoleFsmRunEventRxDeauthentication(IN P_ADAPTER_T prAdapter, IN P_STA_REC
 			if (authProcessRxDeauthFrame(prSwRfb,
 						     prP2pBssInfo->aucBSSID, &u2ReasonCode) == WLAN_STATUS_SUCCESS) {
 
-				if (bssRemoveClient(prAdapter, prP2pBssInfo, prStaRec)) {
-					/* Indicate disconnect to Host. */
-				p2pFuncDisconnect(prAdapter, prP2pBssInfo, prStaRec, FALSE, u2ReasonCode);
+#if 0
+				P_LINK_T prStaRecOfClientList = (P_LINK_T) NULL;
+				P_LINK_ENTRY_T prLinkEntry = (P_LINK_ENTRY_T) NULL;
+				P_STA_RECORD_T prCurrStaRec = (P_STA_RECORD_T) NULL;
+
+				prStaRecOfClientList = &prP2pBssInfo->rStaRecOfClientList;
+
+				LINK_FOR_EACH(prLinkEntry, prStaRecOfClientList) {
+					prCurrStaRec = LINK_ENTRY(prLinkEntry, STA_RECORD_T, rLinkEntry);
+
+					ASSERT(prCurrStaRec);
+
+					if (EQUAL_MAC_ADDR(prCurrStaRec->aucMacAddr, prStaRec->aucMacAddr)) {
+
+						/* Remove STA from client list. */
+						LINK_REMOVE_KNOWN_ENTRY(prStaRecOfClientList,
+									&prCurrStaRec->rLinkEntry);
+
+						/* Indicate to Host. */
+						/* kalP2PGOStationUpdate(prAdapter->prGlueInfo, prStaRec, FALSE); */
+
+						/* Indicate disconnect to Host. */
+						p2pFuncDisconnect(prAdapter, prP2pBssInfo, prStaRec,
+								  FALSE, u2ReasonCode);
+
+						break;
+					}
 				}
+#else
+				if (bssRemoveClient(prAdapter, prP2pBssInfo, prStaRec))
+					/* Indicate disconnect to Host. */
+					p2pFuncDisconnect(prAdapter, prP2pBssInfo, prStaRec, FALSE, u2ReasonCode);
+#endif
 			}
 			break;
 		case OP_MODE_P2P_DEVICE:
@@ -517,17 +520,16 @@ VOID p2pRoleFsmRunEventRxDeauthentication(IN P_ADAPTER_T prAdapter, IN P_STA_REC
 			break;
 		}
 
-		DBGLOG(P2P, INFO, "Deauth Reason:%d\n", u2ReasonCode);
+		DBGLOG(P2P, TRACE, "Deauth Reason:%d\n", u2ReasonCode);
 
 	} while (FALSE);
+
 }				/* p2pRoleFsmRunEventRxDeauthentication */
 
 VOID p2pRoleFsmRunEventRxDisassociation(IN P_ADAPTER_T prAdapter, IN P_STA_RECORD_T prStaRec, IN P_SW_RFB_T prSwRfb)
 {
 	P_BSS_INFO_T prP2pBssInfo = (P_BSS_INFO_T) NULL;
 	UINT_16 u2ReasonCode = 0;
-	P_P2P_INFO_T prP2pInfo;
-	UINT_32 u4CurrentTime;
 
 	do {
 		ASSERT_BREAK((prAdapter != NULL) && (prSwRfb != NULL));
@@ -546,23 +548,14 @@ VOID p2pRoleFsmRunEventRxDisassociation(IN P_ADAPTER_T prAdapter, IN P_STA_RECOR
 
 		switch (prP2pBssInfo->eCurrentOPMode) {
 		case OP_MODE_INFRASTRUCTURE:
-			prP2pInfo = prAdapter->prP2pInfo;
-			if (prP2pInfo->fgWaitEapFailure) {
-				u4CurrentTime = kalGetTimeTick();
-				if (TIME_BEFORE(u4CurrentTime, prP2pInfo->u4EapWscDoneTxTime + MSEC_TO_SYSTIME(500))) {
-					DBGLOG(P2P, INFO, "Waiting EAP-Failure, ignore Disassoc frame\n");
-					break;
-				}
-				DBGLOG(P2P, INFO, "Should ignore disassoc frame while waiting EAP-failure %d:%d\n",
-					u4CurrentTime, prP2pInfo->u4EapWscDoneTxTime + MSEC_TO_SYSTIME(500));
-			}
-
 			if (assocProcessRxDisassocFrame(prAdapter,
 							prSwRfb,
 							prStaRec->aucMacAddr,
 							&prStaRec->u2ReasonCode) == WLAN_STATUS_SUCCESS) {
 				P_WLAN_DISASSOC_FRAME_T prDisassocFrame = (P_WLAN_DISASSOC_FRAME_T) prSwRfb->pvHeader;
 				UINT_16 u2IELength = 0;
+
+				ASSERT(prP2pBssInfo->prStaRecOfAP == prStaRec);
 
 				if (prP2pBssInfo->prStaRecOfAP != prStaRec)
 					break;
@@ -573,8 +566,7 @@ VOID p2pRoleFsmRunEventRxDisassociation(IN P_ADAPTER_T prAdapter, IN P_STA_RECOR
 				kalP2PGCIndicateConnectionStatus(prAdapter->prGlueInfo,
 								 (UINT_8) prP2pBssInfo->u4PrivateData, NULL,
 								 prDisassocFrame->aucInfoElem,
-								 u2IELength, prStaRec->u2ReasonCode,
-								 WLAN_STATUS_MEDIA_DISCONNECT);
+								 u2IELength, prStaRec->u2ReasonCode);
 
 				prP2pBssInfo->prStaRecOfAP = NULL;
 
@@ -593,9 +585,39 @@ VOID p2pRoleFsmRunEventRxDisassociation(IN P_ADAPTER_T prAdapter, IN P_STA_RECOR
 			if (assocProcessRxDisassocFrame(prAdapter,
 							prSwRfb,
 							prP2pBssInfo->aucBSSID, &u2ReasonCode) == WLAN_STATUS_SUCCESS) {
+#if 0
+				P_LINK_T prStaRecOfClientList = (P_LINK_T) NULL;
+				P_LINK_ENTRY_T prLinkEntry = (P_LINK_ENTRY_T) NULL;
+				P_STA_RECORD_T prCurrStaRec = (P_STA_RECORD_T) NULL;
+
+				prStaRecOfClientList = &prP2pBssInfo->rStaRecOfClientList;
+
+				LINK_FOR_EACH(prLinkEntry, prStaRecOfClientList) {
+					prCurrStaRec = LINK_ENTRY(prLinkEntry, STA_RECORD_T, rLinkEntry);
+
+					ASSERT(prCurrStaRec);
+
+					if (EQUAL_MAC_ADDR(prCurrStaRec->aucMacAddr, prStaRec->aucMacAddr)) {
+
+						/* Remove STA from client list. */
+						LINK_REMOVE_KNOWN_ENTRY(prStaRecOfClientList,
+									&prCurrStaRec->rLinkEntry);
+
+						/* Indicate to Host. */
+						/* kalP2PGOStationUpdate(prAdapter->prGlueInfo, prStaRec, FALSE); */
+
+						/* Indicate disconnect to Host. */
+						p2pFuncDisconnect(prAdapter, prP2pBssInfo, prStaRec,
+								  FALSE, u2ReasonCode);
+
+						break;
+					}
+				}
+#else
 				if (bssRemoveClient(prAdapter, prP2pBssInfo, prStaRec))
 					/* Indicate disconnect to Host. */
 					p2pFuncDisconnect(prAdapter, prP2pBssInfo, prStaRec, FALSE, u2ReasonCode);
+#endif
 			}
 			break;
 		case OP_MODE_P2P_DEVICE:
@@ -638,8 +660,7 @@ VOID p2pRoleFsmRunEventBeaconTimeout(IN P_ADAPTER_T prAdapter, IN P_BSS_INFO_T p
 			/* Indicate disconnect to Host. */
 			kalP2PGCIndicateConnectionStatus(prAdapter->prGlueInfo,
 							 prP2pRoleFsmInfo->ucRoleIndex,
-							 NULL, NULL, 0, REASON_CODE_DISASSOC_INACTIVITY,
-							 WLAN_STATUS_MEDIA_DISCONNECT);
+							 NULL, NULL, 0, REASON_CODE_DISASSOC_INACTIVITY);
 
 			if (prP2pBssInfo->prStaRecOfAP != NULL) {
 				P_STA_RECORD_T prStaRec = prP2pBssInfo->prStaRecOfAP;
@@ -690,14 +711,14 @@ VOID p2pRoleFsmRunEventStartAP(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T prMsgHdr
 		prP2pConnReqInfo = &(prP2pRoleFsmInfo->rConnReqInfo);
 
 		if (prP2pStartAPMsg->u4BcnInterval) {
-			DBGLOG(P2P, TRACE, "Beacon interval updated to: %u\n", prP2pStartAPMsg->u4BcnInterval);
+			DBGLOG(P2P, TRACE, "Beacon interval updated to :%ld\n", prP2pStartAPMsg->u4BcnInterval);
 			prP2pBssInfo->u2BeaconInterval = (UINT_16) prP2pStartAPMsg->u4BcnInterval;
 		} else if (prP2pBssInfo->u2BeaconInterval == 0) {
 			prP2pBssInfo->u2BeaconInterval = DOT11_BEACON_PERIOD_DEFAULT;
 		}
 
 		if (prP2pStartAPMsg->u4DtimPeriod) {
-			DBGLOG(P2P, TRACE, "DTIM interval updated to: %u\n", prP2pStartAPMsg->u4DtimPeriod);
+			DBGLOG(P2P, TRACE, "DTIM interval updated to :%ld\n", prP2pStartAPMsg->u4DtimPeriod);
 			prP2pBssInfo->ucDTIMPeriod = (UINT_8) prP2pStartAPMsg->u4DtimPeriod;
 		} else if (prP2pBssInfo->ucDTIMPeriod == 0) {
 			prP2pBssInfo->ucDTIMPeriod = DOT11_DTIM_PERIOD_DEFAULT;
@@ -728,7 +749,7 @@ VOID p2pRoleFsmRunEventStartAP(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T prMsgHdr
 			prP2pConnReqInfo->eConnRequest = P2P_CONNECTION_TYPE_GO;
 		}
 
-		prP2pBssInfo->eHiddenSsidType = prP2pStartAPMsg->eHiddenSsidType;
+		prP2pBssInfo->eHiddenSsidType = prP2pStartAPMsg->ucHiddenSsidType;
 
 		if ((prP2pBssInfo->eCurrentOPMode != OP_MODE_ACCESS_POINT) ||
 		    (prP2pBssInfo->eIntendOPMode != OP_MODE_NUM)) {
@@ -899,7 +920,7 @@ VOID p2pRoleFsmRunEventConnectionRequest(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_
 			prChnlReqInfo->ucReqChnlNum = prP2pConnReqMsg->rChannelInfo.ucChannelNum;
 			prChnlReqInfo->eBand = prP2pConnReqMsg->rChannelInfo.eBand;
 			prChnlReqInfo->eChnlSco = prP2pConnReqMsg->eChnlSco;
-			prChnlReqInfo->u4MaxInterval = P2P_JOIN_CH_REQUEST_INTERVAL;
+			prChnlReqInfo->u4MaxInterval = AIS_JOIN_CH_REQUEST_INTERVAL;
 			prChnlReqInfo->eChnlReqType = CH_REQ_TYPE_JOIN;
 
 			prChnlReqInfo->eChannelWidth = prJoinInfo->prTargetBssDesc->eChannelWidth;
@@ -965,8 +986,7 @@ VOID p2pRoleFsmRunEventConnectionAbort(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T 
 				}
 
 				kalP2PGCIndicateConnectionStatus(prAdapter->prGlueInfo,
-								 prP2pRoleFsmInfo->ucRoleIndex, NULL, NULL, 0, 0,
-								 WLAN_STATUS_MEDIA_DISCONNECT_LOCALLY);
+								 prP2pRoleFsmInfo->ucRoleIndex, NULL, NULL, 0, 0);
 
 				/* Stop rejoin timer if it is started. */
 				/* TODO: If it has. */
@@ -977,10 +997,8 @@ VOID p2pRoleFsmRunEventConnectionAbort(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T 
 
 				/* prTargetStaRec = prP2pBssInfo->prStaRecOfAP; */
 
-				/*
-				 * Fix possible KE when RX Beacon & call nicPmIndicateBssConnected().
-				 * hit prStaRecOfAP == NULL.
-				 */
+				/* Fix possible KE when RX Beacon & call nicPmIndicateBssConnected().
+				 * hit prStaRecOfAP == NULL. */
 				p2pChangeMediaState(prAdapter, prP2pBssInfo, PARAM_MEDIA_STATE_DISCONNECTED);
 
 				prP2pBssInfo->prStaRecOfAP = NULL;
@@ -1143,10 +1161,8 @@ VOID p2pRoleFsmRunEventJoinComplete(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T prM
 
 					/* 4 <1.6> Indicate Connected Event to Host immediately. */
 					/* Require BSSID, Association ID, Beacon Interval.. from AIS_BSS_INFO_T */
-					/*
-					 * p2pIndicationOfMediaStateToHost(prAdapter, PARAM_MEDIA_STATE_CONNECTED,
-					 * prStaRec->aucMacAddr);
-					 */
+					/* p2pIndicationOfMediaStateToHost(prAdapter, PARAM_MEDIA_STATE_CONNECTED,
+					 * prStaRec->aucMacAddr); */
 					if (prJoinInfo->prTargetBssDesc)
 						scanReportBss2Cfg80211(prAdapter,
 								       OP_MODE_P2P_DEVICE, prJoinInfo->prTargetBssDesc);
@@ -1155,8 +1171,7 @@ VOID p2pRoleFsmRunEventJoinComplete(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T prM
 									 &prP2pRoleFsmInfo->rConnReqInfo,
 									 prJoinInfo->aucIEBuf,
 									 prJoinInfo->u4BufLength,
-									 prStaRec->u2StatusCode,
-									 WLAN_STATUS_MEDIA_CONNECT);
+									 prStaRec->u2StatusCode);
 
 				} else {
 					/* Join Fail */
@@ -1179,8 +1194,7 @@ VOID p2pRoleFsmRunEventJoinComplete(IN P_ADAPTER_T prAdapter, IN P_MSG_HDR_T prM
 										 &prP2pRoleFsmInfo->rConnReqInfo,
 										 prJoinInfo->aucIEBuf,
 										 prJoinInfo->u4BufLength,
-										 prStaRec->u2StatusCode,
-										 WLAN_STATUS_MEDIA_DISCONNECT_LOCALLY);
+										 prStaRec->u2StatusCode);
 
 					}
 
@@ -1476,12 +1490,12 @@ p2pRoleFsmRunEventAAAComplete(IN P_ADAPTER_T prAdapter, IN P_STA_RECORD_T prStaR
 		eOriMediaState = prP2pBssInfo->eConnectionState;
 
 		bssRemoveClient(prAdapter, prP2pBssInfo, prStaRec);
-
-		if (prP2pBssInfo->rStaRecOfClientList.u4NumElem >= P2P_MAXIMUM_CLIENT_COUNT
 #if CFG_SUPPORT_HOTSPOT_WPS_MANAGER
-			|| kalP2PMaxClients(prAdapter->prGlueInfo, prP2pBssInfo->rStaRecOfClientList.u4NumElem)
+		if (prP2pBssInfo->rStaRecOfClientList.u4NumElem >= P2P_MAXIMUM_CLIENT_COUNT ||
+		    kalP2PMaxClients(prAdapter->prGlueInfo, prP2pBssInfo->rStaRecOfClientList.u4NumElem)) {
+#else
+		if (prP2pBssInfo->rStaRecOfClientList.u4NumElem >= P2P_MAXIMUM_CLIENT_COUNT) {
 #endif
-		) {
 			rStatus = WLAN_STATUS_RESOURCES;
 			break;
 		}

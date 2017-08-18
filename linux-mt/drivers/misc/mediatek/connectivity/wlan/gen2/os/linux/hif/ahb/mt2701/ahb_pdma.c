@@ -1,12 +1,21 @@
+/******************************************************************************
+*[File]             ahb_pdma.c
+*[Version]          v1.0
+*[Revision Date]    2013-03-13
+*[Author]
+*[Description]
+*    The program provides AHB PDMA driver
+*[Copyright]
+*    Copyright (C) 2013 MediaTek Incorporation. All Rights Reserved.
+******************************************************************************/
+
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Log: ahb_pdma.c
+ *
+ * 03 13 2013 vend_samp.lin
+ * Add AHB PDMA support
+ * 1) Initial version
+**
 */
 
 /*******************************************************************************
@@ -50,7 +59,7 @@
 
 #include <linux/rtnetlink.h>	/* for rtnl_lock() and rtnl_unlock() */
 #include <linux/kthread.h>	/* kthread_should_stop(), kthread_run() */
-#include <linux/uaccess.h>	/* for copy_from_user() */
+#include <asm/uaccess.h>	/* for copy_from_user() */
 #include <linux/fs.h>		/* for firmware download */
 #include <linux/vmalloc.h>
 
@@ -61,7 +70,7 @@
 
 #include <linux/random.h>
 
-#include <linux/io.h>		/* readw and writew */
+#include <asm/io.h>		/* readw and writew */
 
 #include <linux/module.h>
 

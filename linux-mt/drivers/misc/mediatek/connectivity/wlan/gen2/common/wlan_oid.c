@@ -1,18 +1,1058 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/common/wlan_oid.c#5
+*/
+
+/*! \file wlanoid.c
+    \brief This file contains the WLAN OID processing routines of Windows driver for
+	   MediaTek Inc. 802.11 Wireless LAN Adapters.
+*/
+
+/*
+** Log: wlan_oid.c
+**
+** 09 05 2013 cp.wu
+** isolate logic regarding roaming & reassociation
+**
+** 09 03 2013 cp.wu
+** add path for reassociation
+**
+** 09 02 2013 cp.wu
+** add path to handle reassociation request
+**
+** 07 19 2012 yuche.tsai
+** NULL
+** Code update for JB.
+ *
+ * 07 17 2012 yuche.tsai
+ * NULL
+ * Let netdev bring up.
+ *
+ * 07 17 2012 yuche.tsai
+ * NULL
+ * Compile no error before trial run.
+ *
+ * 03 02 2012 terry.wu
+ * NULL
+ * Sync CFG80211 modification from branch 2,2.
+ *
+ * 01 06 2012 wh.su
+ * [WCXRP00001153] [MT6620 Wi-Fi][Driver] Adding the get_ch_list and set_tx_power proto type function
+ * using the wlanSendSetQueryCmd to set the tx power control cmd.
+ *
+ * 01 06 2012 wh.su
+ * [WCXRP00001153] [MT6620 Wi-Fi][Driver] Adding the get_ch_list and set_tx_power proto type function
+ * change the set tx power cmd name.
+ *
+ * 01 05 2012 wh.su
+ * [WCXRP00001153] [MT6620 Wi-Fi][Driver] Adding the get_ch_list and set_tx_power proto type function
+ * Adding the related ioctl / wlan oid function to set the Tx power cfg.
+ *
+ * 12 20 2011 cp.wu
+ * [WCXRP00001144] [MT6620 Wi-Fi][Driver][Firmware] Add RF_FUNC_ID for exposing device and related version information
+ * add driver implementations for RF_AT_FUNCID_FW_INFO & RF_AT_FUNCID_DRV_INFO
+ * to expose version information
+ *
+ * 12 05 2011 cp.wu
+ * [WCXRP00001131] [MT6620 Wi-Fi][Driver][AIS] Implement connect-by-BSSID path
+ * add CONNECT_BY_BSSID policy
+ *
+ * 11 22 2011 cp.wu
+ * [WCXRP00001120] [MT6620 Wi-Fi][Driver] Modify roaming to AIS state transition from synchronous to
+ * asynchronous approach to avoid incomplete state termination
+ * 1. change RDD related compile option brace position.
+ * 2. when roaming is triggered, ask AIS to transit immediately only when AIS is in Normal TR state
+ * without join timeout timer ticking
+ * 3. otherwise, insert AIS_REQUEST into pending request queue
+ *
+ * 11 21 2011 cp.wu
+ * [WCXRP00001118] [MT6620 Wi-Fi][Driver] Corner case protections to pass Monkey testing
+ * 1. wlanoidQueryBssIdList might be passed with a non-zero length but a NULL pointer of buffer
+ * add more checking for such cases
+ *
+ * 2. kalSendComplete() might be invoked with a packet belongs to P2P network right after P2P is unregistered.
+ * add some tweaking to protect such cases because that net device has become invalid.
+ *
+ * 11 15 2011 cm.chang
+ * NULL
+ * Fix compiling warning
+ *
+ * 11 11 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * modify the xlog related code.
+ *
+ * 11 11 2011 tsaiyuan.hsu
+ * [WCXRP00001083] [MT6620 Wi-Fi][DRV]] dump debug counter or frames when debugging is triggered
+ * add debug counters of bb and ar for xlog.
+ *
+ * 11 10 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * change the debug module level.
+ *
+ * 11 09 2011 george.huang
+ * [WCXRP00000871] [MT6620 Wi-Fi][FW] Include additional wakeup condition, which is by
+ * consequent DTIM unicast indication add XLOG for Set PS mode entry
+ *
+ * 11 08 2011 tsaiyuan.hsu
+ * [WCXRP00001083] [MT6620 Wi-Fi][DRV]] dump debug counter or frames when debugging is triggered
+ * check if CFG_SUPPORT_SWCR is defined to aoid compiler error.
+ *
+ * 11 07 2011 tsaiyuan.hsu
+ * [WCXRP00001083] [MT6620 Wi-Fi][DRV]] dump debug counter or frames when debugging is triggered
+ * add debug counters and periodically dump counters for debugging.
+ *
+ * 11 03 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * change the DBGLOG for "\n" and "\r\n". LABEL to LOUD for XLOG
+ *
+ * 11 02 2011 chinghwa.yu
+ * [WCXRP00000612] [MT6620 Wi-Fi] [FW] CSD update SWRDD algorithm
+ * Add RDD certification features.
+ *
+ * 10 21 2011 eddie.chen
+ * [WCXRP00001051] [MT6620 Wi-Fi][Driver/Fw] Adjust the STA aging timeout
+ * Add switch to ignore the STA aging timeout.
+ *
+ * 10 12 2011 wh.su
+ * [WCXRP00001036] [MT6620 Wi-Fi][Driver][FW] Adding the 802.11w code for MFP
+ * adding the 802.11w related function and define .
+ *
+ * 09 15 2011 tsaiyuan.hsu
+ * [WCXRP00000938] [MT6620 Wi-Fi][FW] add system config for CTIA
+ * correct fifo full control from query to set operation for CTIA.
+ *
+ * 08 31 2011 cm.chang
+ * [WCXRP00000969] [MT6620 Wi-Fi][Driver][FW] Channel list for 5G band based on country code
+ * .
+ *
+ * 08 17 2011 tsaiyuan.hsu
+ * [WCXRP00000938] [MT6620 Wi-Fi][FW] add system config for CTIA
+ * add system config for CTIA.
+ *
+ * 08 15 2011 george.huang
+ * [MT6620 Wi-Fi][FW] handle TSF drift for connection detection
+ * .
+ *
+ * 07 28 2011 chinghwa.yu
+ * [WCXRP00000063] Update BCM CoEx design and settings
+ * Add BWCS cmd and event.
+ *
+ * 07 18 2011 chinghwa.yu
+ * [WCXRP00000063] Update BCM CoEx design and settings[WCXRP00000612] [MT6620 Wi-Fi] [FW] CSD update SWRDD algorithm
+ * Add CMD/Event for RDD and BWCS.
+ *
+ * 07 11 2011 wh.su
+ * [WCXRP00000849] [MT6620 Wi-Fi][Driver] Remove some of the WAPI define for make sure the value is initialize,
+ * for customer not enable WAPI
+ * For make sure wapi initial value is set.
+ *
+ * 06 23 2011 cp.wu
+ * [WCXRP00000812] [MT6620 Wi-Fi][Driver] not show NVRAM when there is no valid MAC address in NVRAM content
+ * check with firmware for valid MAC address.
+ *
+ * 05 02 2011 eddie.chen
+ * [WCXRP00000373] [MT6620 Wi-Fi][FW] SW debug control
+ * Fix compile warning.
+ *
+ * 04 29 2011 george.huang
+ * [WCXRP00000684] [MT6620 Wi-Fi][Driver] Support P2P setting ARP filter
+ * .
+ *
+ * 04 27 2011 george.huang
+ * [WCXRP00000684] [MT6620 Wi-Fi][Driver] Support P2P setting ARP filter
+ * add more debug message
+ *
+ * 04 26 2011 eddie.chen
+ * [WCXRP00000373] [MT6620 Wi-Fi][FW] SW debug control
+ * Add rx path profiling.
+ *
+ * 04 12 2011 eddie.chen
+ * [WCXRP00000617] [MT6620 Wi-Fi][DRV/FW] Fix for sigma
+ * Fix the sta index in processing security frame
+ * Simple flow control for TC4 to avoid mgt frames for PS STA to occupy the TC4
+ * Add debug message.
+ *
+ * 04 08 2011 george.huang
+ * [WCXRP00000621] [MT6620 Wi-Fi][Driver] Support P2P supplicant to set power mode
+ * separate settings of P2P and AIS
+ *
+ * 03 31 2011 puff.wen
+ * NULL
+ * .
+ *
+ * 03 29 2011 puff.wen
+ * NULL
+ * Add chennel switch for stress test
+ *
+ * 03 29 2011 cp.wu
+ * [WCXRP00000604] [MT6620 Wi-Fi][Driver] Surpress Klockwork Warning
+ * surpress klock warning with code path rewritten
+ *
+ * 03 24 2011 wh.su
+ * [WCXRP00000595] [MT6620 Wi-Fi][Driver] at CTIA indicate disconnect to make the ps profile can apply
+ * use disconnect event instead of ais abort for CTIA testing.
+ *
+ * 03 23 2011 george.huang
+ * [WCXRP00000586] [MT6620 Wi-Fi][FW] Modify for blocking absence request right after connected
+ * revise for CTIA power mode setting
+ *
+ * 03 22 2011 george.huang
+ * [WCXRP00000504] [MT6620 Wi-Fi][FW] Support Sigma CAPI for power saving related command
+ * link with supplicant commands
+ *
+ * 03 17 2011 chinglan.wang
+ * [WCXRP00000570] [MT6620 Wi-Fi][Driver] Add Wi-Fi Protected Setup v2.0 feature
+ * .
+ *
+ * 03 17 2011 yarco.yang
+ * [WCXRP00000569] [MT6620 Wi-Fi][F/W][Driver] Set multicast address support current network usage
+ * .
+ *
+ * 03 15 2011 george.huang
+ * [WCXRP00000557] [MT6620 Wi-Fi] Support current consumption test mode commands
+ * Support current consumption measurement mode command
+ *
+ * 03 15 2011 eddie.chen
+ * [WCXRP00000554] [MT6620 Wi-Fi][DRV] Add sw control debug counter
+ * Add sw debug counter for QM.
+ *
+ * 03 10 2011 cp.wu
+ * [WCXRP00000532] [MT6620 Wi-Fi][Driver] Migrate NVRAM configuration procedures from MT6620 E2 to MT6620 E3
+ * deprecate configuration used by MT6620 E2
+ *
+ * 03 07 2011 terry.wu
+ * [WCXRP00000521] [MT6620 Wi-Fi][Driver] Remove non-standard debug message
+ * Toggle non-standard debug messages to comments.
+ *
+ * 03 04 2011 cp.wu
+ * [WCXRP00000515] [MT6620 Wi-Fi][Driver] Surpress compiler warning which is identified by GNU compiler collection
+ * surpress compile warning occurred when compiled by GNU compiler collection.
+ *
+ * 03 03 2011 wh.su
+ * [WCXRP00000510] [MT6620 Wi-Fi] [Driver] Fixed the CTIA enter test mode issue
+ * fixed the enter ctia test mode issue.
+ *
+ * 03 02 2011 george.huang
+ * [WCXRP00000504] [MT6620 Wi-Fi][FW] Support Sigma CAPI for power saving related command
+ * Update sigma CAPI for U-APSD setting
+ *
+ * 03 02 2011 george.huang
+ * [WCXRP00000504] [MT6620 Wi-Fi][FW] Support Sigma CAPI for power saving related command
+ * Support UAPSD/OppPS/NoA parameter setting
+ *
+ * 03 02 2011 cp.wu
+ * [WCXRP00000503] [MT6620 Wi-Fi][Driver] Take RCPI brought by association response as
+ * initial RSSI right after connection is built.
+ * use RCPI brought by ASSOC-RESP after connection is built as initial RCPI to avoid using a uninitialized MAC-RX RCPI.
+ *
+ * 01 27 2011 george.huang
+ * [WCXRP00000400] [MT6620 Wi-Fi] support CTIA power mode setting
+ * Support CTIA power mode setting.
+ *
+ * 01 26 2011 wh.su
+ * [WCXRP00000396] [MT6620 Wi-Fi][Driver] Support Sw Ctrl ioctl at linux
+ * adding the SW cmd ioctl support, use set/get structure ioctl.
+ *
+ * 01 25 2011 cp.wu
+ * [WCXRP00000394] [MT6620 Wi-Fi][Driver] Count space needed for generating error message in
+ * scanning list into buffer size checking
+ * when doing size prechecking, check illegal MAC address as well
+ *
+ * 01 20 2011 eddie.chen
+ * [WCXRP00000374] [MT6620 Wi-Fi][DRV] SW debug control
+ * Add Oid for sw control debug command
+ *
+ * 01 15 2011 puff.wen
+ * NULL
+ * Add Stress test
+ *
+ * 01 12 2011 cp.wu
+ * [WCXRP00000358] [MT6620 Wi-Fi][Driver] Provide concurrent information for each module
+ * check if allow to switch to IBSS mode via concurrent module before setting to IBSS mode
+ *
+ * 01 12 2011 cm.chang
+ * [WCXRP00000354] [MT6620 Wi-Fi][Driver][FW] Follow NVRAM bandwidth setting
+ * User-defined bandwidth is for 2.4G and 5G individually
+ *
+ * 01 04 2011 cp.wu
+ * [WCXRP00000342] [MT6620 Wi-Fi][Driver] show error code in scanning list when MAC address is not
+ * correctly configured in NVRAM
+ * show error code 0x10 when MAC address in NVRAM is not configured correctly.
+ *
+ * 01 04 2011 cp.wu
+ * [WCXRP00000338] [MT6620 Wi-Fi][Driver] Separate kalMemAlloc into kmalloc and vmalloc implementations
+ * to ease physically continuous memory demands
+ * separate kalMemAlloc() into virtually-continuous and physically-continuous type to ease slab system pressure
+ *
+ * 12 28 2010 george.huang
+ * [WCXRP00000232] [MT5931 Wi-Fi][FW] Modifications for updated HW power on sequence and related design
+ * support WMM-PS U-APSD AC assignment.
+ *
+ * 12 28 2010 cp.wu
+ * [WCXRP00000269] [MT6620 Wi-Fi][Driver][Firmware] Prepare for v1.1 branch release
+ * report EEPROM used flag via NIC_CAPABILITY
+ *
+ * 12 28 2010 cp.wu
+ * [WCXRP00000269] [MT6620 Wi-Fi][Driver][Firmware] Prepare for v1.1 branch release
+ * integrate with 'EEPROM used' flag for reporting correct capability to Engineer Mode/META and other tools
+ *
+ * 12 16 2010 cp.wu
+ * [WCXRP00000268] [MT6620 Wi-Fi][Driver] correction for WHQL failed items
+ * correction for OID_802_11_NETWORK_TYPES_SUPPORTED handlers
+ *
+ * 12 13 2010 cp.wu
+ * [WCXRP00000256] [MT6620 Wi-Fi][Driver] Eliminate potential issues which is identified by Klockwork
+ * suppress warning reported by Klockwork.
+ *
+ * 12 07 2010 cm.chang
+ * [WCXRP00000239] MT6620 Wi-Fi][Driver][FW] Merge concurrent branch back to maintrunk
+ * 1. BSSINFO include RLM parameter
+ * 2. free all sta records when network is disconnected
+ *
+ * 12 07 2010 cm.chang
+ * [WCXRP00000238] MT6620 Wi-Fi][Driver][FW] Support regulation domain setting from NVRAM and supplicant
+ * 1. Country code is from NVRAM or supplicant
+ * 2. Change band definition in CMD/EVENT.
+ *
+ * 11 30 2010 cp.wu
+ * [WCXRP00000213] [MT6620 Wi-Fi][Driver] Implement scanning with specified SSID for wpa_supplicant with ap_scan=1
+ * .
+ *
+ * 11 26 2010 cp.wu
+ * [WCXRP00000209] [MT6620 Wi-Fi][Driver] Modify NVRAM checking mechanism to warning only
+ * with necessary data field checking
+ * 1. NVRAM error is now treated as warning only, thus normal operation is still available
+ * but extra scan result used to indicate user is attached
+ * 2. DPD and TX-PWR are needed fields from now on, if these 2 fields are not available then warning message is shown
+ *
+ * 11 25 2010 cp.wu
+ * [WCXRP00000208] [MT6620 Wi-Fi][Driver] Add scanning with specified SSID to AIS FSM
+ * add scanning with specified SSID facility to AIS-FSM
+ *
+ * 11 21 2010 wh.su
+ * [WCXRP00000192] [MT6620 Wi-Fi][Driver] Fixed fail trying to build connection with Security
+ * AP while enable WAPI message check
+ * Not set the wapi mode while the wapi assoc info set non-wapi ie.
+ *
+ * 11 05 2010 wh.su
+ * [WCXRP00000165] [MT6620 Wi-Fi] [Pre-authentication] Assoc req rsn ie use wrong pmkid value
+ * fixed the.pmkid value mismatch issue
+ *
+ * 11 01 2010 cp.wu
+ * [WCXRP00000056] [MT6620 Wi-Fi][Driver] NVRAM implementation with Version
+ * Check[WCXRP00000150] [MT6620 Wi-Fi][Driver] Add implementation for querying
+ * current TX rate from firmware auto rate module
+ * 1) Query link speed (TX rate) from firmware directly with buffering mechanism to reduce overhead
+ * 2) Remove CNM CH-RECOVER event handling
+ * 3) cfg read/write API renamed with kal prefix for unified naming rules.
+ *
+ * 10 26 2010 cp.wu
+ * [WCXRP00000056] [MT6620 Wi-Fi][Driver] NVRAM implementation with Version
+ * Check[WCXRP00000137] [MT6620 Wi-Fi] [FW] Support NIC capability query command
+ * 1) update NVRAM content template to ver 1.02
+ * 2) add compile option for querying NIC capability (default: off)
+ * 3) modify AIS 5GHz support to run-time option, which could be turned on by registry or NVRAM setting
+ * 4) correct auto-rate compiler error under linux (treat warning as error)
+ * 5) simplify usage of NVRAM and REG_INFO_T
+ * 6) add version checking between driver and firmware
+ *
+ * 10 22 2010 cp.wu
+ * [WCXRP00000122] [MT6620 Wi-Fi][Driver] Preparation for YuSu source tree integration
+ * dos2unix conversion.
+ *
+ * 10 20 2010 cp.wu
+ * [WCXRP00000117] [MT6620 Wi-Fi][Driver] Add logic for suspending driver when MT6620 is not responding anymore
+ * use OID_CUSTOM_TEST_MODE as indication for driver reset
+ * by dropping pending TX packets
+ *
+ * 10 18 2010 cp.wu
+ * [WCXRP00000056] [MT6620 Wi-Fi][Driver] NVRAM implementation with Version
+ * Check[WCXRP00000086] [MT6620 Wi-Fi][Driver] The mac address is all zero at android complete
+ * implementation of Android NVRAM access
+ *
+ * 10 06 2010 yuche.tsai
+ * NULL
+ * Update SLT 5G Test Channel Set.
+ *
+ * 10 06 2010 cp.wu
+ * [WCXRP00000052] [MT6620 Wi-Fi][Driver] Eliminate Linux Compile Warning
+ * code reorganization to improve isolation between GLUE and CORE layers.
+ *
+ * 10 06 2010 yuche.tsai
+ * NULL
+ * Update For SLT 5G Test Channel Selection Rule.
+ *
+ * 10 05 2010 cp.wu
+ * [WCXRP00000075] [MT6620 Wi-Fi][Driver] Fill query buffer for OID_802_11_BSSID_LIST in 4-bytes aligned form
+ * Query buffer size needs to be enlarged due to result is filled in 4-bytes alignment boundary
+ *
+ * 10 05 2010 cp.wu
+ * [WCXRP00000056] [MT6620 Wi-Fi][Driver] NVRAM implementation with Version Check
+ * 1) add NVRAM access API
+ * 2) fake scanning result when NVRAM doesn't exist and/or version mismatch. (off by compiler option)
+ * 3) add OID implementation for NVRAM read/write service
+ *
+ * 10 04 2010 cp.wu
+ * [WCXRP00000077] [MT6620 Wi-Fi][Driver][FW] Eliminate use of ENUM_NETWORK_TYPE_T and
+ * replaced by ENUM_NETWORK_TYPE_INDEX_T only remove ENUM_NETWORK_TYPE_T definitions
+ *
+ * 10 04 2010 cp.wu
+ * [WCXRP00000075] [MT6620 Wi-Fi][Driver] Fill query buffer for OID_802_11_BSSID_LIST in 4-bytes aligned form
+ * Extend result length to multiples of 4-bytes
+ *
+ * 09 24 2010 cp.wu
+ * [WCXRP00000052] [MT6620 Wi-Fi][Driver] Eliminate Linux Compile Warning
+ * eliminate unused variables which lead gcc to argue
+ *
+ * 09 24 2010 cp.wu
+ * [WCXRP00000057] [MT6620 Wi-Fi][Driver] Modify online scan to a run-time switchable feature
+ * Modify online scan as a run-time adjustable option (for Windows, in registry)
+ *
+ * 09 23 2010 cp.wu
+ * [WCXRP00000051] [MT6620 Wi-Fi][Driver] WHQL test fail in MAC address changed item
+ * use firmware reported mac address right after wlanAdapterStart() as permanent address
+ *
+ * 09 23 2010 cp.wu
+ * [WCXRP00000056] [MT6620 Wi-Fi][Driver] NVRAM implementation with Version Check
+ * add skeleton for NVRAM integration
+ *
+ * 09 08 2010 cp.wu
+ * NULL
+ * use static memory pool for storing IEs of scanning result.
+ *
+ * 09 07 2010 yuche.tsai
+ * NULL
+ * Update SLT due to API change of SCAN module.
+ *
+ * 09 06 2010 cp.wu
+ * NULL
+ * Androi/Linux: return current operating channel information
+ *
+ * 09 06 2010 cp.wu
+ * NULL
+ * 1) initialize for correct parameter even for disassociation.
+ * 2) AIS-FSM should have a limit on trials to build connection
+ *
+ * 09 03 2010 yuche.tsai
+ * NULL
+ * Refine SLT IO control handler.
+ *
+ * 09 03 2010 kevin.huang
+ * NULL
+ * Refine #include sequence and solve recursive/nested #include issue
+ *
+ * 09 01 2010 wh.su
+ * NULL
+ * adding the wapi support for integration test.
+ *
+ * 08 30 2010 chinglan.wang
+ * NULL
+ * Modify the rescan condition.
+ *
+ * 08 29 2010 yuche.tsai
+ * NULL
+ * Finish SLT TX/RX & Rate Changing Support.
+ *
+ * 08 27 2010 chinglan.wang
+ * NULL
+ * Update configuration for MT6620_E1_PRE_ALPHA_1832_0827_2010
+ *
+ * 08 25 2010 george.huang
+ * NULL
+ * update OID/ registry control path for PM related settings
+ *
+ * 08 24 2010 cp.wu
+ * NULL
+ * 1) initialize variable for enabling short premable/short time slot.
+ * 2) add compile option for disabling online scan
+ *
+ * 08 16 2010 george.huang
+ * NULL
+ * .
+ *
+ * 08 16 2010 george.huang
+ * NULL
+ * update params defined in CMD_SET_NETWORK_ADDRESS_LIST
+ *
+ * 08 04 2010 cp.wu
+ * NULL
+ * fix for check build WHQL testing:
+ * 1) do not assert query buffer if indicated buffer length is zero
+ * 2) sdio.c has bugs which cause freeing same pointer twice
+ *
+ * 08 04 2010 cp.wu
+ * NULL
+ * revert changelist #15371, efuse read/write access will be done by RF test approach
+ *
+ * 08 04 2010 cp.wu
+ * NULL
+ * add OID definitions for EFUSE read/write access.
+ *
+ * 08 04 2010 george.huang
+ * NULL
+ * handle change PS mode OID/ CMD
+ *
+ * 08 04 2010 cp.wu
+ * NULL
+ * add an extra parameter to rftestQueryATInfo 'cause it's necessary to pass u4FuncData for query request.
+ *
+ * 08 04 2010 cp.wu
+ * NULL
+ * bypass u4FuncData for RF-Test query request as well.
+ *
+ * 08 04 2010 yarco.yang
+ * NULL
+ * Add TX_AMPDU and ADDBA_REJECT command
+ *
+ * 08 03 2010 cp.wu
+ * NULL
+ * surpress compilation warning.
+ *
+ * 08 02 2010 george.huang
+ * NULL
+ * add WMM-PS test related OID/ CMD handlers
+ *
+ * 07 29 2010 cp.wu
+ * NULL
+ * eliminate u4FreqInKHz usage, combined into rConnections.ucAdHoc*
+ *
+ * 07 28 2010 cp.wu
+ * NULL
+ * 1) eliminate redundant variable eOPMode in prAdapter->rWlanInfo
+ * 2) change nicMediaStateChange() API prototype
+ *
+ * 07 26 2010 cp.wu
+ *
+ * re-commit code logic being overwriten.
+ *
+ * 07 24 2010 wh.su
+ *
+ * .support the Wi-Fi RSN
+ *
+ * 07 21 2010 cp.wu
+ *
+ * 1) change BG_SCAN to ONLINE_SCAN for consistent term
+ * 2) only clear scanning result when scan is permitted to do
+ *
+ * 07 20 2010 cp.wu
+ *
+ * 1) [AIS] when new scan is issued, clear currently available scanning result except the connected one
+ * 2) refine disconnection behaviour when issued during BG-SCAN process
+ *
+ * 07 19 2010 wh.su
+ *
+ * modify the auth and encry status variable.
+ *
+ * 07 16 2010 cp.wu
+ *
+ * remove work-around in case SCN is not available.
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 07 05 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * 1) change fake BSS_DESC from channel 6 to channel 1 due to channel switching is not done yet.
+ * 2) after MAC address is queried from firmware, all related variables in driver domain should be updated as well
+ *
+ * 07 01 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * AIS-FSM integration with CNM channel request messages
+ *
+ * 07 01 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * implementation of DRV-SCN and related mailbox message handling.
+ *
+ * 06 29 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * 1) sync to. CMD/EVENT document v0.03
+ * 2) simplify DTIM period parsing in scan.c only, bss.c no longer parses it again.
+ * 3) send command packet to indicate FW-PM after
+ *     a) 1st beacon is received after AIS has connected to an AP
+ *     b) IBSS-ALONE has been created
+ *     c) IBSS-MERGE has occurred
+ *
+ * 06 25 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * add API in que_mgt to retrieve sta-rec index for security frames.
+ *
+ * 06 24 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * 802.1x and bluetooth-over-Wi-Fi security frames are now delievered to firmware via command path instead of data path.
+ *
+ * 06 23 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * 1) add SCN compilation option.
+ * 2) when SCN is not turned on, BSSID_SCAN will generate a fake entry for 1st connection
+ *
+ * 06 23 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * implement SCAN-REQUEST oid as mailbox message dispatching.
+ *
+ * 06 23 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * integrate .
+ *
+ * 06 22 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * 1) add command warpper for STA-REC/BSS-INFO sync.
+ * 2) enhance command packet sending procedure for non-oid part
+ * 3) add command packet definitions for STA-REC/BSS-INFO sync.
+ *
+ * 06 21 2010 wh.su
+ * [WPD00003840][MT6620 5931] Security migration
+ * remove duplicate variable for migration.
+ *
+ * 06 21 2010 wh.su
+ * [WPD00003840][MT6620 5931] Security migration
+ * adding the compiling flag for oid pmkid.
+ *
+ * 06 21 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * enable RX management frame handling.
+ *
+ * 06 18 2010 wh.su
+ * [WPD00003840][MT6620 5931] Security migration
+ * migration the security related function from firmware.
+ *
+ * 06 11 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * 1) migrate assoc.c.
+ * 2) add ucTxSeqNum for tracking frames which needs TX-DONE awareness
+ * 3) add configuration options for CNM_MEM and RSN modules
+ * 4) add data path for management frames
+ * 5) eliminate rPacketInfo of MSDU_INFO_T
+ *
+ * 06 10 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * 1) eliminate CFG_CMD_EVENT_VERSION_0_9
+ * 2) when disconnected, indicate nic directly (no event is needed)
+ *
+ * 06 07 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * merge wlan_def.h.
+ *
+ * 06 07 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * merge wifi_var.h, precomp.h, cnm_timer.h (data type only)
+ *
+ * 06 06 2010 kevin.huang
+ * [WPD00003832][MT6620 5931] Create driver base
+ * [MT6620 5931] Create driver base
+ *
+ * 06 03 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * move timer callback to glue layer.
+ *
+ * 05 28 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * simplify cmd packet sending for RF test and MCR access OIDs
+ *
+ * 05 27 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * disable radio even when STA is not associated.
+ *
+ * 05 27 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * correct 2 OID behaviour to meet WHQL requirement.
+ *
+ * 05 26 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * 1) Modify set mac address code
+ * 2) remove power management macro
+ *
+ * 05 25 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * correct BSSID_LIST oid when radio if turned off.
+ *
+ * 05 24 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1) when acquiring LP-own, write for clr-own with lower frequency compared to read poll
+ * 2) correct address list parsing
+ *
+ * 05 24 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * disable wlanoidSetNetworkAddress() temporally.
+ *
+ * 05 22 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * some OIDs should be DRIVER_CORE instead of GLUE_EXTENSION
+ *
+ * 05 22 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1) disable NETWORK_LAYER_ADDRESSES handling temporally.
+ * 2) finish statistics OIDs
+ *
+ * 05 22 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * change OID behavior to meet WHQL requirement.
+ *
+ * 05 20 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1) integrate OID_GEN_NETWORK_LAYER_ADDRESSES with CMD_ID_SET_IP_ADDRESS
+ * 2) buffer statistics data for 2 seconds
+ * 3) use default value for adhoc parameters instead of 0
+ *
+ * 05 19 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1) do not take timeout mechanism for power mode oids
+ * 2) retrieve network type from connection status
+ * 3) after disassciation, set radio state to off
+ * 4) TCP option over IPv6 is supported
+ *
+ * 05 18 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * implement Wakeup-on-LAN except firmware integration part
+ *
+ * 05 17 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * correct wlanoidSet802dot11PowerSaveProfile implementation.
+ *
+ * 05 17 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1) enable CMD/EVENT ver 0.9 definition.
+ * 2) abandon use of ENUM_MEDIA_STATE
+ *
+ * 05 17 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * correct OID_802_11_DISASSOCIATE handling.
+ *
+ * 05 17 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * 1) add timeout handler mechanism for pending command packets
+ * 2) add p2p add/removal key
+ *
+ * 05 14 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * Add dissassocation support for wpa supplicant
+ *
+ * 05 14 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * correct return value.
+ *
+ * 05 13 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * add NULL OID implementation for WOL-related OIDs.
+ *
+ * 05 06 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * for disassociation, still use parameter with current setting.
+ *
+ * 05 06 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * for disassociation, generate a WZC-compatible invalid SSID.
+ *
+ * 05 06 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * associate to illegal SSID when handling OID_802_11_DISASSOCIATE
+ *
+ * 04 27 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * reserve field of privacy filter and RTS threshold setting.
+ *
+ * 04 23 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * surpress compiler warning
+ *
+ * 04 23 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * .
+ *
+ * 04 22 2010 cp.wu
+ * [WPD00003830]add OID_802_11_PRIVACY_FILTER support
+ * enable RX filter OID
+ *
+ * 04 19 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * Add ioctl of power management
+ *
+ * 04 14 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * information buffer for query oid/ioctl is now buffered in prCmdInfo
+ *  * instead of glue-layer variable to improve multiple oid/ioctl capability
+ *
+ * 04 13 2010 cp.wu
+ * [WPD00003823][MT6620 Wi-Fi] Add Bluetooth-over-Wi-Fi support
+ * add framework for BT-over-Wi-Fi support.
+ *  *  *  * 1) prPendingCmdInfo is replaced by queue for multiple handler capability
+ *  *  *  * 2) command sequence number is now increased atomically
+ *  *  *  * 3) private data could be hold and taken use for other purpose
+ *
+ * 04 12 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * correct OID_802_11_CONFIGURATION query for infrastructure mode.
+ *
+ * 04 09 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * 1) remove unused spin lock declaration
+ *
+ * 04 07 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * finish non-glue layer access to glue variables
+ *
+ * 04 07 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * rWlanInfo should be placed at adapter rather than glue due to most operations
+ *  * are done in adapter layer.
+ *
+ * 04 07 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * (1)improve none-glue code portability
+ * (2) disable set Multicast address during atomic context
+ *
+ * 04 07 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * eliminate direct access to prGlueInfo->eParamMediaStateIndicated from non-glue layer
+ *
+ * 04 06 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * ePowerCtrl is not necessary as a glue variable.
+ *
+ * 04 06 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * eliminate direct access to prGlueInfo->rWlanInfo.eLinkAttr.ucMediaStreamMode from non-glue layer.
+ *
+ * 04 06 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * improve none-glue code portability
+ *
+ * 04 06 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * code refine: fgTestMode should be at adapter rather than glue due to the device/fw is also involved
+ *
+ * 04 01 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * .
+ *
+ * 03 31 2010 wh.su
+ * [WPD00003816][MT6620 Wi-Fi] Adding the security support
+ * modify the wapi related code for new driver's design.
+ *
+ * 03 30 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * statistics information OIDs are now handled by querying from firmware domain
+ *
+ * 03 28 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * improve glue code portability
+ *
+ * 03 26 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * indicate media stream mode after set is done
+ *
+ * 03 26 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * add a temporary flag for integration with CMD/EVENT v0.9.
+ *
+ * 03 25 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1) correct OID_802_11_CONFIGURATION with frequency setting behavior.
+ * the frequency is used for adhoc connection only
+ * 2) update with SD1 v0.9 CMD/EVENT documentation
+ *
+ * 03 24 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * [WPD00003826] Initial import for Linux port
+ * initial import for Linux port
+ *
+ * 03 24 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * initial import for Linux port
+ *
+ * 03 24 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * generate information for OID_GEN_RCV_OK & OID_GEN_XMIT_OK
+ *
+ *
+ * 03 22 2010 cp.wu
+ * [WPD00003824][MT6620 Wi-Fi][New Feature] Add support of large scan list
+ * Implement feature needed by CR: WPD00003824: refining association command by pasting scanning result
+ *
+ * 03 19 2010 wh.su
+ * [WPD00003820][MT6620 Wi-Fi] Modify the code for meet the WHQL test
+ * adding the check for pass WHQL test item.
+ *
+ * 03 19 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1) add ACPI D0/D3 state switching support
+ *  * 2) use more formal way to handle interrupt when the status is retrieved from enhanced RX response
+ *
+* 03 16 2010 wh.su
+ * [WPD00003820][MT6620 Wi-Fi] Modify the code for meet the WHQL test
+ * fixed some whql pre-test fail case.
+ *
+ * 03 03 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * implement custom OID: EEPROM read/write access
+ *
+ * 03 03 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * implement OID_802_3_MULTICAST_LIST oid handling
+ *
+ * 03 02 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1) the use of prPendingOid revised, all accessing are now protected by spin lock
+ *  * 2) ensure wlanReleasePendingOid will clear all command queues
+ *
+ * 02 25 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * send CMD_ID_INFRASTRUCTURE when handling OID_802_11_INFRASTRUCTURE_MODE set.
+ *
+ * 02 24 2010 wh.su
+ * [WPD00003820][MT6620 Wi-Fi] Modify the code for meet the WHQL test
+ * Don't needed to check the auth mode, WHQL testing not specific at auth wpa2.
+ *
+ * 02 23 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * do not check SSID validity anymore.
+ *
+ * 02 23 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * add checksum offloading support.
+ *
+ * 02 09 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1. Permanent and current MAC address are now retrieved by CMD/EVENT packets instead of hard-coded address
+ *  * 2. follow MSDN defined behavior when associates to another AP
+ *  * 3. for firmware download, packet size could be up to 2048 bytes
+ *
+ * 02 09 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * move ucCmdSeqNum as instance variable
+ *
+ * 02 04 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * when OID_CUSTOM_OID_INTERFACE_VERSION is queried, do modify connection states
+ *
+ * 01 27 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1) implement timeout mechanism when OID is pending for longer than 1 second
+ *  * 2) allow OID_802_11_CONFIGURATION to be executed when RF test mode is turned on
+ *
+ * 01 27 2010 wh.su
+ * [WPD00003816][MT6620 Wi-Fi] Adding the security support
+ * .
+ *
+ * 01 27 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1. eliminate improper variable in rHifInfo
+ *  * 2. block TX/ordinary OID when RF test mode is engaged
+ *  * 3. wait until firmware finish operation when entering into and leaving from RF test mode
+ *  * 4. correct some HAL implementation
+ *
+ * 01 22 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * implement following 802.11 OIDs:
+ * OID_802_11_RSSI,
+ * OID_802_11_RSSI_TRIGGER,
+ * OID_802_11_STATISTICS,
+ * OID_802_11_DISASSOCIATE,
+ * OID_802_11_POWER_MODE
+ *
+ * 01 21 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * implement OID_802_11_MEDIA_STREAM_MODE
+ *
+ * 01 21 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * implement OID_802_11_SUPPORTED_RATES / OID_802_11_DESIRED_RATES
+ *
+ * 01 21 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * do not fill ucJoinOnly currently
+ *
+ * 01 14 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * enable to connect to ad-hoc network
+ *
+ * 01 07 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * .implement Set/Query BeaconInterval/AtimWindow
+ *
+ * 01 07 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * .Set/Get AT Info is not blocked even when driver is not in fg test mode
+ *
+ * 12 30 2009 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1) According to CMD/EVENT documentation v0.8,
+ * OID_CUSTOM_TEST_RX_STATUS & OID_CUSTOM_TEST_TX_STATUS is no longer used,
+ * and result is retrieved by get ATInfo instead
+ * 2) add 4 counter for recording aggregation statistics
+ *
+ * 12 28 2009 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * eliminate redundant variables for connection_state
+**  \main\maintrunk.MT6620WiFiDriver_Prj\32 2009-12-16 22:13:36 GMT mtk02752
+**  change hard-coded MAC address to match with FW (temporally)
+**  \main\maintrunk.MT6620WiFiDriver_Prj\31 2009-12-10 16:49:50 GMT mtk02752
+**  code clean
+**  \main\maintrunk.MT6620WiFiDriver_Prj\30 2009-12-08 17:38:49 GMT mtk02752
+**  + add OID for RF test
+**  * MCR RD/WR are modified to match with cmd/event definition
+**  \main\maintrunk.MT6620WiFiDriver_Prj\29 2009-12-08 11:32:20 GMT mtk02752
+**  add skeleton for RF test implementation
+**  \main\maintrunk.MT6620WiFiDriver_Prj\28 2009-12-03 16:43:24 GMT mtk01461
+**  Modify query SCAN list oid by adding prEventScanResult
+**
+**  \main\maintrunk.MT6620WiFiDriver_Prj\27 2009-12-03 16:39:27 GMT mtk01461
+**  Sync CMD data structure in set ssid oid
+**  \main\maintrunk.MT6620WiFiDriver_Prj\26 2009-12-03 16:28:22 GMT mtk01461
+**  Add invalid check of set SSID oid and fix query scan list oid
+**  \main\maintrunk.MT6620WiFiDriver_Prj\25 2009-11-30 17:33:08 GMT mtk02752
+**  implement wlanoidSetInfrastructureMode/wlanoidQueryInfrastructureMode
+**  \main\maintrunk.MT6620WiFiDriver_Prj\24 2009-11-30 10:53:49 GMT mtk02752
+**  1st DW of WIFI_CMD_T is shared with HIF_TX_HEADER_T
+**  \main\maintrunk.MT6620WiFiDriver_Prj\23 2009-11-30 09:22:48 GMT mtk02752
+**  correct wifi cmd length mismatch
+**  \main\maintrunk.MT6620WiFiDriver_Prj\22 2009-11-25 21:34:33 GMT mtk02752
+**  sync EVENT_SCAN_RESULT_T with firmware
+**  \main\maintrunk.MT6620WiFiDriver_Prj\21 2009-11-25 21:03:27 GMT mtk02752
+**  implement wlanoidQueryBssidList()
+**  \main\maintrunk.MT6620WiFiDriver_Prj\20 2009-11-25 18:17:17 GMT mtk02752
+**  refine GL_WLAN_INFO_T for buffering scan result
+**  \main\maintrunk.MT6620WiFiDriver_Prj\19 2009-11-23 20:28:51 GMT mtk02752
+**  some OID will be set to WLAN_STATUS_PENDING until it is sent via wlanSendCommand()
+**  \main\maintrunk.MT6620WiFiDriver_Prj\18 2009-11-23 17:56:36 GMT mtk02752
+**  implement wlanoidSetBssidListScan(), wlanoidSetBssid() and wlanoidSetSsid()
+**
+**  \main\maintrunk.MT6620WiFiDriver_Prj\17 2009-11-13 17:20:53 GMT mtk02752
+**  add Set BSSID/SSID path but disabled temporally due to FW is not ready yet
+**  \main\maintrunk.MT6620WiFiDriver_Prj\16 2009-11-13 12:28:58 GMT mtk02752
+**  add wlanoidSetBssidListScan -> cmd_info path
+**  \main\maintrunk.MT6620WiFiDriver_Prj\15 2009-11-09 22:48:07 GMT mtk01084
+**  modify test cases entry
+**  \main\maintrunk.MT6620WiFiDriver_Prj\14 2009-11-04 14:10:58 GMT mtk01084
+**  add new test interfaces
+**  \main\maintrunk.MT6620WiFiDriver_Prj\13 2009-10-30 18:17:10 GMT mtk01084
+**  fix compiler warning
+**  \main\maintrunk.MT6620WiFiDriver_Prj\12 2009-10-29 19:46:26 GMT mtk01084
+**  add test functions
+**  \main\maintrunk.MT6620WiFiDriver_Prj\11 2009-10-23 16:07:56 GMT mtk01084
+**  include new file
+**  \main\maintrunk.MT6620WiFiDriver_Prj\10 2009-10-13 21:58:29 GMT mtk01084
+**  modify for new HW architecture
+**  \main\maintrunk.MT6620WiFiDriver_Prj\9 2009-10-02 13:48:49 GMT mtk01725
+**  \main\maintrunk.MT6620WiFiDriver_Prj\8 2009-09-09 17:26:04 GMT mtk01084
+**  \main\maintrunk.MT6620WiFiDriver_Prj\7 2009-04-21 12:09:50 GMT mtk01461
+**  Update for MCR Write OID
+**  \main\maintrunk.MT6620WiFiDriver_Prj\6 2009-04-21 09:35:18 GMT mtk01461
+**  Update wlanoidQueryMcrRead() for composing CMD_INFO_T
+**  \main\maintrunk.MT6620WiFiDriver_Prj\5 2009-04-17 18:09:51 GMT mtk01426
+**  Remove kalIndicateStatusAndComplete() in wlanoidQueryOidInterfaceVersion()
+**  \main\maintrunk.MT6620WiFiDriver_Prj\4 2009-04-14 15:51:50 GMT mtk01426
+**  Add MCR read/write support
+**  \main\maintrunk.MT6620WiFiDriver_Prj\3 2009-03-19 18:32:40 GMT mtk01084
+**  update for basic power management functions
+**  \main\maintrunk.MT6620WiFiDriver_Prj\2 2009-03-10 20:06:31 GMT mtk01426
+**  Init for develop
+**
 */
 
 /******************************************************************************
- *                         C O M P I L E R   F L A G S
- *******************************************************************************
- */
+*                         C O M P I L E R   F L A G S
+*******************************************************************************
+*/
 
 /******************************************************************************
 *                    E X T E R N A L   R E F E R E N C E S
@@ -21,9 +1061,6 @@
 #include "precomp.h"
 #include "mgmt/rsn.h"
 
-#ifdef FW_CFG_SUPPORT
-#include "fwcfg.h"
-#endif
 #include <stddef.h>
 
 /******************************************************************************
@@ -506,90 +1543,6 @@ wlanoidSetBssidListScan(IN P_ADAPTER_T prAdapter,
 
 /*----------------------------------------------------------------------------*/
 /*!
-* \brief
-*
-* \param[in]
-*
-* \return none
-*/
-/*----------------------------------------------------------------------------*/
-BOOLEAN wlanoidGetChannelInfo(IN P_ADAPTER_T prAdapter, IN PUINT_8 puPartialScanReq)
-{
-	struct cfg80211_scan_request *scan_req_t = NULL;
-	struct ieee80211_channel *channel_tmp = NULL;
-	P_PARTIAL_SCAN_INFO	PartialScanChannel = NULL;
-	int i = 0;
-	int j = 0;
-	UINT_8 channel_num = 0;
-	UINT_8 channel_counts = 0;
-
-	if ((prAdapter == NULL) || (prAdapter->prGlueInfo == NULL) ||
-		(puPartialScanReq == NULL))
-		return FALSE;
-
-	scan_req_t = (struct cfg80211_scan_request *)puPartialScanReq;
-	if (scan_req_t->n_channels != 0) {
-
-		channel_counts = scan_req_t->n_channels;
-		DBGLOG(OID, TRACE, "scan channel number: n_channels=%d\n", channel_counts);
-		if (channel_counts > MAXIMUM_OPERATION_CHANNEL_LIST)
-			return TRUE;
-		/*
-		 * if (scan_req_t->n_channels > MAXIMUM_OPERATION_CHANNEL_LIST) {
-		 * DBGLOG(REQ, TRACE, "request channel great max num, reset channel num\n");
-		 * }
-		 */
-		PartialScanChannel = (P_PARTIAL_SCAN_INFO) kalMemAlloc(sizeof(PARTIAL_SCAN_INFO), VIR_MEM_TYPE);
-		if (PartialScanChannel == NULL) {
-			DBGLOG(OID, ERROR, "alloc PartialScanChannel fail\n");
-			return FALSE;
-		}
-		kalMemSet(PartialScanChannel, 0, sizeof(PARTIAL_SCAN_INFO));
-		while (j < channel_counts) {
-			channel_tmp = scan_req_t->channels[j];
-
-			DBGLOG(OID, TRACE, "set channel band=%d\n", channel_tmp->band);
-			if (channel_tmp->band >= IEEE80211_BAND_60GHZ) {
-				j++;
-				continue;
-			}
-
-			if (i >= MAXIMUM_OPERATION_CHANNEL_LIST)
-				break;
-			if (channel_tmp->band == IEEE80211_BAND_2GHZ)
-				PartialScanChannel->arChnlInfoList[i].eBand = BAND_2G4;
-			else if (channel_tmp->band == IEEE80211_BAND_5GHZ)
-				PartialScanChannel->arChnlInfoList[i].eBand = BAND_5G;
-
-			DBGLOG(OID, TRACE, "set channel channel_center_freq =%d\n",
-				channel_tmp->center_freq);
-
-			channel_num = (UINT_8)nicFreq2ChannelNum(
-				channel_tmp->center_freq * 1000);
-
-			DBGLOG(OID, TRACE, "set channel channel_num=%d\n",
-				channel_num);
-			PartialScanChannel->arChnlInfoList[i].ucChannelNum = channel_num;
-
-			j++;
-			i++;
-		}
-	}
-	DBGLOG(OID, INFO, "Partial Scan: set channel i=%d\n", i);
-	if (i > 0) {
-		PartialScanChannel->ucChannelListNum = i;
-		/*ScanReqMsg->eScanChannel = SCAN_CHANNEL_SPECIFIED;*/
-		prAdapter->prGlueInfo->puScanChannel = (PUINT_8)PartialScanChannel;
-		return TRUE;
-	}
-
-	kalMemFree(PartialScanChannel, VIR_MEM_TYPE, sizeof(PARTIAL_SCAN_INFO));
-	return FALSE;
-
-}
-
-/*----------------------------------------------------------------------------*/
-/*!
 * \brief This routine is called to request the driver to perform
 *        scanning with attaching information elements(IEs) specified from user space
 *
@@ -617,7 +1570,6 @@ wlanoidSetBssidListScanExt(IN P_ADAPTER_T prAdapter,
 	UINT_32 u4IeLength;
 	WLAN_STATUS rStatus = WLAN_STATUS_SUCCESS;
 	UINT_8 ucScanTime = AIS_SCN_DONE_TIMEOUT_SEC;
-	BOOLEAN	partial_result = FALSE;
 
 	DEBUGFUNC("wlanoidSetBssidListScanExt()");
 
@@ -695,9 +1647,6 @@ wlanoidSetBssidListScanExt(IN P_ADAPTER_T prAdapter,
 	if (prAdapter->prGlueInfo->rRegInfo.u4RddTestMode) {
 		if ((prAdapter->fgEnOnlineScan == TRUE) && (prAdapter->ucRddStatus)) {
 			if (kalGetMediaStateIndicated(prAdapter->prGlueInfo) != PARAM_MEDIA_STATE_CONNECTED) {
-				partial_result = wlanoidGetChannelInfo(prAdapter, prScanRequest->puPartialScanReq);
-				if (partial_result == FALSE)
-					return WLAN_STATUS_FAILURE;
 				aisFsmScanRequest(prAdapter, prSsid, pucIe, u4IeLength);
 			} else {
 				/* reject the scan request */
@@ -713,18 +1662,8 @@ wlanoidSetBssidListScanExt(IN P_ADAPTER_T prAdapter,
 #endif
 	{
 		if (prAdapter->fgEnOnlineScan == TRUE) {
-			if (prScanRequest == NULL)
-				return WLAN_STATUS_FAILURE;
-			partial_result = wlanoidGetChannelInfo(prAdapter, prScanRequest->puPartialScanReq);
-			if (partial_result == FALSE)
-				return WLAN_STATUS_FAILURE;
 			aisFsmScanRequest(prAdapter, prSsid, pucIe, u4IeLength);
 		} else if (kalGetMediaStateIndicated(prAdapter->prGlueInfo) != PARAM_MEDIA_STATE_CONNECTED) {
-			if (prScanRequest == NULL)
-				return WLAN_STATUS_FAILURE;
-			partial_result = wlanoidGetChannelInfo(prAdapter, prScanRequest->puPartialScanReq);
-			if (partial_result == FALSE)
-				return WLAN_STATUS_FAILURE;
 			aisFsmScanRequest(prAdapter, prSsid, pucIe, u4IeLength);
 		} else {
 			/* reject the scan request */
@@ -736,110 +1675,6 @@ wlanoidSetBssidListScanExt(IN P_ADAPTER_T prAdapter,
 
 	return rStatus;
 }				/* wlanoidSetBssidListScanWithIE */
-
-#if CFG_MULTI_SSID_SCAN
-/*----------------------------------------------------------------------------*/
-/*!
-* \brief This routine is called to request the driver to perform
-*        scanning with attaching information elements(IEs) specified from user space
-*        and multiple SSID
-*
-* \param[in] prAdapter Pointer to the Adapter structure.
-* \param[in] pvSetBuffer Pointer to the buffer that holds the data to be set.
-* \param[in] u4SetBufferLen The length of the set buffer.
-* \param[out] pu4SetInfoLen If the call is successful, returns the number of
-*                          bytes read from the set buffer. If the call failed
-*                          due to invalid length of the set buffer, returns
-*                          the amount of storage needed.
-*
-* \retval WLAN_STATUS_SUCCESS
-* \retval WLAN_STATUS_ADAPTER_NOT_READY
-* \retval WLAN_STATUS_FAILURE
-*/
-/*----------------------------------------------------------------------------*/
-WLAN_STATUS wlanoidSetBssidListScanAdv(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer,
-			IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen)
-{
-	P_PARAM_SCAN_REQUEST_ADV_T prScanRequest;
-	PARAM_SSID_T rSsid[CFG_SCAN_SSID_MAX_NUM];
-	PUINT_8 pucIe;
-	UINT_8 ucSsidNum;
-	UINT_32 i, u4IeLength;
-	BOOLEAN	partial_result = FALSE;
-
-	DEBUGFUNC("wlanoidSetBssidListScanAdv()");
-
-	if (prAdapter->rAcpiState == ACPI_STATE_D3) {
-		DBGLOG(REQ, WARN, "Fail in set BSSID list scan! (Adapter not ready). ACPI=D%d, Radio=%d\n",
-			prAdapter->rAcpiState, prAdapter->fgIsRadioOff);
-		return WLAN_STATUS_ADAPTER_NOT_READY;
-	} else if (prAdapter->fgTestMode) {
-		DBGLOG(OID, WARN, "didn't support Scan in test mode\n");
-		return WLAN_STATUS_FAILURE;
-	}
-
-	ASSERT(pu4SetInfoLen);
-	*pu4SetInfoLen = 0;
-
-	if (u4SetBufferLen != sizeof(PARAM_SCAN_REQUEST_ADV_T))
-		return WLAN_STATUS_INVALID_LENGTH;
-	else if (pvSetBuffer == NULL)
-		return WLAN_STATUS_INVALID_DATA;
-
-	if (prAdapter->fgIsRadioOff) {
-		DBGLOG(REQ, WARN, "Return from BSSID list scan! (radio off). ACPI=D%d, Radio=%d\n",
-		prAdapter->rAcpiState, prAdapter->fgIsRadioOff);
-		return WLAN_STATUS_SUCCESS;
-	}
-
-	prScanRequest = (P_PARAM_SCAN_REQUEST_ADV_T)pvSetBuffer;
-
-	ucSsidNum = (UINT_8)(prScanRequest->u4SsidNum);
-	for (i = 0; i < prScanRequest->u4SsidNum; i++) {
-		COPY_SSID(rSsid[i].aucSsid, rSsid[i].u4SsidLen, prScanRequest->rSsid[i].aucSsid,
-			prScanRequest->rSsid[i].u4SsidLen);
-	}
-
-	pucIe = prScanRequest->pucIE;
-	u4IeLength = prScanRequest->u4IELength;
-
-#if CFG_SUPPORT_RDD_TEST_MODE
-	if (prAdapter->prGlueInfo->rRegInfo.u4RddTestMode) {
-		if ((prAdapter->fgEnOnlineScan == TRUE) && (prAdapter->ucRddStatus)) {
-			if (kalGetMediaStateIndicated(prAdapter->prGlueInfo) != PARAM_MEDIA_STATE_CONNECTED) {
-				partial_result = wlanoidGetChannelInfo(prAdapter, prScanRequest->puPartialScanReq);
-				if (partial_result == FALSE)
-					return WLAN_STATUS_FAILURE;
-				aisFsmScanRequestAdv(prAdapter, ucSsidNum, rSsid, pucIe, u4IeLength);
-			} else
-				return WLAN_STATUS_FAILURE;
-		} else {
-			return WLAN_STATUS_FAILURE;
-		}
-	} else
-#endif
-	{
-		if (prAdapter->fgEnOnlineScan == TRUE) {
-			if (prScanRequest == NULL)
-				return WLAN_STATUS_FAILURE;
-			partial_result = wlanoidGetChannelInfo(prAdapter, prScanRequest->puPartialScanReq);
-			if (partial_result == FALSE)
-				return WLAN_STATUS_FAILURE;
-			aisFsmScanRequestAdv(prAdapter, ucSsidNum, rSsid, pucIe, u4IeLength);
-		} else if (kalGetMediaStateIndicated(prAdapter->prGlueInfo) != PARAM_MEDIA_STATE_CONNECTED) {
-			if (prScanRequest == NULL)
-				return WLAN_STATUS_FAILURE;
-			partial_result = wlanoidGetChannelInfo(prAdapter, prScanRequest->puPartialScanReq);
-			if (partial_result == FALSE)
-				return WLAN_STATUS_FAILURE;
-			aisFsmScanRequestAdv(prAdapter, ucSsidNum, rSsid, pucIe, u4IeLength);
-		} else
-			return WLAN_STATUS_FAILURE;
-	}
-
-	return WLAN_STATUS_SUCCESS;
-} /* wlanoidSetBssidListScanAdv */
-#endif
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -1070,7 +1905,7 @@ wlanoidSetConnect(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4S
 
 			for (i = 0; i < ELEM_MAX_LEN_SSID; i++) {
 				if (pParamConn->pucSsid) {
-					if (!((pParamConn->pucSsid[i] > 0) && (pParamConn->pucSsid[i] <= 0x1F))) {
+					if (!((0 < pParamConn->pucSsid[i]) && (pParamConn->pucSsid[i] <= 0x1F))) {
 						fgIsValidSsid = TRUE;
 						break;
 					}
@@ -1082,10 +1917,8 @@ wlanoidSetConnect(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4S
 	/* Set Connection Request Issued Flag */
 	if (fgIsValidSsid)
 		prConnSettings->fgIsConnReqIssued = TRUE;
-	else {
-		prConnSettings->eReConnectLevel = RECONNECT_LEVEL_USER_SET;
+	else
 		prConnSettings->fgIsConnReqIssued = FALSE;
-	}
 
 	if (fgEqualSsid || fgEqualBssid)
 		prAisAbortMsg->fgDelayIndication = TRUE;
@@ -1094,8 +1927,6 @@ wlanoidSetConnect(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4S
 		prAisAbortMsg->fgDelayIndication = FALSE;
 
 	mboxSendMsg(prAdapter, MBOX_ID_0, (P_MSG_HDR_T) prAisAbortMsg, MSG_SEND_METHOD_BUF);
-
-	cnmTimerStopTimer(prAdapter, &prAdapter->rScanNloTimeoutTimer);
 
 	DBGLOG(OID, INFO, "ssid %s, bssid %pM, conn policy %d, disc reason %d\n",
 			     prConnSettings->aucSSID, prConnSettings->aucBSSID,
@@ -1195,7 +2026,7 @@ wlanoidSetSsid(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4SetB
 			fgIsValidSsid = FALSE;
 
 			for (i = 0; i < ELEM_MAX_LEN_SSID; i++) {
-				if (!((pParamSsid->aucSsid[i] > 0) && (pParamSsid->aucSsid[i] <= 0x1F))) {
+				if (!((0 < pParamSsid->aucSsid[i]) && (pParamSsid->aucSsid[i] <= 0x1F))) {
 					fgIsValidSsid = TRUE;
 					break;
 				}
@@ -1230,9 +2061,7 @@ wlanoidSetSsid(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4SetB
 	COPY_SSID(prAdapter->rWifiVar.rConnSettings.aucSSID,
 		  prAdapter->rWifiVar.rConnSettings.ucSSIDLen, pParamSsid->aucSsid, (UINT_8) pParamSsid->u4SsidLen);
 
-#if !defined(CFG_MULTI_SSID_SCAN)
 	prAdapter->rWifiVar.rConnSettings.u4FreqInKHz = pParamSsid->u4CenterFreq;
-#endif
 	if (EQUAL_SSID(prAdapter->rWlanInfo.rCurrBssId.rSsid.aucSsid,
 		       prAdapter->rWlanInfo.rCurrBssId.rSsid.u4SsidLen, pParamSsid->aucSsid, pParamSsid->u4SsidLen)) {
 		prAisAbortMsg->fgDelayIndication = TRUE;
@@ -1240,9 +2069,7 @@ wlanoidSetSsid(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4SetB
 		/* Update the information to CONNECTION_SETTINGS_T */
 		prAisAbortMsg->fgDelayIndication = FALSE;
 	}
-	DBGLOG(OID, INFO, "u4ScanResultNum=%d, SSID=%s, ucSSIDLen=%d\n",
-		prAdapter->rWlanInfo.u4ScanResultNum,
-		prAdapter->rWifiVar.rConnSettings.aucSSID, prAdapter->rWifiVar.rConnSettings.ucSSIDLen);
+	DBGLOG(SCN, INFO, "SSID %s\n", prAdapter->rWifiVar.rConnSettings.aucSSID);
 
 	mboxSendMsg(prAdapter, MBOX_ID_0, (P_MSG_HDR_T) prAisAbortMsg, MSG_SEND_METHOD_BUF);
 
@@ -1593,9 +2420,6 @@ wlanoidSetAuthMode(IN P_ADAPTER_T prAdapter,
 	}
 
 	switch (*(P_ENUM_PARAM_AUTH_MODE_T) pvSetBuffer) {
-#if CFG_SUPPORT_HOTSPOT_2_0
-	case AUTH_MODE_WPA_OSEN:
-#endif
 	case AUTH_MODE_WPA:
 	case AUTH_MODE_WPA_PSK:
 	case AUTH_MODE_WPA2:
@@ -1678,11 +2502,6 @@ wlanoidSetAuthMode(IN P_ADAPTER_T prAdapter,
 		case AUTH_MODE_WPA2_PSK:
 			u4AkmSuite = RSN_AKM_SUITE_PSK;
 			break;
-#if CFG_SUPPORT_HOTSPOT_2_0
-		case AUTH_MODE_WPA_OSEN:
-			u4AkmSuite = WFA_AKM_SUITE_OSEN;
-			break;
-#endif
 
 		default:
 			u4AkmSuite = 0;
@@ -1885,10 +2704,8 @@ wlanoidSetReloadDefaults(IN P_ADAPTER_T prAdapter,
 	/* Verify the available reload options and reload the settings. */
 	switch (*(P_PARAM_RELOAD_DEFAULTS) pvSetBuffer) {
 	case ENUM_RELOAD_WEP_KEYS:
-		/*
-		 * Reload available default WEP keys from the permanent
-		 * storage.
-		 */
+		/* Reload available default WEP keys from the permanent
+		   storage. */
 		prAdapter->rWifiVar.rConnSettings.eAuthMode = AUTH_MODE_OPEN;
 		/* ENUM_ENCRYPTION_DISABLED; */
 		prAdapter->rWifiVar.rConnSettings.eEncStatus = ENUM_ENCRYPTION1_KEY_ABSENT;
@@ -2054,10 +2871,8 @@ wlanoidSetAddWep(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4Se
 
 	u4KeyId = prNewWepKey->u4KeyIndex & BITS(0, 29) /* WEP_KEY_ID_FIELD */;
 
-	/*
-	 * Verify whether key index is valid or not, current version
-	 * driver support only 4 global WEP keys setting by this OID
-	 */
+	/* Verify whether key index is valid or not, current version
+	   driver support only 4 global WEP keys setting by this OID */
 	if (u4KeyId > MAX_KEY_NUM - 1) {
 		DBGLOG(OID, ERROR, "Error, invalid WEP key ID: %d\n", (UINT_8) u4KeyId);
 		return WLAN_STATUS_INVALID_DATA;
@@ -2144,10 +2959,8 @@ wlanoidSetRemoveWep(IN P_ADAPTER_T prAdapter,
 
 	u4KeyId &= BITS(0, 7);
 
-	/*
-	 * Verify whether key index is valid or not. Current version
-	 * driver support only 4 global WEP keys.
-	 */
+	/* Verify whether key index is valid or not. Current version
+	   driver support only 4 global WEP keys. */
 	if (u4KeyId > MAX_KEY_NUM - 1) {
 		DBGLOG(OID, ERROR, "invalid WEP key ID %u\n", u4KeyId);
 		return WLAN_STATUS_INVALID_DATA;
@@ -2339,9 +3152,9 @@ _wlanoidSetAddKey(IN P_ADAPTER_T prAdapter,
 		else {
 #if CFG_SUPPORT_802_11W
 			if (prCmdKey->ucKeyId >= 4) {
+				prCmdKey->ucAlgorithmId = CIPHER_SUITE_BIP;
 				P_AIS_SPECIFIC_BSS_INFO_T prAisSpecBssInfo;
 
-				prCmdKey->ucAlgorithmId = CIPHER_SUITE_BIP;
 				prAisSpecBssInfo = &prAdapter->rWifiVar.rAisSpecificBssInfo;
 				prAisSpecBssInfo->fgBipKeyInstalled = TRUE;
 			} else
@@ -2441,8 +3254,8 @@ wlanoidSetAddKey(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4Se
 
 #if (CFG_SUPPORT_TDLS == 1)
 	/*
-	 * supplicant will set key before updating station & enabling the link so we need to
-	 * backup the key information and set key when link is enabled
+	   supplicant will set key before updating station & enabling the link so we need to
+	   backup the key information and set key when link is enabled
 	 */
 	if (TdlsexKeyHandle(prAdapter, prNewKey) == TDLS_STATUS_SUCCESS)
 		return WLAN_STATUS_SUCCESS;
@@ -3030,15 +3843,13 @@ wlanoidSetPmkid(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4Set
 	}
 
 	/*
-	 * The driver can only clear its PMKID cache whenever it make a media disconnect
-	 * indication. Otherwise, it must change the PMKID cache only when set through this OID.
+	   The driver can only clear its PMKID cache whenever it make a media disconnect
+	   indication. Otherwise, it must change the PMKID cache only when set through this OID.
 	 */
 #if CFG_RSN_MIGRATION
 	for (i = 0; i < prPmkid->u4BSSIDInfoCount; i++) {
-		/*
-		 * Search for desired BSSID. If desired BSSID is found,
-		 * then set the PMKID
-		 */
+		/* Search for desired BSSID. If desired BSSID is found,
+		   then set the PMKID */
 		if (!rsnSearchPmkidEntry(prAdapter, (PUINT_8) prPmkid->arBSSIDInfo[i].arBSSID, &j)) {
 			/* No entry found for the specified BSSID, so add one entry */
 			if (prAisSpecBssInfo->u4PmkidCacheCount < CFG_MAX_PMKID_CACHE - 1) {
@@ -3061,29 +3872,6 @@ wlanoidSetPmkid(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4Set
 		}
 	}
 #endif
-	if (prAdapter->rWifiVar.rConnSettings.fgUseOkc) {
-		P_BSS_DESC_T prBssDesc = prAdapter->rWifiVar.rAisFsmInfo.prTargetBssDesc;
-		P_UINT_8 pucPmkID = NULL;
-
-		if ((prPmkid->u4Length & BIT(31)) || (prBssDesc &&
-				EQUAL_MAC_ADDR(prPmkid->arBSSIDInfo[0].arBSSID, prBssDesc->aucBSSID))) {
-			if (j == CFG_MAX_PMKID_CACHE) {
-				j = 0;
-				kalMemCopy(prAisSpecBssInfo->arPmkidCache[0].rBssidInfo.arBSSID,
-					   prPmkid->arBSSIDInfo[0].arBSSID, sizeof(PARAM_MAC_ADDRESS));
-				kalMemCopy(prAisSpecBssInfo->arPmkidCache[0].rBssidInfo.arPMKID,
-				   prPmkid->arBSSIDInfo[0].arPMKID, sizeof(PARAM_PMKID_VALUE));
-			}
-			pucPmkID = prAisSpecBssInfo->arPmkidCache[j].rBssidInfo.arPMKID;
-			DBGLOG(RSN, INFO,
-				"%pM OKC PMKID %02x%02x%02x%02x%02x%02x%02x%02x...\n",
-				prAisSpecBssInfo->arPmkidCache[j].rBssidInfo.arBSSID,
-				pucPmkID[0], pucPmkID[1], pucPmkID[2], pucPmkID[3],
-				pucPmkID[4], pucPmkID[5], pucPmkID[6], pucPmkID[7]);
-		}
-		aisFsmRunEventSetOkcPmk(prAdapter);
-	}
-
 	return WLAN_STATUS_SUCCESS;
 
 }				/* wlanoidSetPmkid */
@@ -3369,55 +4157,6 @@ wlanoidQueryVendorId(IN P_ADAPTER_T prAdapter,
 	return WLAN_STATUS_SUCCESS;
 }				/* wlanoidQueryVendorId */
 
-WLAN_STATUS
-wlanoidRssiMonitor(IN P_ADAPTER_T prAdapter,
-		 OUT PVOID pvQueryBuffer, IN UINT_32 u4QueryBufferLen, OUT PUINT_32 pu4QueryInfoLen)
-{
-	PARAM_RSSI_MONITOR_T rRssi;
-
-	ASSERT(prAdapter);
-	ASSERT(pu4QueryInfoLen);
-	if (u4QueryBufferLen)
-		ASSERT(pvQueryBuffer);
-
-	*pu4QueryInfoLen = sizeof(PARAM_RSSI_MONITOR_T);
-
-	/* Check for query buffer length */
-	if (u4QueryBufferLen < *pu4QueryInfoLen) {
-		DBGLOG(OID, WARN, "Too short length %u\n", u4QueryBufferLen);
-		return WLAN_STATUS_BUFFER_TOO_SHORT;
-	}
-
-	kalMemZero(&rRssi, sizeof(PARAM_RSSI_MONITOR_T));
-
-	if (kalGetMediaStateIndicated(prAdapter->prGlueInfo) == PARAM_MEDIA_STATE_DISCONNECTED)
-		return WLAN_STATUS_ADAPTER_NOT_READY;
-
-	kalMemCopy(&rRssi, pvQueryBuffer, sizeof(PARAM_RSSI_MONITOR_T));
-	if (rRssi.enable) {
-		if (rRssi.max_rssi_value > PARAM_WHQL_RSSI_MAX_DBM)
-			rRssi.max_rssi_value = PARAM_WHQL_RSSI_MAX_DBM;
-		if (rRssi.min_rssi_value < -120)
-			rRssi.min_rssi_value = -120;
-	} else {
-		rRssi.max_rssi_value = 0;
-		rRssi.min_rssi_value = 0;
-	}
-
-	DBGLOG(OID, INFO, "enable=%d, max_rssi_value=%d, min_rssi_value=%d\n",
-		rRssi.enable, rRssi.max_rssi_value, rRssi.min_rssi_value);
-
-	return wlanSendSetQueryCmd(prAdapter,
-			   CMD_ID_RSSI_MONITOR,
-			   TRUE,
-			   FALSE,
-			   TRUE,
-			   nicCmdEventSetCommon,
-			   nicOidCmdTimeoutCommon,
-			   sizeof(PARAM_RSSI_MONITOR_T), (PUINT_8)&rRssi, NULL, 0);
-
-}
-
 /*----------------------------------------------------------------------------*/
 /*!
 * \brief This routine is called to query the current RSSI value.
@@ -3568,11 +4307,9 @@ wlanoidSetRssiTrigger(IN P_ADAPTER_T prAdapter,
 		    /* Save the RSSI trigger value to the Adapter structure */
 		    prAdapter->rWlanInfo.rRssiTriggerValue = rRssiTriggerValue;
 
-	/*
-	 * If the RSSI trigger value is equal to the current RSSI value, the
+	/* If the RSSI trigger value is equal to the current RSSI value, the
 	 * indication triggers immediately. We need to indicate the protocol
-	 * that an RSSI status indication event triggers.
-	 */
+	 * that an RSSI status indication event triggers. */
 	if (rRssiTriggerValue == (PARAM_RSSI) (prAdapter->rLinkQuality.cRssi)) {
 		prAdapter->rWlanInfo.eRssiTriggerType = ENUM_RSSI_TRIGGER_TRIGGERED;
 
@@ -4628,7 +5365,7 @@ wlanoidQuerySwCtrlRead(IN P_ADAPTER_T prAdapter,
 
 #if CFG_SUPPORT_SWCR
 	case 0x9F00:
-		swCrReadWriteCmd(prAdapter, SWCR_READ /* Read */,
+		swCrReadWriteCmd(prAdapter, SWCR_READ /* Read */ ,
 				 (UINT_16) u2SubId, &u4Data);
 		break;
 #endif /* CFG_SUPPORT_SWCR */
@@ -4769,10 +5506,6 @@ wlanoidSetSwCtrlWrite(IN P_ADAPTER_T prAdapter,
 			prAdapter->fgDisStaAgingTimeoutDetection = (BOOLEAN) u4Data;
 		else if (u2SubId == 0x5)
 			prAdapter->rWifiVar.rConnSettings.uc2G4BandwidthMode = (UINT_8) u4Data;
-#if CFG_RX_BA_REORDERING_ENHANCEMENT
-		else if (u2SubId == 0x6)
-			prAdapter->rWifiVar.fgEnableReportIndependentPkt = (BOOLEAN) u4Data;
-#endif
 		else if (u2SubId == 0x0100)
 			prAdapter->rWifiVar.u8SupportRxGf = (UINT_8) u4Data;
 		else if (u2SubId == 0x0101) {
@@ -4815,25 +5548,19 @@ wlanoidSetSwCtrlWrite(IN P_ADAPTER_T prAdapter,
 
 			authSendDeauthFrame(prAdapter, prBssInfo->prStaRecOfAP, NULL, 7, NULL);
 		}
-		if (u2SubId == 0x4) {
-			P_BSS_INFO_T prBssInfo = &(prAdapter->rWifiVar.arBssInfo[(NETWORK_TYPE_AIS_INDEX)]);
-
-			DBGLOG(RSN, INFO, "Send deauth\n");
-			authSendDeauthFrame(prAdapter, prBssInfo->prStaRecOfAP, NULL, 1, NULL);
-		}
 		/* wext_set_mode */
 		/*
-		 * if (u2SubId == 0x3) {
-		 * prAdapter->prGlueInfo->rWpaInfo.u4Mfp = RSN_AUTH_MFP_DISABLED;
-		 * }
-		 * if (u2SubId == 0x4) {
-		 * //prAdapter->rWifiVar.rAisSpecificBssInfo.fgMgmtProtection = TRUE;
-		 * prAdapter->prGlueInfo->rWpaInfo.u4Mfp = RSN_AUTH_MFP_OPTIONAL;
-		 * }
-		 * if (u2SubId == 0x5) {
-		 * //prAdapter->rWifiVar.rAisSpecificBssInfo.fgMgmtProtection = TRUE;
-		 * prAdapter->prGlueInfo->rWpaInfo.u4Mfp = RSN_AUTH_MFP_REQUIRED;
-		 * }
+		   if (u2SubId == 0x3) {
+		   prAdapter->prGlueInfo->rWpaInfo.u4Mfp = RSN_AUTH_MFP_DISABLED;
+		   }
+		   if (u2SubId == 0x4) {
+		   //prAdapter->rWifiVar.rAisSpecificBssInfo.fgMgmtProtection = TRUE;
+		   prAdapter->prGlueInfo->rWpaInfo.u4Mfp = RSN_AUTH_MFP_OPTIONAL;
+		   }
+		   if (u2SubId == 0x5) {
+		   //prAdapter->rWifiVar.rAisSpecificBssInfo.fgMgmtProtection = TRUE;
+		   prAdapter->prGlueInfo->rWpaInfo.u4Mfp = RSN_AUTH_MFP_REQUIRED;
+		   }
 		 */
 		break;
 #endif
@@ -5647,19 +6374,15 @@ wlanoidSetCurrentPacketFilter(IN P_ADAPTER_T prAdapter,
 	}
 
 	do {
-		/*
-		 * Verify the bits of the new packet filter. If any bits are set that
-		 * we don't support, leave.
-		 */
+		/* Verify the bits of the new packet filter. If any bits are set that
+		   we don't support, leave. */
 		if (u4NewPacketFilter & ~(PARAM_PACKET_FILTER_SUPPORTED)) {
 			rStatus = WLAN_STATUS_NOT_SUPPORTED;
 			break;
 		}
 #if DBG
-		/*
-		 * Need to enable or disable promiscuous support depending on the new
-		 * filter.
-		 */
+		/* Need to enable or disable promiscuous support depending on the new
+		   filter. */
 		if (u4NewPacketFilter & PARAM_PACKET_FILTER_PROMISCUOUS)
 			DBGLOG(OID, TRACE, "Enable promiscuous mode\n");
 		else
@@ -5685,40 +6408,19 @@ wlanoidSetCurrentPacketFilter(IN P_ADAPTER_T prAdapter,
 		prAdapter->u4OsPacketFilter &= PARAM_PACKET_FILTER_P2P_MASK;
 		prAdapter->u4OsPacketFilter |= u4NewPacketFilter;
 
-		rStatus = wlanoidSetPacketFilter(prAdapter, prAdapter->u4OsPacketFilter,
-					TRUE, pvSetBuffer, u4SetBufferLen);
+		return wlanSendSetQueryCmd(prAdapter,
+					   CMD_ID_SET_RX_FILTER,
+					   TRUE,
+					   FALSE,
+					   TRUE,
+					   nicCmdEventSetCommon,
+					   nicOidCmdTimeoutCommon,
+					   sizeof(UINT_32),
+					   (PUINT_8) &prAdapter->u4OsPacketFilter, pvSetBuffer, u4SetBufferLen);
+	} else {
+		return rStatus;
 	}
-	DBGLOG(REQ, INFO, "[MC debug] u4OsPacketFilter=%x\n", prAdapter->u4OsPacketFilter);
-	return rStatus;
 }				/* wlanoidSetCurrentPacketFilter */
-
-WLAN_STATUS wlanoidSetPacketFilter(P_ADAPTER_T prAdapter, UINT_32 u4PacketFilter,
-				BOOLEAN fgIsOid, PVOID pvSetBuffer, UINT_32 u4SetBufferLen)
-{
-#if CFG_SUPPORT_DROP_MC_PACKET
-	/* Note:
-	*	If PARAM_PACKET_FILTER_ALL_MULTICAST is set in PacketFilter,
-	*	Firmware will pass multicast frame.
-	*	Else if PARAM_PACKET_FILTER_MULTICAST is set in PacketFilter,
-	*	Firmware will pass some multicast frame in multicast table.
-	*	Else firmware will drop all multicast frame.
-	*/
-	if (fgIsUnderSuspend)
-		u4PacketFilter &= ~(PARAM_PACKET_FILTER_MULTICAST | PARAM_PACKET_FILTER_ALL_MULTICAST);
-#endif
-
-	DBGLOG(REQ, INFO, "[MC debug] u4PacketFilter=%x, IsSuspend=%d\n", u4PacketFilter, fgIsUnderSuspend);
-	return wlanSendSetQueryCmd(prAdapter,
-						   CMD_ID_SET_RX_FILTER,
-						   TRUE,
-						   FALSE,
-						   fgIsOid,
-						   nicCmdEventSetCommon,
-						   nicOidCmdTimeoutCommon,
-						   sizeof(UINT_32),
-						   (PUINT_8)&u4PacketFilter,
-						   pvSetBuffer, u4SetBufferLen);
-}
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -5806,10 +6508,8 @@ wlanoidQueryAcpiDevicePowerState(IN P_ADAPTER_T prAdapter,
 	}
 #endif
 
-	/*
-	 * Since we will disconnect the newwork, therefore we do not
-	 * need to check queue empty
-	 */
+	/* Since we will disconnect the newwork, therefore we do not
+	   need to check queue empty */
 	*(PPARAM_DEVICE_POWER_STATE) pvQueryBuffer = ParamDeviceStateD3;
 	/* WARNLOG(("Ready to transition to D3\n")); */
 	return WLAN_STATUS_SUCCESS;
@@ -5911,6 +6611,7 @@ wlanoidQueryFragThreshold(IN P_ADAPTER_T prAdapter,
 
 	return WLAN_STATUS_NOT_SUPPORTED;
 #endif /* CFG_TX_FRAGMENT */
+
 }				/* end of wlanoidQueryFragThreshold() */
 
 /*----------------------------------------------------------------------------*/
@@ -5984,6 +6685,7 @@ wlanoidQueryRtsThreshold(IN P_ADAPTER_T prAdapter,
 	*((PARAM_RTS_THRESHOLD *) pvQueryBuffer) = prAdapter->rWlanInfo.eRtsThreshold;
 
 	return WLAN_STATUS_SUCCESS;
+
 }				/* wlanoidQueryRtsThreshold */
 
 /*----------------------------------------------------------------------------*/
@@ -6062,7 +6764,6 @@ wlanoidSetDisassociate(IN P_ADAPTER_T prAdapter,
 
 	/* prepare message to AIS */
 	prAdapter->rWifiVar.rConnSettings.fgIsConnReqIssued = FALSE;
-	prAdapter->rWifiVar.rConnSettings.eReConnectLevel = RECONNECT_LEVEL_USER_SET;
 
 	/* Send AIS Abort Message */
 	prAisAbortMsg = (P_MSG_AIS_ABORT_T) cnmMemAlloc(prAdapter, RAM_TYPE_MSG, sizeof(MSG_AIS_ABORT_T));
@@ -6117,10 +6818,7 @@ wlanoidQuery802dot11PowerSaveProfile(IN P_ADAPTER_T prAdapter,
 	if (u4QueryBufferLen != 0) {
 		ASSERT(pvQueryBuffer);
 
-		/*
-		 * *(PPARAM_POWER_MODE) pvQueryBuffer =
-		 * (PARAM_POWER_MODE)(prAdapter->rWlanInfo.ePowerSaveMode.ucPsProfile);
-		 */
+/* *(PPARAM_POWER_MODE) pvQueryBuffer = (PARAM_POWER_MODE)(prAdapter->rWlanInfo.ePowerSaveMode.ucPsProfile); */
 		*(PPARAM_POWER_MODE) pvQueryBuffer =
 		    (PARAM_POWER_MODE) (prAdapter->rWlanInfo.arPowerSaveMode[NETWORK_TYPE_AIS_INDEX].ucPsProfile);
 		*pu4QueryInfoLen = sizeof(PARAM_POWER_MODE);
@@ -6950,11 +7648,12 @@ wlanoidRftestQueryAutoTest(IN P_ADAPTER_T prAdapter,
 		ASSERT(pvQueryBuffer);
 	ASSERT(pu4QueryInfoLen);
 
-	/*pu4QueryInfoLen is depended on upper-layer*/
-	*pu4QueryInfoLen = u4QueryBufferLen;
+	*pu4QueryInfoLen = sizeof(PARAM_MTK_WIFI_TEST_STRUCT_T);
 
-	if (u4QueryBufferLen != sizeof(PARAM_MTK_WIFI_TEST_STRUCT_T))
-		DBGLOG(OID, WARN, "Invalid data. QueryBufferLen: %u.\n", u4QueryBufferLen);
+	if (u4QueryBufferLen != sizeof(PARAM_MTK_WIFI_TEST_STRUCT_T)) {
+		DBGLOG(OID, ERROR, "Invalid data. QueryBufferLen: %u.\n", u4QueryBufferLen);
+		return WLAN_STATUS_INVALID_LENGTH;
+	}
 
 	prRfATInfo = (P_PARAM_MTK_WIFI_TEST_STRUCT_T) pvQueryBuffer;
 	rStatus = rftestQueryATInfo(prAdapter,
@@ -6995,9 +7694,10 @@ wlanoidRftestSetAutoTest(IN P_ADAPTER_T prAdapter,
 
 	*pu4SetInfoLen = sizeof(PARAM_MTK_WIFI_TEST_STRUCT_T);
 
-	if (u4SetBufferLen != sizeof(PARAM_MTK_WIFI_TEST_STRUCT_T))
-		DBGLOG(OID, WARN, "Invalid data. SetBufferLen: %u.\n", u4SetBufferLen);
-
+	if (u4SetBufferLen != sizeof(PARAM_MTK_WIFI_TEST_STRUCT_T)) {
+		DBGLOG(OID, ERROR, "Invalid data. SetBufferLen: %u.\n", u4SetBufferLen);
+		return WLAN_STATUS_INVALID_LENGTH;
+	}
 
 	prRfATInfo = (P_PARAM_MTK_WIFI_TEST_STRUCT_T) pvSetBuffer;
 	rStatus = rftestSetATInfo(prAdapter, prRfATInfo->u4FuncIndex, prRfATInfo->u4FuncData);
@@ -7083,26 +7783,18 @@ rftestQueryATInfo(IN P_ADAPTER_T prAdapter,
 
 		prTestStatus->rATInfo.u4FuncData =
 		    (prAdapter->rVerInfo.u2FwProductID << 16) | (prAdapter->rVerInfo.u2FwOwnVersion);
-		if (u4QueryBufferLen > 8) {
-			/*support FW version extended*/
-			prTestStatus->rATInfo.u4FuncData2 = prAdapter->rVerInfo.u2FwOwnVersionExtend;
-
-			DBGLOG(OID, INFO, "<wifi> version: 0x%x ,extended : 0x%x\n"
-				, prTestStatus->rATInfo.u4FuncData
-				, prTestStatus->rATInfo.u4FuncData2);
-		} else
-			DBGLOG(OID, INFO, "<wifi> version: 0x%x\n"
-				, prTestStatus->rATInfo.u4FuncData);
+		u4QueryBufferLen = sizeof(EVENT_TEST_STATUS);
 
 		return WLAN_STATUS_SUCCESS;
 	} else if (u4FuncIndex == RF_AT_FUNCID_DRV_INFO) {
 		/* driver implementation */
 		prTestStatus = (P_EVENT_TEST_STATUS) pvQueryBuffer;
+
 		prTestStatus->rATInfo.u4FuncData = CFG_DRV_OWN_VERSION;
+		u4QueryBufferLen = sizeof(EVENT_TEST_STATUS);
 
 		return WLAN_STATUS_SUCCESS;
 	}
-
 	prCmdInfo = cmdBufAllocateCmdInfo(prAdapter, (CMD_HDR_SIZE + sizeof(CMD_TEST_CTRL_T)));
 
 	if (!prCmdInfo) {
@@ -7509,7 +8201,7 @@ wlanoidSetWapiKey(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4S
 	*pu4SetInfoLen = u4SetBufferLen;
 
 	/* Exception check */
-	if (prNewKey->ucKeyID != 0x1 && prNewKey->ucKeyID != 0x0) {
+	if (prNewKey->ucKeyID != 0x1 || prNewKey->ucKeyID != 0x0) {
 		prNewKey->ucKeyID = prNewKey->ucKeyID & BIT(0);
 		/* DBGLOG(SEC, INFO, ("Invalid WAPI key ID (%d)\r\n", prNewKey->ucKeyID)); */
 	}
@@ -7687,10 +8379,8 @@ wlanoidSetAddWakeupPattern(IN P_ADAPTER_T prAdapter,
 
 	prPacketPattern = (P_PARAM_PM_PACKET_PATTERN) pvSetBuffer;
 
-	/*
-	 * FIXME:
-	 * Send the struct to firmware
-	 */
+	/* FIXME:
+	 * Send the struct to firmware */
 
 	return WLAN_STATUS_FAILURE;
 }
@@ -7716,10 +8406,8 @@ wlanoidSetRemoveWakeupPattern(IN P_ADAPTER_T prAdapter,
 
 	prPacketPattern = (P_PARAM_PM_PACKET_PATTERN) pvSetBuffer;
 
-	/*
-	 * FIXME:
-	 * Send the struct to firmware
-	 */
+	/* FIXME:
+	 * Send the struct to firmware */
 
 	return WLAN_STATUS_FAILURE;
 }
@@ -7772,10 +8460,9 @@ wlanoidSetEnableWakeup(IN P_ADAPTER_T prAdapter,
 	pu4WakeupEventEnable = (PUINT_32) pvSetBuffer;
 	prAdapter->u4WakeupEventEnable = *pu4WakeupEventEnable;
 
-	/*
-	 * FIXME:
+	/* FIXME:
 	 * Send Command Event for setting wakeup-pattern / Magic Packet to firmware
-	 */
+	 * */
 
 	return WLAN_STATUS_FAILURE;
 }
@@ -8645,46 +9332,6 @@ wlanoidSetUApsdParam(IN P_ADAPTER_T prAdapter,
 }
 #endif
 
-#ifdef CFG_TC1_FEATURE /* for Passive Scan */
-/*----------------------------------------------------------------------------*/
-/*!
-* \brief This routine is called to set Passive Scan mode.
-*
-* \param[in] prAdapter Pointer to the Adapter structure.
-* \param[in] pvSetBuffer A pointer to the buffer that holds the data to be set.
-* \param[in] u4SetBufferLen The length of the set buffer.
-* \param[out] pu4SetInfoLen If the call is successful, returns the number of
-*                           bytes read from the set buffer. If the call failed
-*                           due to invalid length of the set buffer, returns
-*                           the amount of storage needed.
-*
-* \retval WLAN_STATUS_SUCCESS
-* \retval WLAN_STATUS_FAILURE
-*/
-/*----------------------------------------------------------------------------*/
-WLAN_STATUS
-wlanoidSetPassiveScan(IN P_ADAPTER_T prAdapter,
-			IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen)
-{
-	PUINT_8 pucScanType;
-
-	ASSERT(prAdapter);
-	ASSERT(pvSetBuffer);
-	ASSERT(u4SetBufferLen == 1);
-
-	*pu4SetInfoLen = 1;
-
-	pucScanType = pvSetBuffer;
-
-	if (*pucScanType == 0x2)
-		prAdapter->ucScanType = SCAN_TYPE_PASSIVE_SCAN;
-	else
-		prAdapter->ucScanType = SCAN_TYPE_ACTIVE_SCAN;
-
-	return WLAN_STATUS_SUCCESS;
-}
-#endif
-
 /*----------------------------------------------------------------------------*/
 /*!
 * \brief This routine is called to set BT profile or BT information and the
@@ -8943,41 +9590,6 @@ wlanoidSetPta(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4SetBu
 #endif
 
 #endif
-
-
-WLAN_STATUS
-wlanoidSetRxPacketFilterPriv(
-	IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32	pu4SetInfoLen)
-{
-
-	WLAN_STATUS rStatus;
-
-	DEBUGFUNC("wlanoidSetPacketFilter");
-
-	ASSERT(prAdapter);
-	ASSERT(pvSetBuffer);
-
-	DBGLOG(OID, TRACE, "wlanoidSetRxPacketFilterPriv\n");
-
-	rStatus = wlanSendSetQueryCmd(
-				prAdapter,					/* prAdapter */
-				CMD_ID_SET_DROP_PACKET_CFG,	/* ucCID */
-				TRUE,						/* fgSetQuery */
-				FALSE,						/* fgNeedResp */
-				TRUE,						/* fgIsOid */
-				nicCmdEventSetCommon,		/* pfCmdDoneHandler*/
-				nicOidCmdTimeoutCommon,		/* pfCmdTimeoutHandler */
-				u4SetBufferLen,				/* u4SetQueryInfoLen */
-				(PUINT_8) pvSetBuffer,		/* pucInfoBuffer */
-				NULL,						/* pvSetQueryBuffer */
-				0							/* u4SetQueryBufferLen */
-				);
-
-	ASSERT(rStatus == WLAN_STATUS_PENDING);
-
-	return rStatus;
-
-}
 
 /*----------------------------------------------------------------------------*/
 /*!
@@ -9315,16 +9927,16 @@ wlanoidQueryBSSInfo(IN P_ADAPTER_T prAdapter,
 		return WLAN_STATUS_INVALID_LENGTH;
 	kalMemZero(&rCmdBSSInfo, sizeof(EVENT_AIS_BSS_INFO_T));
 	/*
-	 * rStatus = wlanSendSetQueryCmd(prAdapter,
-	 *                            CMD_ID_GET_BSS_INFO,
-	 *                            FALSE,
-	 *                            TRUE,
-	 *                            TRUE,
-	 *                            nicCmdEventGetBSSInfo,
-	 *                            nicOidCmdTimeoutCommon,
-	 *                            sizeof(P_EVENT_AIS_BSS_INFO_T),
-	 *                            (PUINT_8) &rCmdBSSInfo, pvQueryBuffer, u4QueryBufferLen);
-	 */
+	rStatus = wlanSendSetQueryCmd(prAdapter,
+				      CMD_ID_GET_BSS_INFO,
+				      FALSE,
+				      TRUE,
+				      TRUE,
+				      nicCmdEventGetBSSInfo,
+				      nicOidCmdTimeoutCommon,
+				      sizeof(P_EVENT_AIS_BSS_INFO_T),
+				      (PUINT_8) &rCmdBSSInfo, pvQueryBuffer, u4QueryBufferLen);
+	*/
 	rStatus = wlanSendSetQueryCmd(prAdapter,
 				      CMD_ID_GET_BSS_INFO,
 				      FALSE,
@@ -9333,7 +9945,7 @@ wlanoidQueryBSSInfo(IN P_ADAPTER_T prAdapter,
 				      nicCmdEventGetBSSInfo,
 				      nicOidCmdTimeoutCommon,
 				      sizeof(EVENT_AIS_BSS_INFO_T),
-				      (PUINT_8) &rCmdBSSInfo, pvQueryBuffer, u4QueryBufferLen);
+				      (PUINT_8) & rCmdBSSInfo, pvQueryBuffer, u4QueryBufferLen);
 
 	return rStatus;
 }				/* wlanoidSetWiFiWmmPsTest */
@@ -9413,19 +10025,15 @@ batchSetCmd(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer, IN UINT_32 u4SetBuff
 			DBGLOG(SCN, TRACE, "[BATCH] Parse CHANNEL fail(2)\n");
 			return -EINVAL;
 		}
-		/*
-		 * else {
-		 * *p = '.'; // remove '>' because sscanf can not parse <%s>
-		 * }
-		 */
-		/*
-		 * tokens = kalSScanf(head, "CHANNEL=<%s", c_channel);
-		 * if (tokens != 1) {
-		 * DBGLOG(SCN, TRACE, ("[BATCH] Parse fail: tokens=%d, CHANNEL=<%s>\n",
-		 * tokens, c_channel));
-		 * return -EINVAL;
-		 * }
-		 */
+		/* else {
+		 *p = '.'; // remove '>' because sscanf can not parse <%s>
+		 }*/
+		/*tokens = kalSScanf(head, "CHANNEL=<%s", c_channel);
+		   if (tokens != 1) {
+		   DBGLOG(SCN, TRACE, ("[BATCH] Parse fail: tokens=%d, CHANNEL=<%s>\n",
+		   tokens, c_channel));
+		   return -EINVAL;
+		   } */
 		rCmdBatchReq.ucChannelType = SCAN_CHANNEL_SPECIFIED;
 		rCmdBatchReq.ucChannelListNum = 0;
 		prRfChannelInfo = &rCmdBatchReq.arChannelList[0];
@@ -9647,10 +10255,6 @@ wlanoidSetStartSchedScan(IN P_ADAPTER_T prAdapter,
 			 IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen)
 {
 	P_PARAM_SCHED_SCAN_REQUEST prSchedScanRequest;
-	P_SCAN_INFO_T prScanInfo;
-
-	ASSERT(prAdapter);
-	prScanInfo = &(prAdapter->rWifiVar.rScanInfo);
 
 	DEBUGFUNC("wlanoidSetStartSchedScan()");
 
@@ -9679,9 +10283,6 @@ wlanoidSetStartSchedScan(IN P_ADAPTER_T prAdapter,
 	}
 
 	prSchedScanRequest = (P_PARAM_SCHED_SCAN_REQUEST) pvSetBuffer;
-
-	/*if schedScanReq is pending ,save it*/
-	kalMemCopy(&prScanInfo->rSchedScanRequest, prSchedScanRequest, sizeof(PARAM_SCHED_SCAN_REQUEST));
 
 	if (scnFsmSchedScanRequest(prAdapter,
 				   (UINT_8) (prSchedScanRequest->u4SsidNum),
@@ -9727,10 +10328,9 @@ wlanoidSetStopSchedScan(IN P_ADAPTER_T prAdapter,
 		return WLAN_STATUS_FAILURE;
 }
 
-#if CFG_SUPPORT_GSCN
 /*----------------------------------------------------------------------------*/
 /*!
-* \brief This routine is called to set a periodically PSCN action
+* \brief This routine is called to set a periodically scan action
 *
 * \param[in] prAdapter Pointer to the Adapter structure.
 * \param[in] pvSetBuffer A pointer to the buffer that holds the data to be set.
@@ -9753,42 +10353,60 @@ wlanoidSetGSCNAction(IN P_ADAPTER_T prAdapter,
 		     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen)
 {
 	P_CMD_SET_PSCAN_ENABLE prCmdPscnAction;
+	P_SCAN_INFO_T prScanInfo;
+
+	prScanInfo = &(prAdapter->rWifiVar.rScanInfo);
+	DBGLOG(SCN, TRACE, "wlanoidSetGSCNAction\n");
 
 	if (prAdapter->rAcpiState == ACPI_STATE_D3) {
-		DBGLOG(SCN, ERROR, "Adapter not ready: ACPI=%d, Radio=%d\n",
+		DBGLOG(SCN, WARN, "Fail in set Periodically Scan! (Adapter not ready). ACPI=D%d, Radio=%d\n",
 				   prAdapter->rAcpiState, prAdapter->fgIsRadioOff);
 		return WLAN_STATUS_ADAPTER_NOT_READY;
 	}
 
-	if (u4SetBufferLen != sizeof(CMD_SET_PSCAN_ENABLE)) {
-		DBGLOG(SCN, ERROR, "u4SetBufferLen != sizeof(CMD_SET_PSCAN_ENABLE)\n");
+	if (u4SetBufferLen != sizeof(CMD_SET_PSCAN_ENABLE))
 		return WLAN_STATUS_INVALID_LENGTH;
-	} else if (pvSetBuffer == NULL) {
-		DBGLOG(SCN, ERROR, "pvSetBuffer == NULL\n");
+	else if (pvSetBuffer == NULL)
 		return WLAN_STATUS_INVALID_DATA;
-	}
 
 	if (prAdapter->fgIsRadioOff) {
-		DBGLOG(SCN, ERROR, "Radio off: ACPI=%d, Radio=%d\n",
+		DBGLOG(SCN, WARN, "Return from BSSID list scan! (radio off). ACPI=D%d, Radio=%d\n",
 				   prAdapter->rAcpiState, prAdapter->fgIsRadioOff);
 		return WLAN_STATUS_SUCCESS;
 	}
 
 	prCmdPscnAction = (P_CMD_SET_PSCAN_ENABLE) pvSetBuffer;
 
-	if (prCmdPscnAction) {
-		DBGLOG(SCN, TRACE, "ucPscanAct=[%d]\n", prCmdPscnAction->ucPscanAct);
-		if (prCmdPscnAction->ucPscanAct == PSCAN_ACT_ENABLE) {
-			prAdapter->rWifiVar.rScanInfo.fgGScnAction = TRUE;
-			scnPSCNFsm(prAdapter, PSCN_SCANNING);
-		} else if (prCmdPscnAction->ucPscanAct == PSCAN_ACT_DISABLE) {
-			scnCombineParamsIntoPSCN(prAdapter, NULL, NULL, NULL, NULL, FALSE, FALSE, TRUE);
-			if (prAdapter->rWifiVar.rScanInfo.prPscnParam->fgNLOScnEnable
-				|| prAdapter->rWifiVar.rScanInfo.prPscnParam->fgBatchScnEnable)
-				scnPSCNFsm(prAdapter, PSCN_RESET); /* in case there is any PSCN */
-			else
-				scnPSCNFsm(prAdapter, PSCN_IDLE);
+	if (prCmdPscnAction->ucPscanAct == ENABLE) {
+#if 0
+		DBGLOG(OID, INFO, "set  PCSN ENABLE\n");
+		if (scnFsmPSCNAction(prAdapter, (UINT_8) (prCmdPscnAction->ucPscanAct)) == TRUE) {
+
+			DBGLOG(OID, INFO, "wlanoidSetGSCNAction < ---\n");
+			return WLAN_STATUS_PENDING;
 		}
+		DBGLOG(OID, INFO, "wlanoidSetGSCNAction < ---\n");
+		return WLAN_STATUS_FAILURE;
+
+#endif
+		scnPSCNFsm(prAdapter, PSCN_SCANNING, NULL, NULL, NULL, NULL, FALSE, FALSE, FALSE, TRUE);
+	} else if (prCmdPscnAction->ucPscanAct == DISABLE) {
+#if 0
+		DBGLOG(OID, INFO, "disable PCSN\n");
+		scnFsmPSCNAction(prAdapter, (UINT_8) DISABLE);
+
+		DBGLOG(OID, TRACE, "set new PCSN\n");
+		scnCombineParamsIntoPSCN(prAdapter, NULL, NULL, NULL, NULL, FALSE, FALSE, TRUE);
+
+		DBGLOG(OID, INFO, "ENABLE or disable PCSN\n");
+		if (!prScanInfo->fgPscnOnnning) {
+			DBGLOG(OID, INFO, "ENABLE PCSN\n");
+			scnFsmPSCNAction(prAdapter, ENABLE);
+		} else {
+			DBGLOG(OID, INFO, "All PCSN is disabled...\n");
+		}
+#endif
+		scnPSCNFsm(prAdapter, PSCN_RESET, NULL, NULL, NULL, NULL, FALSE, FALSE, TRUE, FALSE);
 	}
 
 	return WLAN_STATUS_SUCCESS;
@@ -9796,7 +10414,7 @@ wlanoidSetGSCNAction(IN P_ADAPTER_T prAdapter,
 
 /*----------------------------------------------------------------------------*/
 /*!
-* \brief This routine is called to configure GScan PARAMs
+* \brief This routine is called to set a periodically scan action
 *
 * \param[in] prAdapter Pointer to the Adapter structure.
 * \param[in] pvSetBuffer A pointer to the buffer that holds the data to be set.
@@ -9815,44 +10433,64 @@ wlanoidSetGSCNAction(IN P_ADAPTER_T prAdapter,
 */
 /*----------------------------------------------------------------------------*/
 WLAN_STATUS
-wlanoidSetGSCNParam(IN P_ADAPTER_T prAdapter,
-		    IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen)
+wlanoidSetGSCNAParam(IN P_ADAPTER_T prAdapter,
+		     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen)
 {
 	P_PARAM_WIFI_GSCAN_CMD_PARAMS prCmdGscnParam;
+	/*UINT_8 i, j = 0;*/
+	DBGLOG(SCN, INFO, "wlanoidSetGSCNAParam v1\n");
 
 	if (prAdapter->rAcpiState == ACPI_STATE_D3) {
-		DBGLOG(SCN, ERROR, "Adapter not ready: ACPI=%d, Radio=%d\n",
+		DBGLOG(SCN, WARN, "Fail in set Periodically Scan! (Adapter not ready). ACPI=D%d, Radio=%d\n",
 				   prAdapter->rAcpiState, prAdapter->fgIsRadioOff);
 		return WLAN_STATUS_ADAPTER_NOT_READY;
 	}
 	if (u4SetBufferLen != sizeof(PARAM_WIFI_GSCAN_CMD_PARAMS)) {
-		DBGLOG(SCN, ERROR, "u4SetBufferLen != sizeof(PARAM_WIFI_GSCAN_CMD_PARAMS)\n");
+		DBGLOG(SCN, WARN, "(u4SetBufferLen != sizeof(P_PARAM_WIFI_GSCAN_CMD_PARAMS))\n");
 		return WLAN_STATUS_INVALID_LENGTH;
 	} else if (pvSetBuffer == NULL) {
-		DBGLOG(SCN, ERROR, "pvSetBuffer == NULL\n");
+		DBGLOG(SCN, WARN, "(pvSetBuffer == NULL)\n");
 		return WLAN_STATUS_INVALID_DATA;
 	}
 	if (prAdapter->fgIsRadioOff) {
-		DBGLOG(SCN, ERROR, "Radio off: ACPI=%d, Radio=%d\n",
+		DBGLOG(SCN, INFO, "Return from BSSID list scan! (radio off). ACPI=D%d, Radio=%d\n",
 				   prAdapter->rAcpiState, prAdapter->fgIsRadioOff);
 		return WLAN_STATUS_SUCCESS;
 	}
 
 	prCmdGscnParam = (P_PARAM_WIFI_GSCAN_CMD_PARAMS) pvSetBuffer;
+	/* KC-XXX memcpy(prCmdGscnParam, */
+	/*	(P_PARAM_WIFI_GSCAN_CMD_PARAMS)pvSetBuffer, */
+	/*	sizeof(PARAM_WIFI_GSCAN_CMD_PARAMS) ); */
+	DBGLOG(SCN, INFO,
+		"prCmdGscnParam : base_period[%u], max_ap_per_scan[%u] num_buckets[%u], report_threshold[%u]\n",
+		prCmdGscnParam->base_period, prCmdGscnParam->max_ap_per_scan, prCmdGscnParam->num_buckets,
+		prCmdGscnParam->report_threshold);
+#if 0
+	for (i = 0; i < prCmdGscnParam->num_buckets; i++) {
 
-	DBGLOG(SCN, TRACE, "prCmdGscnParam: base_period[%u], num_buckets[%u] band[%d] num_channels[%u]\n",
-	prCmdGscnParam->base_period, prCmdGscnParam->num_buckets,
-	prCmdGscnParam->buckets[0].band, prCmdGscnParam->buckets[0].num_channels);
-
-	if (scnSetGSCNParam(prAdapter, prCmdGscnParam) == TRUE)
-		return WLAN_STATUS_SUCCESS;
-	else
+		DBGLOG(OID, INFO,
+		    "prCmdGscnParam->buckets : band[%u], bucket[%u] num_buckets[%u], period[%u] report_events[%u]\n",
+		     prCmdGscnParam->buckets[i].band, prCmdGscnParam->buckets[i].bucket,
+		     prCmdGscnParam->buckets[i].num_channels, prCmdGscnParam->buckets[i].period,
+		     prCmdGscnParam->buckets[i].report_events));
+		DBGLOG(OID, INFO, "prCmdGscnParam->buckets[%d] has channel: ", i);
+		for (j = 0; j < prCmdGscnParam->buckets[i].num_channels; j++)
+			DBGLOG(OID, INFO, " %d,  ", prCmdGscnParam->buckets[i].channels[j].channel);
+		DBGLOG(OID, INFO, "\n");
+	}
+#endif
+	if (scnSetGSCNParam(prAdapter, prCmdGscnParam) == TRUE) {
+		DBGLOG(SCN, INFO, "wlanoidSetGSCNAParam --->scnSetGSCNParam\n");
+		return WLAN_STATUS_PENDING;
+	} else {
 		return WLAN_STATUS_FAILURE;
+	}
 }
 
 /*----------------------------------------------------------------------------*/
 /*!
-* \brief This routine is called to configure GScan PARAMs
+* \brief This routine is called to set configure  gscan PARAMs
 *
 * \param[in] prAdapter Pointer to the Adapter structure.
 * \param[in] pvSetBuffer A pointer to the buffer that holds the data to be set.
@@ -9870,52 +10508,56 @@ wlanoidSetGSCNParam(IN P_ADAPTER_T prAdapter,
 * \note The setting buffer PARAM_SCHED_SCAN_REQUEST_EXT_T
 */
 /*----------------------------------------------------------------------------*/
+
 WLAN_STATUS
-wlanoidSetGSCNConfig(IN P_ADAPTER_T prAdapter,
-		     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen)
+wlanoidSetGSCNAConfig(IN P_ADAPTER_T prAdapter,
+		      IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen)
 {
-	P_PARAM_WIFI_GSCAN_CMD_PARAMS prCmdGscnConfigParam;
-	CMD_GSCN_SCN_COFIG_T rCmdGscnConfig;
+	P_PARAM_WIFI_GSCAN_CMD_PARAMS prCmdGscnScnConfigParam;
+	CMD_GSCN_SCN_COFIG_T rCmdGscnScnConfig;
+
+	DBGLOG(SCN, INFO, "wlanoidSetGSCNAConfig v1\n");
 
 	if (prAdapter->rAcpiState == ACPI_STATE_D3) {
-		DBGLOG(SCN, ERROR, "Adapter not ready: ACPI=%d, Radio=%d\n",
+		DBGLOG(SCN, WARN, "Fail in set Periodically Scan! (Adapter not ready). ACPI=D%d, Radio=%d\n",
 				   prAdapter->rAcpiState, prAdapter->fgIsRadioOff);
 		return WLAN_STATUS_ADAPTER_NOT_READY;
 	}
 	if (u4SetBufferLen != sizeof(PARAM_WIFI_GSCAN_CMD_PARAMS)) {
-		DBGLOG(SCN, ERROR, "u4SetBufferLen != sizeof(PARAM_WIFI_GSCAN_CMD_PARAMS)\n");
+		DBGLOG(SCN, WARN, "(u4SetBufferLen != sizeof(CMD_GSCN_SCN_COFIG_T))\n");
 		return WLAN_STATUS_INVALID_LENGTH;
 	} else if (pvSetBuffer == NULL) {
-		DBGLOG(SCN, ERROR, "pvSetBuffer == NULL\n");
+		DBGLOG(SCN, WARN, "(pvSetBuffer == NULL)\n");
 		return WLAN_STATUS_INVALID_DATA;
 	}
 	if (prAdapter->fgIsRadioOff) {
-		DBGLOG(SCN, ERROR, "Radio off: ACPI=%d, Radio=%d\n",
+		DBGLOG(SCN, INFO, "Return from BSSID list scan! (radio off). ACPI=D%d, Radio=%d\n",
 				   prAdapter->rAcpiState, prAdapter->fgIsRadioOff);
 		return WLAN_STATUS_SUCCESS;
 	}
 
-	prCmdGscnConfigParam = (P_PARAM_WIFI_GSCAN_CMD_PARAMS) pvSetBuffer;
-	kalMemZero(&rCmdGscnConfig, sizeof(CMD_GSCN_SCN_COFIG_T));
-
-	if (prCmdGscnConfigParam) {
-		rCmdGscnConfig.u4BufferThreshold = prCmdGscnConfigParam->report_threshold_percent;
-		rCmdGscnConfig.ucNumApPerScn = prCmdGscnConfigParam->max_ap_per_scan;
-		rCmdGscnConfig.u4NumScnToCache = prCmdGscnConfigParam->report_threshold_num_scans;
-	}
-	DBGLOG(SCN, TRACE, "rCmdGscnScnConfig: threshold_percent[%d] max_ap_per_scan[%d] num_scans[%d]\n",
-			   rCmdGscnConfig.u4BufferThreshold,
-			   rCmdGscnConfig.ucNumApPerScn, rCmdGscnConfig.u4NumScnToCache);
-
-	if (scnSetGSCNConfig(prAdapter, &rCmdGscnConfig) == TRUE)
-		return WLAN_STATUS_SUCCESS;
-	else
+	DBGLOG(SCN, INFO, "prCmdGscnScnConfigParam = (P_PARAM_WIFI_GSCAN_CMD_PARAMS)pvSetBuffer\n");
+	prCmdGscnScnConfigParam = (P_PARAM_WIFI_GSCAN_CMD_PARAMS) pvSetBuffer;
+	memcpy(prCmdGscnScnConfigParam, (P_PARAM_WIFI_GSCAN_CMD_PARAMS) pvSetBuffer,
+	       sizeof(PARAM_WIFI_GSCAN_CMD_PARAMS));
+	DBGLOG(SCN, INFO, "prCmdGscnScnConfigParam assign  prCmdGscnScnConfig\n");
+	rCmdGscnScnConfig.u4BufferThreshold = prCmdGscnScnConfigParam->report_threshold;
+	rCmdGscnScnConfig.ucNumApPerScn = prCmdGscnScnConfigParam->max_ap_per_scan;
+	rCmdGscnScnConfig.u4NumScnToCache = prCmdGscnScnConfigParam->num_scans;
+	DBGLOG(SCN, INFO, " report_threshold %d report_threshold %d  num_scans %d\n",
+			   rCmdGscnScnConfig.u4BufferThreshold,
+			   rCmdGscnScnConfig.ucNumApPerScn, rCmdGscnScnConfig.u4NumScnToCache);
+	if (scnFsmSetGSCNConfig(prAdapter, &rCmdGscnScnConfig) == TRUE) {
+		DBGLOG(SCN, INFO, "wlanoidSetGSCNAParam --->scnSetGSCNParam\n");
+		return WLAN_STATUS_PENDING;
+	} else {
 		return WLAN_STATUS_FAILURE;
+	}
 }
 
 /*----------------------------------------------------------------------------*/
 /*!
-* \brief This routine is called to get a GScan result
+* \brief This routine is called to get a gscan result
 *
 * \param[in] prAdapter Pointer to the Adapter structure.
 * \param[in] pvSetBuffer A pointer to the buffer that holds the data to be set.
@@ -9940,42 +10582,44 @@ wlanoidGetGSCNResult(IN P_ADAPTER_T prAdapter,
 	P_PARAM_WIFI_GSCAN_GET_RESULT_PARAMS prGetGscnScnResultParm;
 	CMD_GET_GSCAN_RESULT_T rGetGscnScnResultCmd;
 
+	DEBUGFUNC("wlanoidGetGSCNResult()");
+	DBGLOG(SCN, INFO, "wlanoidGetGSCNResult v1\n");
 	if (prAdapter->rAcpiState == ACPI_STATE_D3) {
-		DBGLOG(SCN, ERROR, "Adapter not ready: ACPI=%d, Radio=%d\n",
+		DBGLOG(SCN, WARN, "Fail in set Periodically Scan! (Adapter not ready). ACPI=D%d, Radio=%d\n",
 				   prAdapter->rAcpiState, prAdapter->fgIsRadioOff);
 		return WLAN_STATUS_ADAPTER_NOT_READY;
 	}
 
 	if (u4SetBufferLen != sizeof(PARAM_WIFI_GSCAN_GET_RESULT_PARAMS)) {
-		DBGLOG(SCN, ERROR, "u4SetBufferLen != sizeof(PARAM_WIFI_GSCAN_GET_RESULT_PARAMS))\n");
+		DBGLOG(SCN, WARN, "(u4SetBufferLen != sizeof(CMD_GSCN_SCN_COFIG_T))\n");
 		return WLAN_STATUS_INVALID_LENGTH;
 	} else if (pvSetBuffer == NULL) {
-		DBGLOG(SCN, ERROR, "pvSetBuffer == NULL\n");
+		DBGLOG(SCN, WARN, "(pvSetBuffer == NULL)\n");
 		return WLAN_STATUS_INVALID_DATA;
 	}
 
 	if (prAdapter->fgIsRadioOff) {
-		DBGLOG(SCN, ERROR, "Radio off: ACPI=D%d, Radio=%d\n",
+		DBGLOG(SCN, INFO, "Return from BSSID list scan! (radio off). ACPI=D%d, Radio=%d\n",
 				   prAdapter->rAcpiState, prAdapter->fgIsRadioOff);
 		return WLAN_STATUS_SUCCESS;
 	}
 
 	prGetGscnScnResultParm = (P_PARAM_WIFI_GSCAN_GET_RESULT_PARAMS) pvSetBuffer;
-	kalMemZero(&rGetGscnScnResultCmd, sizeof(CMD_GET_GSCAN_RESULT_T));
+	/* memcpy(&rGetGscnScnResultCmd, prGetGscnScnResultParm, sizeof(PARAM_WIFI_GSCAN_GET_RESULT_PARAMS) ); */
 
-	if (prGetGscnScnResultParm) {
-		rGetGscnScnResultCmd.u4Num = prGetGscnScnResultParm->get_num;
-		rGetGscnScnResultCmd.ucFlush = prGetGscnScnResultParm->flush;
-		rGetGscnScnResultCmd.ucVersion = PSCAN_VERSION;
+	rGetGscnScnResultCmd.u4Num = prGetGscnScnResultParm->get_num;
+	rGetGscnScnResultCmd.ucFlush = prGetGscnScnResultParm->flush;
+	rGetGscnScnResultCmd.ucVersion = PSCAN_VERSION;
+	kalMemZero(rGetGscnScnResultCmd.aucReserved, sizeof(rGetGscnScnResultCmd.aucReserved));
+
+	if (scnFsmGetGSCNResult(prAdapter, &rGetGscnScnResultCmd) == TRUE) {
+		DBGLOG(SCN, INFO, "wlanoidGetGSCNResult --->scnFsmGetGSCNResult\n");
+		return WLAN_STATUS_PENDING;
+	} else {
+		return WLAN_STATUS_FAILURE;
 	}
 
-	if (scnFsmGetGSCNResult(prAdapter, &rGetGscnScnResultCmd, pu4SetInfoLen) == TRUE)
-		return WLAN_STATUS_SUCCESS;
-	else
-		return WLAN_STATUS_FAILURE;
 }
-#endif /* CFG_SUPPORT_GSCN */
-
 
 #if CFG_SUPPORT_HOTSPOT_2_0
 /*----------------------------------------------------------------------------*/
@@ -10383,7 +11027,7 @@ wlanoidSetTxRateInfo(
 
 WLAN_STATUS
 wlanoidNotifyFwSuspend(IN P_ADAPTER_T prAdapter,
-		       IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen)
+			 IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen)
 {
 	WIFI_SYSTEM_SUSPEND_CMD_T rSuspendCmd;
 
@@ -10392,229 +11036,15 @@ wlanoidNotifyFwSuspend(IN P_ADAPTER_T prAdapter,
 
 	rSuspendCmd.fgIsSystemSuspend = *(PBOOLEAN)pvSetBuffer;
 	return wlanSendSetQueryCmd(prAdapter,
-				   CMD_ID_SET_SYSTEM_SUSPEND,
-				   TRUE,
-				   FALSE,
-				   TRUE,
-				   nicCmdEventSetCommon,
-				   nicOidCmdTimeoutCommon,
-				   sizeof(BOOLEAN),
-				   (PUINT_8)&rSuspendCmd,
-				   NULL,
-				   0);
-}
-
-#if CFG_SUPPORT_TDLS
-WLAN_STATUS
-wlanoidDisableTdlsPs(IN P_ADAPTER_T prAdapter,
-			 IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen)
-{
-	struct CMD_TDLS_PS_T rTdlsPs;
-
-	if (!prAdapter || !pvSetBuffer)
-		return WLAN_STATUS_INVALID_DATA;
-
-	rTdlsPs.ucIsEnablePs = *(PUINT_8)pvSetBuffer - '0';
-	DBGLOG(OID, INFO, "enable tdls ps %d\n", rTdlsPs.ucIsEnablePs);
-	wlanSendSetQueryCmd(prAdapter,
-							CMD_ID_TDLS_PS,
+							CMD_ID_SET_SYSTEM_SUSPEND,
 							TRUE,
 							FALSE,
-							FALSE,
-							NULL,
+							TRUE,
+							nicCmdEventSetCommon,
 							nicOidCmdTimeoutCommon,
-							sizeof(rTdlsPs),
-							(PUINT_8)&rTdlsPs,
+							sizeof(BOOLEAN),
+							(PUINT_8)&rSuspendCmd,
 							NULL,
 							0);
-	return WLAN_STATUS_SUCCESS;
-}
-#endif
-
-WLAN_STATUS
-wlanoidPacketKeepAlive(IN P_ADAPTER_T prAdapter,
-		 IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen)
-{
-	WLAN_STATUS rStatus = WLAN_STATUS_SUCCESS;
-	P_PARAM_PACKET_KEEPALIVE_T prPacket;
-
-	ASSERT(prAdapter);
-	ASSERT(pu4SetInfoLen);
-	if (u4SetBufferLen)
-		ASSERT(pvSetBuffer);
-
-	*pu4SetInfoLen = sizeof(PARAM_PACKET_KEEPALIVE_T);
-
-	/* Check for query buffer length */
-	if (u4SetBufferLen < *pu4SetInfoLen) {
-		DBGLOG(OID, WARN, "Too short length %u\n", u4SetBufferLen);
-		return WLAN_STATUS_BUFFER_TOO_SHORT;
-	}
-
-	prPacket = (P_PARAM_PACKET_KEEPALIVE_T)kalMemAlloc(sizeof(PARAM_PACKET_KEEPALIVE_T), VIR_MEM_TYPE);
-	if (!prPacket) {
-		DBGLOG(OID, ERROR, "Can not alloc memory for PARAM_PACKET_KEEPALIVE_T\n");
-		return -ENOMEM;
-	}
-	kalMemCopy(prPacket, pvSetBuffer, sizeof(PARAM_PACKET_KEEPALIVE_T));
-
-	DBGLOG(OID, INFO, "enable=%d, index=%d\r\n", prPacket->enable, prPacket->index);
-
-	rStatus = wlanSendSetQueryCmd(prAdapter,
-			   CMD_ID_WFC_KEEP_ALIVE,
-			   TRUE,
-			   FALSE,
-			   TRUE,
-			   nicCmdEventSetCommon,
-			   nicOidCmdTimeoutCommon,
-			   sizeof(PARAM_PACKET_KEEPALIVE_T), (PUINT_8)prPacket, NULL, 0);
-	kalMemFree(prPacket, VIR_MEM_TYPE, sizeof(PARAM_PACKET_KEEPALIVE_T));
-	return rStatus;
-}
-
-
-#if CFG_AUTO_CHANNEL_SEL_SUPPORT
-/*----------------------------------------------------------------------------*/
-/*!
-* \brief This routine is called to query LTE safe channels.
-*
-* \param[in]  pvAdapter        Pointer to the Adapter structure.
-* \param[out] pvQueryBuffer    A pointer to the buffer that holds the result of
-*                              the query.
-* \param[in]  u4QueryBufferLen The length of the query buffer.
-* \param[out] pu4QueryInfoLen  If the call is successful, returns the number of
-*                              bytes written into the query buffer. If the call
-*                              failed due to invalid length of the query buffer,
-*                              returns the amount of storage needed.
-*
-* \retval WLAN_STATUS_PENDING
-* \retval WLAN_STATUS_FAILURE
-*/
-/*----------------------------------------------------------------------------*/
-WLAN_STATUS
-wlanoidQueryLteSafeChannel(IN P_ADAPTER_T prAdapter,
-			   IN PVOID pvQueryBuffer, IN UINT_32 u4QueryBufferLen, OUT PUINT_32 pu4QueryInfoLen)
-{
-	WLAN_STATUS rResult = WLAN_STATUS_FAILURE;
-
-	DBGLOG(P2P, INFO, "[ACS]Get LTE safe channels\n");
-
-	do {
-		/* Sanity test */
-		if ((prAdapter == NULL) || (pu4QueryInfoLen == NULL))
-			break;
-		if ((pvQueryBuffer == NULL) || (u4QueryBufferLen == 0))
-			break;
-
-		/* Get LTE safe channel list */
-		rResult = wlanSendSetQueryCmd(prAdapter,
-					      CMD_ID_GET_LTE_CHN,
-					      FALSE,
-					      TRUE,
-					      TRUE,
-					      nicCmdEventQueryLteSafeChn,
-					      nicOidCmdTimeoutCommon,
-					      0,
-					      NULL,
-					      pvQueryBuffer,
-					      u4QueryBufferLen);
-
-	} while (FALSE);
-
-	return rResult;
-}				/* wlanoidQueryLteSafeChannel */
-#endif
-
-#ifdef FW_CFG_SUPPORT
-/*----------------------------------------------------------------------------*/
-/*!
-* \brief This routine is called to query fw cfg info
-*
-* \param[in]  pvAdapter        Pointer to the Adapter structure.
-* \param[out] pvQueryBuffer    A pointer to the buffer that holds the result of
-*                              the query.
-* \param[in]  u4QueryBufferLen The length of the query buffer.
-* \param[out] pu4QueryInfoLen  If the call is successful, returns the number of
-*                              bytes written into the query buffer. If the call
-*                              failed due to invalid length of the query buffer,
-*                              returns the amount of storage needed.
-*
-* \retval WLAN_STATUS_PENDING
-* \retval WLAN_STATUS_FAILURE
-*/
-/*----------------------------------------------------------------------------*/
-WLAN_STATUS wlanoidQueryCfgRead(IN P_ADAPTER_T prAdapter,
-			   IN PVOID pvQueryBuffer, IN UINT_32 u4QueryBufferLen, OUT PUINT_32 pu4QueryInfoLen)
-{
-	struct _CMD_HEADER_T *prCmdV1Header = (struct _CMD_HEADER_T *)pvQueryBuffer;
-	struct _CMD_HEADER_T cmdV1Header;
-	WLAN_STATUS rStatus = WLAN_STATUS_FAILURE;
-
-	ASSERT(prAdapter);
-	ASSERT(pu4QueryInfoLen);
-
-	if (u4QueryBufferLen)
-		ASSERT(pvQueryBuffer);
-
-	*pu4QueryInfoLen = sizeof(struct _CMD_HEADER_T);
-
-	if (u4QueryBufferLen < sizeof(struct _CMD_HEADER_T))
-		return WLAN_STATUS_INVALID_LENGTH;
-
-	kalMemCopy(&cmdV1Header, prCmdV1Header, sizeof(struct _CMD_HEADER_T));
-	rStatus = wlanSendSetQueryCmd(
-			prAdapter,
-			CMD_ID_GET_SET_CUSTOMER_CFG,
-			FALSE,
-			TRUE,
-			TRUE,
-			nicCmdEventQueryCfgRead,
-			nicCmdTimeoutCommon,
-			sizeof(struct _CMD_HEADER_T),
-			(PUINT_8) &cmdV1Header,
-			pvQueryBuffer,
-			u4QueryBufferLen);
-	return rStatus;
-}
-#endif
-
-WLAN_STATUS
-wlanoidSetDrvRoamingPolicy(IN P_ADAPTER_T prAdapter,
-			 IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen)
-{
-	UINT_32 u4RoamingPoily;
-	P_ROAMING_INFO_T prRoamingFsmInfo;
-	P_CONNECTION_SETTINGS_T prConnSettings;
-	UINT_32 u4CurConPolicy;
-
-	ASSERT(prAdapter);
-	ASSERT(pvSetBuffer);
-
-	u4RoamingPoily = *(PUINT_32)pvSetBuffer;
-
-	prRoamingFsmInfo = (P_ROAMING_INFO_T) &(prAdapter->rWifiVar.rRoamingInfo);
-
-	prConnSettings = (P_CONNECTION_SETTINGS_T) &prAdapter->rWifiVar.rConnSettings;
-	u4CurConPolicy = prConnSettings->eConnectionPolicy;
-
-	if (u4RoamingPoily == 1) {
-		if (((prAdapter->rWifiVar.rAisFsmInfo.eCurrentState == AIS_STATE_NORMAL_TR)
-			|| (prAdapter->rWifiVar.rAisFsmInfo.eCurrentState == AIS_STATE_ONLINE_SCAN))
-			&& (prRoamingFsmInfo->eCurrentState == ROAMING_STATE_IDLE))
-			roamingFsmRunEventStart(prAdapter);
-
-		/*Change Connect by any , avoid to connect by BSSID on roaming or beacon timeout!*/
-		prConnSettings->eConnectionPolicy = CONNECT_BY_SSID_ANY;
-
-	} else {
-		if (prRoamingFsmInfo->eCurrentState != ROAMING_STATE_IDLE)
-			roamingFsmRunEventAbort(prAdapter);
-	}
-	prRoamingFsmInfo->DrvRoamingAllow = u4RoamingPoily;
-
-	DBGLOG(REQ, INFO, "wlanoidSetDrvRoamingPolicy, RoamingPoily= %d, conn policy= [%d] -> [%d]\n"
-		, u4RoamingPoily, u4CurConPolicy, prRoamingFsmInfo->DrvRoamingAllow);
-
-	return WLAN_STATUS_SUCCESS;
 }
 

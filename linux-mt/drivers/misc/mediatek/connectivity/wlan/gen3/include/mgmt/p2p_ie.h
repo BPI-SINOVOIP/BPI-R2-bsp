@@ -1,17 +1,3 @@
-/*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #ifndef _P2P_IE_H
 #define _P2P_IE_H
 
@@ -22,10 +8,8 @@
 /*---------------- WFD Data Element Definitions ----------------*/
 /* WFD 4.1.1 - WFD IE format */
 #define WFD_OUI_TYPE_LEN                            4
-#define WFD_IE_OUI_HDR                              (ELEM_HDR_LEN + WFD_OUI_TYPE_LEN)	/*
-											 * == OFFSET_OF(IE_P2P_T,
-											 * aucP2PAttributes[0])
-											 */
+#define WFD_IE_OUI_HDR                              (ELEM_HDR_LEN + WFD_OUI_TYPE_LEN)	/* == OFFSET_OF(IE_P2P_T,
+											 *aucP2PAttributes[0]) */
 
 /* WFD 4.1.1 - General WFD Attribute */
 #define WFD_ATTRI_HDR_LEN                           3	/* ID(1 octet) + Length(2 octets) */

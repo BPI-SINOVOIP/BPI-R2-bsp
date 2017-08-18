@@ -1,12 +1,89 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/nic/hal.h#1
+*/
+
+/*! \file   "hal.h"
+    \brief  The declaration of hal functions
+
+    N/A
+*/
+
+/*
+** Log: hal.h
+ *
+ * 04 01 2011 tsaiyuan.hsu
+ * [WCXRP00000615] [MT 6620 Wi-Fi][Driver] Fix klocwork issues
+ * fix the klocwork issues, 57500, 57501, 57502 and 57503.
+ *
+ * 03 21 2011 cp.wu
+ * [WCXRP00000540] [MT5931][Driver] Add eHPI8/eHPI16 support to Linux Glue Layer
+ * portability improvement
+ *
+ * 03 07 2011 terry.wu
+ * [WCXRP00000521] [MT6620 Wi-Fi][Driver] Remove non-standard debug message
+ * Toggle non-standard debug messages to comments.
+ *
+ * 11 08 2010 cp.wu
+ * [WCXRP00000166] [MT6620 Wi-Fi][Driver] use SDIO CMD52 for enabling/disabling interrupt to reduce transaction period
+ * change to use CMD52 for enabling/disabling interrupt to reduce SDIO transaction time
+ *
+ * 09 01 2010 cp.wu
+ * NULL
+ * move HIF CR initialization from where after sdioSetupCardFeature() to wlanAdapterStart()
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 06 15 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * change zero-padding for TX port access to HAL.
+ *
+ * 06 06 2010 kevin.huang
+ * [WPD00003832][MT6620 5931] Create driver base
+ * [MT6620 5931] Create driver base
+ *
+ * 04 06 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * eliminate direct access for prGlueInfo->fgIsCardRemoved in non-glue layer
+ *
+ * 01 27 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1. eliminate improper variable in rHifInfo
+ *  *  *  * 2. block TX/ordinary OID when RF test mode is engaged
+ *  *  *  * 3. wait until firmware finish operation when entering into and leaving from RF test mode
+ *  *  *  * 4. correct some HAL implementation
+**  \main\maintrunk.MT6620WiFiDriver_Prj\17 2009-12-16 18:02:26 GMT mtk02752
+**  include precomp.h
+**  \main\maintrunk.MT6620WiFiDriver_Prj\16 2009-12-10 16:43:16 GMT mtk02752
+**  code clean
+**  \main\maintrunk.MT6620WiFiDriver_Prj\15 2009-11-13 13:54:15 GMT mtk01084
+**  \main\maintrunk.MT6620WiFiDriver_Prj\14 2009-11-11 10:36:01 GMT mtk01084
+**  modify HAL functions
+**  \main\maintrunk.MT6620WiFiDriver_Prj\13 2009-11-09 22:56:28 GMT mtk01084
+**  modify HW access routines
+**  \main\maintrunk.MT6620WiFiDriver_Prj\12 2009-10-29 19:50:09 GMT mtk01084
+**  add new macro HAL_TX_PORT_WR
+**  \main\maintrunk.MT6620WiFiDriver_Prj\11 2009-10-23 16:08:10 GMT mtk01084
+**  \main\maintrunk.MT6620WiFiDriver_Prj\10 2009-10-13 21:58:50 GMT mtk01084
+**  update for new HW architecture design
+**  \main\maintrunk.MT6620WiFiDriver_Prj\9 2009-05-18 14:28:10 GMT mtk01084
+**  fix issue in HAL_DRIVER_OWN_BY_SDIO_CMD52()
+**  \main\maintrunk.MT6620WiFiDriver_Prj\8 2009-05-11 17:26:33 GMT mtk01084
+**  modify the bit definition to check driver own status
+**  \main\maintrunk.MT6620WiFiDriver_Prj\7 2009-04-28 10:30:22 GMT mtk01461
+**  Fix typo
+**  \main\maintrunk.MT6620WiFiDriver_Prj\6 2009-04-01 10:50:34 GMT mtk01461
+**  Redefine HAL_PORT_RD/WR macro for SW pre test
+**  \main\maintrunk.MT6620WiFiDriver_Prj\5 2009-03-24 09:46:49 GMT mtk01084
+**  fix LINT error
+**  \main\maintrunk.MT6620WiFiDriver_Prj\4 2009-03-23 16:53:38 GMT mtk01084
+**  add HAL_DRIVER_OWN_BY_SDIO_CMD52()
+**  \main\maintrunk.MT6620WiFiDriver_Prj\3 2009-03-18 20:53:13 GMT mtk01426
+**  Fixed lint warn
+**  \main\maintrunk.MT6620WiFiDriver_Prj\2 2009-03-10 20:16:20 GMT mtk01426
+**  Init for develop
+**
 */
 
 #ifndef _HAL_H
@@ -249,10 +326,8 @@ kalDevWriteWithSdioCmd52(_prAdapter->prGlueInfo, _u4Port, _ucBuf); \
 			_u4ValidBufSize/*temp!!*//*4KByte*/); \
 }
 
-/*
- * The macro to read the given MCR several times to check if the wait
- * condition come true.
- */
+/* The macro to read the given MCR several times to check if the wait
+   condition come true. */
 #define HAL_MCR_RD_AND_WAIT(_pAdapter, _offset, _pReadValue, _waitCondition, _waitDelay, _waitCount, _status) \
 { \
 	UINT_32 count; \
@@ -267,10 +342,8 @@ kalDevWriteWithSdioCmd52(_prAdapter->prGlueInfo, _u4Port, _ucBuf); \
 	} \
 }
 
-/*
- * The macro to write 1 to a R/S bit and read it several times to check if the
- * command is done
- */
+/* The macro to write 1 to a R/S bit and read it several times to check if the
+   command is done */
 #define HAL_MCR_WR_AND_WAIT(_pAdapter, _offset, _writeValue, _busyMask, _waitDelay, _waitCount, _status) \
 { \
 	UINT_32 u4Temp; \
@@ -428,10 +501,8 @@ kalDevWriteWithSdioCmd52(_prAdapter->prGlueInfo, _u4Port, _ucBuf); \
 	prAdapter->prGlueInfo->rHifInfo.fgIntReadClear = FALSE;\
 }
 
-/*
- * Note: enhance mode structure may also carried inside the buffer,
- *    if the length of the buffer is long enough
- */
+/* Note: enhance mode structure may also carried inside the buffer,
+	 if the length of the buffer is long enough */
 #define HAL_READ_INTR_STATUS(prAdapter, length, pvBuf) \
 	HAL_PORT_RD(prAdapter, \
 			MCR_WHISR, \
@@ -459,10 +530,6 @@ kalDevWriteWithSdioCmd52(_prAdapter->prGlueInfo, _u4Port, _ucBuf); \
 			&u4Value); \
 	*pu2Rx0Len = (UINT_16)u4Value; \
 	*pu2Rx1Len = (UINT_16)(u4Value >> 16); \
-}
-#define HAL_GET_APMCU_MEM(_prAdapter, _addr, _Offset, _index, _buf, _len) \
-{ \
-	kalGetAPMCUMen(_prAdapter->prGlueInfo, _addr, _Offset, _index, _buf, _len); \
 }
 
 #define HAL_GET_INTR_STATUS_FROM_ENHANCE_MODE_STRUCT(pvBuf, u2Len, pu4Status) \

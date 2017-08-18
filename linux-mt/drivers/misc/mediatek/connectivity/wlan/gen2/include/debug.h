@@ -1,12 +1,116 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/debug.h#1
+*/
+
+/*! \file   debug.h
+    \brief  Definition of SW debugging level.
+
+    In this file, it describes the definition of various SW debugging levels and
+    assert functions.
+*/
+
+/*
+** Log: debug.h
+ *
+ * 12 16 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * fixed the Windows DDK free build compiling error.
+ *
+ * 11 24 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * Adjust code for DBG and CONFIG_XLOG.
+ *
+ * 11 11 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * modify the xlog related code.
+ *
+ * 11 10 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * Using the new XLOG define for dum Memory.
+ *
+ * 11 03 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * Add dumpMemory8 at XLOG support.
+ *
+ * 11 02 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * adding the code for XLOG.
+ *
+ * 08 31 2011 cm.chang
+ * [WCXRP00000969] [MT6620 Wi-Fi][Driver][FW] Channel list for 5G band based on country code
+ * .
+ *
+ * 01 27 2011 tsaiyuan.hsu
+ * [WCXRP00000392] [MT6620 Wi-Fi][Driver] Add Roaming Support
+ * add roaming fsm
+ * 1. not support 11r, only use strength of signal to determine roaming.
+ * 2. not enable CFG_SUPPORT_ROAMING until completion of full test.
+ * 3. in 6620, adopt work-around to avoid sign extension problem of cck of hw
+ * 4. assume that change of link quality in smooth way.
+ *
+ * 01 07 2011 wh.su
+ * [WCXRP00000326] [MT6620][Wi-Fi][Driver] check in the binary format gl_sec.o.new instead of use change type!!!
+ * .
+ *
+ * 09 23 2010 cp.wu
+ * NULL
+ * add BOW index for debugging message and passing compilation
+ *
+ * 07 20 2010 wh.su
+ *
+ * adding the wapi code.
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 06 21 2010 yarco.yang
+ * [WPD00003837][MT6620]Data Path Refine
+ * Support CFG_MQM_MIGRATION flag
+ *
+ * 06 17 2010 yuche.tsai
+ * [WPD00003839][MT6620 5931][P2P] Feature migration
+ * Add one more debug moduel for P2P.
+ *
+ * 06 14 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * add management dispatching function table.
+ *
+ * 06 11 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * add bss.c.
+ *
+ * 06 11 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * 1) migrate assoc.c.
+ * 2) add ucTxSeqNum for tracking frames which needs TX-DONE awareness
+ * 3) add configuration options for CNM_MEM and RSN modules
+ * 4) add data path for management frames
+ * 5) eliminate rPacketInfo of MSDU_INFO_T
+ *
+ * 06 10 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * add debug module index for cnm and ais.
+ *
+ * 06 06 2010 kevin.huang
+ * [WPD00003832][MT6620 5931] Create driver base
+ * [MT6620 5931] Create driver base
+ *
+ * 05 17 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * add CFG_STARTUP_DEBUG for debugging starting up issue.
+ *
+ * 04 26 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1) surpress compiler warning
+ * 2) when acqruing LP-own, keep writing WHLPCR whenever OWN is not acquired yet
+**  \main\maintrunk.MT6620WiFiDriver_Prj\4 2009-10-29 19:47:50 GMT mtk01084
+**  add emu category
+**  \main\maintrunk.MT6620WiFiDriver_Prj\3 2009-04-17 18:12:04 GMT mtk01426
+**  Don't use dynamic memory allocate for debug message
+**  \main\maintrunk.MT6620WiFiDriver_Prj\2 2009-03-10 20:11:29 GMT mtk01426
+**  Init for develop
+**
 */
 
 #ifndef _DEBUG_H
@@ -27,6 +131,7 @@
 #include "gl_typedef.h"
 
 extern UINT_8 aucDebugModule[];
+extern UINT_32 u4DebugModule;
 
 /*******************************************************************************
 *                              C O N S T A N T S
@@ -94,29 +199,6 @@ typedef enum _ENUM_DBG_MODULE_T {
 
 	DBG_MODULE_NUM		/* Notice the XLOG check */
 } ENUM_DBG_MODULE_T;
-enum PKT_TYPE {
-	PKT_RX,
-	PKT_TX,
-	PKT_TX_DONE
-};
-
-typedef enum _ENUM_DBG_SCAN_T {
-	DBG_SCAN_WRITE_BEFORE,		/*Start send ScanRequest*/
-	DBG_SCAN_WRITE_DONE,		/*hal write success and ScanRequest done*/
-} ENUM_DBG_SCAN_T;
-
-
-/* Define debug TRAFFIC_CLASS index */
-
-typedef enum _ENUM_DEBUG_TRAFFIC_CLASS_INDEX_T {
-	DEBUG_TC0_INDEX = 0,		/* HIF TX0: AC0 packets */
-	DEBUG_TC1_INDEX,		/* HIF TX0: AC1 packets & non-QoS packets */
-	DEBUG_TC2_INDEX,		/* HIF TX0: AC2 packets */
-	DEBUG_TC3_INDEX,		/* HIF TX0: AC3 packets */
-	DEBUG_TC4_INDEX,		/* HIF TX1: Command packets or 802.1x packets */
-	DEBUG_TC5_INDEX,		/* HIF TX0: BMCAST packets */
-	DEBUG_TC_NUM			/* Maximum number of Traffic Classes. */
-} ENUM_DEBUG_TRAFFIC_CLASS_INDEX_T;
 
 /* XLOG */
 /* #define XLOG_DBG_MODULE_IDX    28 */ /* DBG_MODULE_NUM */
@@ -171,6 +253,8 @@ typedef enum _ENUM_DEBUG_TRAFFIC_CLASS_INDEX_T {
  * A caller shall not invoke these three macros when DBG=0.
  */
 
+/*LOG_FUNC("[wlan]%s:(" #_Module " " #_Class ") "_Fmt, __func__, ##__VA_ARGS__);*/
+
 #define LOG_FUNC                kalPrint
 
 #if defined(LINUX)
@@ -178,7 +262,7 @@ typedef enum _ENUM_DEBUG_TRAFFIC_CLASS_INDEX_T {
 	do { \
 		if ((aucDebugModule[DBG_##_Module##_IDX] & DBG_CLASS_##_Class) == 0) \
 			break; \
-		LOG_FUNC("%s:(" #_Module " " #_Class ") " _Fmt, __func__, ##__VA_ARGS__); \
+		LOG_FUNC("%s:(" #_Module " " #_Class ")"_Fmt, __func__, ##__VA_ARGS__); \
 	} while (0)
 #else
 #define DBGLOG(_Module, _Class, _Fmt)
@@ -192,7 +276,7 @@ typedef enum _ENUM_DEBUG_TRAFFIC_CLASS_INDEX_T {
 extern PINT_16 g_wbuf_p;
 extern PINT_8 g_buf_p;
 
-/* If __FUNCTION__ is already defined by compiler, we just use it. */
+    /* If __FUNCTION__ is already defined by compiler, we just use it. */
 #if defined(__func__)
 #define DEBUGFUNC(_Func)
 #else
@@ -202,21 +286,24 @@ extern PINT_8 g_buf_p;
 
 #define DBGLOG_MEM8(_Module, _Class, _StartAddr, _Length) \
 	{ \
-		if (aucDebugModule[DBG_##_Module##_IDX] & DBG_CLASS_##_Class) { \
-			LOG_FUNC("%s:(" #_Module " " #_Class ")\n", __func__); \
-			dumpMemory8((PUINT_8) (_StartAddr), (UINT_32) (_Length)); \
-		} \
+	    if (aucDebugModule[DBG_##_Module##_IDX] & DBG_CLASS_##_Class) { \
+		LOG_FUNC("%s: (" #_Module " " #_Class ")\n", __func__); \
+		dumpMemory8((PUINT_8) (_StartAddr), (UINT_32) (_Length)); \
+	    } \
 	}
 
 #define DBGLOG_MEM32(_Module, _Class, _StartAddr, _Length) \
 	{ \
-		if (aucDebugModule[DBG_##_Module##_IDX] & DBG_CLASS_##_Class) { \
-			LOG_FUNC("%s:(" #_Module " " #_Class ")\n", __func__); \
-			dumpMemory32((PUINT_32) (_StartAddr), (UINT_32) (_Length)); \
-		} \
+	    if (aucDebugModule[DBG_##_Module##_IDX] & DBG_CLASS_##_Class) { \
+		LOG_FUNC("%s: (" #_Module " " #_Class ")\n", __func__); \
+		dumpMemory32((PUINT_32) (_StartAddr), (UINT_32) (_Length)); \
+	    } \
 	}
+    /*lint -restore */
 
+    /*lint -save -e961 use of '#undef' is discouraged */
 #undef ASSERT
+    /*lint -restore */
 
 #ifdef _lint
 #define ASSERT(_exp) \
@@ -228,20 +315,20 @@ extern PINT_8 g_buf_p;
 #else
 #define ASSERT(_exp) \
 	{ \
-		if (!(_exp) && !fgIsBusAccessFailed) { \
-			LOG_FUNC("Assertion failed: %s:%d %s\n", __FILE__, __LINE__, #_exp); \
-			kalBreakPoint(); \
-		} \
+	    if (!(_exp) && !fgIsBusAccessFailed) { \
+		LOG_FUNC("Assertion failed: %s:%d %s\n", __FILE__, __LINE__, #_exp); \
+		kalBreakPoint(); \
+	    } \
 	}
 #endif /* _lint */
 
 #define ASSERT_REPORT(_exp, _fmt) \
 	{ \
-		if (!(_exp) && !fgIsBusAccessFailed) { \
-			LOG_FUNC("Assertion failed: %s:%d %s\n", __FILE__, __LINE__, #_exp); \
-			LOG_FUNC _fmt; \
-			kalBreakPoint(); \
-		} \
+	    if (!(_exp) && !fgIsBusAccessFailed) { \
+		LOG_FUNC("Assertion failed: %s:%d %s\n", __FILE__, __LINE__, #_exp); \
+		LOG_FUNC _fmt; \
+		kalBreakPoint(); \
+	    } \
 	}
 
 #define DISP_STRING(_str)       _str
@@ -280,56 +367,60 @@ extern PINT_8 g_buf_p;
 #ifdef WINDOWS_CE
 #define UNICODE_TEXT(_msg)  TEXT(_msg)
 #define ASSERT(_exp) \
-	{ \
-		if (!(_exp) && !fgIsBusAccessFailed) { \
+		{ \
+		    if (!(_exp) && !fgIsBusAccessFailed) { \
 			TCHAR rUbuf[256]; \
 			kalBreakPoint(); \
 			_stprintf(rUbuf, TEXT("Assertion failed: %s:%d %s\n"), \
-				  UNICODE_TEXT(__FILE__), __LINE__, UNICODE_TEXT(#_exp)); \
+			    UNICODE_TEXT(__FILE__), \
+			    __LINE__, \
+			    UNICODE_TEXT(#_exp)); \
 			MessageBox(NULL, rUbuf, TEXT("ASSERT!"), MB_OK); \
-		} \
-	}
+		    } \
+		}
 
 #define ASSERT_REPORT(_exp, _fmt) \
-	{ \
-		if (!(_exp) && !fgIsBusAccessFailed) { \
+		{ \
+		    if (!(_exp) && !fgIsBusAccessFailed) { \
 			TCHAR rUbuf[256]; \
 			kalBreakPoint(); \
 			_stprintf(rUbuf, TEXT("Assertion failed: %s:%d %s\n"), \
-				  UNICODE_TEXT(__FILE__), __LINE__, UNICODE_TEXT(#_exp)); \
+			    UNICODE_TEXT(__FILE__), \
+			    __LINE__, \
+			    UNICODE_TEXT(#_exp)); \
 			MessageBox(NULL, rUbuf, TEXT("ASSERT!"), MB_OK); \
-		} \
-	}
+		    } \
+		}
 #else
 #define ASSERT(_exp) \
-	{ \
-		if (!(_exp) && !fgIsBusAccessFailed) { \
+		{ \
+		    if (!(_exp) && !fgIsBusAccessFailed) { \
 			kalBreakPoint(); \
-		} \
-	}
+		    } \
+		}
 
 #define ASSERT_REPORT(_exp, _fmt) \
-	{ \
-		if (!(_exp) && !fgIsBusAccessFailed) { \
+		{ \
+		    if (!(_exp) && !fgIsBusAccessFailed) { \
 			kalBreakPoint(); \
-		} \
-	}
+		    } \
+		}
 #endif /* WINDOWS_CE */
 #endif /* LINUX */
 #else
 #define ASSERT(_exp) \
 	{ \
-		if (!(_exp) && !fgIsBusAccessFailed) { \
-			LOG_FUNC("Warning at %s:%d (%s)\n", __func__, __LINE__, #_exp); \
-		} \
+	    if (!(_exp) && !fgIsBusAccessFailed) { \
+		LOG_FUNC("Warning at %s:%d (%s)\n", __func__, __LINE__, #_exp); \
+	    } \
 	}
 
 #define ASSERT_REPORT(_exp, _fmt) \
 	{ \
-		if (!(_exp) && !fgIsBusAccessFailed) { \
-			LOG_FUNC("Warning at %s:%d (%s)\n", __func__, __LINE__, #_exp); \
-			LOG_FUNC _fmt; \
-		} \
+	    if (!(_exp) && !fgIsBusAccessFailed) { \
+		LOG_FUNC("Warning at %s:%d (%s)\n", __func__, __LINE__, #_exp); \
+		LOG_FUNC _fmt; \
+	    } \
 	}
 #endif /* BUILD_QA_DBG */
 
@@ -364,54 +455,10 @@ VOID dumpMemory8(IN PUINT_8 pucStartAddr, IN UINT_32 u4Length);
 VOID dumpMemory32(IN PUINT_32 pu4StartAddr, IN UINT_32 u4Length);
 
 VOID wlanDebugInit(VOID);
-
 VOID wlanDebugUninit(VOID);
-
 VOID wlanTraceReleaseTcRes(P_ADAPTER_T prAdapter, PUINT_8 aucTxRlsCnt, UINT_8 ucAvailable);
-
-VOID wlanTraceTxCmd(P_ADAPTER_T prAdapter, P_CMD_INFO_T prCmd);
-
-VOID wlanReadFwStatus(P_ADAPTER_T prAdapter);
-
-VOID wlanDumpTxReleaseCount(P_ADAPTER_T prAdapter);
-
+VOID wlanTraceTxCmd(P_CMD_INFO_T prCmd);
 VOID wlanDumpTcResAndTxedCmd(PUINT_8 pucBuf, UINT_32 maxLen);
-
-VOID wlanDumpCommandFwStatus(VOID);
-
-VOID wlanDebugScanTargetBSSRecord(P_ADAPTER_T prAdapter, P_BSS_DESC_T prBssDesc);
-
-VOID wlanDebugScanTargetBSSDump(P_ADAPTER_T prAdapter);
-
-VOID wlanPktDebugDumpInfo(P_ADAPTER_T prAdapter);
-VOID wlanPktDebugTraceInfoIP(UINT_8 status, UINT_8 eventType, UINT_8 ucIpProto, UINT_16 u2IpId);
-VOID wlanPktDebugTraceInfoARP(UINT_8 status, UINT_8 eventType, UINT_16 u2ArpOpCode);
-VOID wlanPktDebugTraceInfo(UINT_8 status, UINT_8 eventType
-	, UINT_16 u2EtherType, UINT_8 ucIpProto, UINT_16 u2IpId, UINT_16 u2ArpOpCode);
-VOID wlanDebugHifDescriptorDump(P_ADAPTER_T prAdapter, ENUM_AMPDU_TYPE type
-	, ENUM_DEBUG_TRAFFIC_CLASS_INDEX_T tcIndex);
-VOID wlanDebugScanRecord(P_ADAPTER_T prAdapter, ENUM_DBG_SCAN_T recordType);
-VOID wlanDebugScanDump(P_ADAPTER_T prAdapter);
-
-
-VOID wlanFWDLDebugInit(VOID);
-
-VOID wlanFWDLDebugStartSectionPacketInfo(UINT_32 u4Section, UINT_32 u4DownloadSize,
-	UINT_32 u4ResponseTime);
-
-VOID wlanFWDLDebugAddTxStartTime(UINT_32 u4TxStartTime);
-
-VOID wlanFWDLDebugAddTxDoneTime(UINT_32 u4TxDoneTime);
-
-VOID wlanFWDLDebugAddRxStartTime(UINT_32 u4RxStartTime);
-
-VOID wlanFWDLDebugAddRxDoneTime(UINT_32 u4RxDoneTime);
-
-VOID wlanFWDLDebugDumpInfo(VOID);
-
-VOID wlanFWDLDebugUninit(VOID);
-
-
 /*******************************************************************************
 *                              F U N C T I O N S
 ********************************************************************************

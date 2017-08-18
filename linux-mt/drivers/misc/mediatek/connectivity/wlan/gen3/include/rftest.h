@@ -1,26 +1,11 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
 ** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/rftest.h#1
 */
 
-/*
- * ! \file   "rftest.h"
- *  \brief  definitions for RF Productino test
- *
- */
+/*! \file   "rftest.h"
+    \brief  definitions for RF Productino test
+
+*/
 
 #ifndef _RFTEST_H
 #define _RFTEST_H
@@ -210,106 +195,8 @@ typedef enum _ENUM_RF_AT_FUNCID_T {
 	RF_AT_FUNCID_SET_ICAP_MODE,
 	RF_AT_FUNCID_SET_ICAP_STARTCAP,
 	RF_AT_FUNCID_SET_ICAP_SIZE = 83,
-#if CFG_SUPPORT_QA_TOOL
-	RF_AT_FUNCID_SET_ICAP_TRIGGER_OFFSET,
-#else
 	RF_AT_FUNCID_SET_ICAP_TRIGGER_EVENT,
-#endif
-	RF_AT_FUNCID_QUERY_ICAP_DUMP_FILE = 85,
-#if CFG_SUPPORT_QA_TOOL
-	/* 2G 5G Band */
-	RF_AT_FUNCID_SET_BAND = 90,
-
-	/* Reset Counter */
-	RF_AT_FUNCID_RESETTXRXCOUNTER = 91,
-
-	/* FAGC RSSI Path */
-	RF_AT_FUNCID_FAGC_RSSI_PATH = 92,
-
-	/* Set RX Filter Packet Length */
-	RF_AT_FUNCID_RX_FILTER_PKT_LEN = 93,
-
-	/* Tone */
-	RF_AT_FUNCID_SET_TONE_RF_GAIN = 96,
-	RF_AT_FUNCID_SET_TONE_DIGITAL_GAIN = 97,
-	RF_AT_FUNCID_SET_TONE_TYPE = 98,
-	RF_AT_FUNCID_SET_TONE_DC_OFFSET = 99,
-	RF_AT_FUNCID_SET_TONE_BW = 100,
-
-	/* MT6632 Add */
-	RF_AT_FUNCID_SET_MAC_HEADER = 101,
-	RF_AT_FUNCID_SET_SEQ_CTRL = 102,
-	RF_AT_FUNCID_SET_PAYLOAD = 103,
-	RF_AT_FUNCID_SET_DBDC_BAND_IDX = 104,
-	RF_AT_FUNCID_SET_BYPASS_CAL_STEP = 105,
-
-	/* Set RX Path */
-	RF_AT_FUNCID_SET_RX_PATH = 106,
-
-	/* Set Frequency Offset */
-	RF_AT_FUNCID_SET_FRWQ_OFFSET = 107,
-
-	/* Get Frequency Offset */
-	RF_AT_FUNCID_GET_FREQ_OFFSET = 108,
-
-	/* Set RXV Debug Index */
-	RF_AT_FUNCID_SET_RXV_INDEX = 109,
-
-	/* Set Test Mode DBDC Enable */
-	RF_AT_FUNCID_SET_DBDC_ENABLE = 110,
-
-	/* Get Test Mode DBDC Enable */
-	RF_AT_FUNCID_GET_DBDC_ENABLE = 111,
-
-	/* Set ICAP Ring Capture */
-	RF_AT_FUNCID_SET_ICAP_RING = 112,
-
-	/* Set TX Path */
-	RF_AT_FUNCID_SET_TX_PATH = 113,
-
-	/* Set Nss */
-	RF_AT_FUNCID_SET_NSS = 114,
-
-	/* Set TX Antenna Mask */
-	RF_AT_FUNCID_SET_ANTMASK = 115,
-
-	/* TMR set command */
-	RF_AT_FUNCID_SET_TMR_ROLE = 116,
-	RF_AT_FUNCID_SET_TMR_MODULE = 117,
-	RF_AT_FUNCID_SET_TMR_DBM = 118,
-	RF_AT_FUNCID_SET_TMR_ITER = 119,
-
-	/* Set ADC For IRR Feature */
-	RF_AT_FUNCID_SET_ADC = 120,
-
-	/* Set RX Gain For IRR Feature */
-	RF_AT_FUNCID_SET_RX_GAIN = 121,
-
-	/* Set TTG For IRR Feature */
-	RF_AT_FUNCID_SET_TTG = 122,
-
-	/* Set TTG ON/OFF For IRR Feature */
-	RF_AT_FUNCID_TTG_ON_OFF = 123,
-
-	/* Set TSSI for QA Tool Setting */
-	RF_AT_FUNCID_SET_TSSI = 124,
-
-	/* Set Recal Cal Step */
-	RF_AT_FUNCID_SET_RECAL_CAL_STEP = 125,
-
-	/* Set iBF/eBF enable */
-	RF_AT_FUNCID_SET_IBF_ENABLE = 126,
-	RF_AT_FUNCID_SET_EBF_ENABLE = 127,
-
-	/* Set MPS Setting */
-	RF_AT_FUNCID_SET_MPS_SIZE = 128,
-	RF_AT_FUNCID_SET_MPS_SEQ_DATA = 129,
-	RF_AT_FUNCID_SET_MPS_PAYLOAD_LEN = 130,
-	RF_AT_FUNCID_SET_MPS_PKT_CNT = 131,
-	RF_AT_FUNCID_SET_MPS_PWR_GAIN = 132,
-	RF_AT_FUNCID_SET_MPS_NSS = 133,
-	RF_AT_FUNCID_SET_MPS_PACKAGE_BW = 134
-#endif
+	RF_AT_FUNCID_QUERY_ICAP_DUMP_FILE = 85
 } ENUM_RF_AT_FUNCID_T;
 
 /* Command */
@@ -329,8 +216,6 @@ typedef enum _ENUM_RF_AT_COMMAND_T {
 	RF_AT_COMMAND_RDD,
 	RF_AT_COMMAND_CH_SWITCH_FOR_ICAP,
 	RF_AT_COMMAND_RESET_DUMP_NAME,
-	RF_AT_COMMAND_SINGLE_TONE,
-	RF_AT_COMMAND_RDD_OFF,
 	RF_AT_COMMAND_NUM
 } ENUM_RF_AT_COMMAND_T;
 

@@ -1,28 +1,13 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
 ** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/precomp.h#2
 */
 
-/*
- * ! \file   precomp.h
- *  \brief  Collection of most compiler flags are described here.
- *
- *   In this file we collect all compiler flags and detail the driver behavior if
- *   enable/disable such switch or adjust numeric parameters.
- */
+/*! \file   precomp.h
+    \brief  Collection of most compiler flags are described here.
+
+    In this file we collect all compiler flags and detail the driver behavior if
+    enable/disable such switch or adjust numeric parameters.
+*/
 
 #ifndef _PRECOMP_H
 #define _PRECOMP_H
@@ -122,7 +107,9 @@
 
 #include "hal.h"
 
+#if defined(MT6630) || defined(MT6797)
 #include "mt6630_reg.h"
+#endif
 
 #include "rlm.h"
 #include "rlm_domain.h"
@@ -201,10 +188,6 @@
  */
 #include "CFG_Wifi_File.h"
 
-/*------------------------------------------------------------------------------
- * Others
- *------------------------------------------------------------------------------
- */
 #if CFG_ENABLE_WIFI_DIRECT
 #include "gl_p2p_kal.h"
 #endif
@@ -213,12 +196,7 @@
 #include "tdls.h"
 #endif
 
-#if CFG_SUPPORT_QA_TOOL
-#include "gl_qa_agent.h"
-#endif
-
 extern BOOLEAN fgIsResetting;
-#include "gl_rst.h"
 
 /*******************************************************************************
 *                              C O N S T A N T S

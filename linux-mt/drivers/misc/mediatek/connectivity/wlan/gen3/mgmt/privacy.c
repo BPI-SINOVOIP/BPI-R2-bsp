@@ -1,28 +1,152 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/mgmt/privacy.c#1
+*/
+
+/*! \file   "privacy.c"
+    \brief  This file including the protocol layer privacy function.
+
+    This file provided the macros and functions library support for the
+    protocol layer security setting from rsn.c and nic_privacy.c
+
 */
 
 /*
- * Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/mgmt/privacy.c#1
- */
-
-/*
- * ! \file   "privacy.c"
- *  \brief  This file including the protocol layer privacy function.
- *
- * This file provided the macros and functions library support for the
- * protocol layer security setting from rsn.c and nic_privacy.c
- */
+** Log: privacy.c
+**
+** 07 16 2014 eason.tsai
+** [ALPS01070904] [Need Patch] [Volunteer Patch]
+** .
+**
+** 07 16 2014 eason.tsai
+** [ALPS01070904] [Need Patch] [Volunteer Patch]
+** fix ap assert after 32 times connect-disconnct
+**
+** 08 19 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** .Adjust some debug message, refine the wlan table assign for bss
+**
+** 07 30 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Add a function, for rx, input the rx wlan index to get the bss index
+**
+** 07 26 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** 1. Reduce extra Tx frame header parsing
+** 2. Add TX port control
+** 3. Add net interface to BSS binding
+**
+** 07 25 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** fix at 11w config, mgmt and data privacy setting issue
+**
+** 07 23 2013 cp.wu
+** [BORA00002227] [MT6630 Wi-Fi][Driver] Update for Makefile and HIFSYS modifications
+** 1. build success for win32 port
+** 2. add SDIO test read/write pattern for HQA tests (default off)
+**
+** 07 23 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Sync the latest jb2.mp 11w code as draft version
+** Not the CM bit for avoid wapi 1x drop at re-key
+**
+** 07 19 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** wapi 1x frame don't need encrypt
+**
+** 07 19 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** fix wrong pointer usage.
+**
+** 07 18 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** At nicTxComposeDesc (Mgmt and Data) function, use security setting
+** to decide frame protect or not.
+**
+** 07 17 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** fix and modify some security code
+**
+** 07 15 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** .
+**
+** 07 05 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Fix to let the wpa-psk ok
+**
+** 07 04 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Add a <<temp function>> to decide data frame need encrypted or not
+**
+** 07 04 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Add the function to got the STA index via the wlan index
+** report at Rx status
+**
+** 07 03 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Refine some normal security code
+**
+** 07 02 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Refine some secutity code
+**
+** 07 02 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Refine security BMC wlan index assign
+** Fix some compiling warning
+**
+** 07 01 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Add some debug code, fixed some compiling warning
+**
+** 06 25 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** Update for 1st connection
+**
+** 06 18 2013 terry.wu
+** [BORA00002207] [MT6630 Wi-Fi] TXM & MQM Implementation
+** Update for 1st connection
+**
+** 03 29 2013 cp.wu
+** [BORA00002227] [MT6630 Wi-Fi][Driver] Update for Makefile and HIFSYS modifications
+** 1. remove unused HIF definitions
+** 2. enable NDIS 5.1 build success
+**
+** 03 29 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Do more sta record free mechanism check
+** remove non-used code
+**
+** 03 27 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** add default ket handler
+**
+** 03 20 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Add the security code for wlan table assign operation
+**
+** 03 18 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** fixed compiling error
+**
+** 03 15 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** Modify some security part code
+**
+** 03 14 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** .modify some code define and flow
+**
+** 03 13 2013 wh.su
+** [BORA00002446] [MT6630] [Wi-Fi] [Driver] Update the security function code
+** .remove non-used code
+**
+** 03 12 2013 tsaiyuan.hsu
+** [BORA00002222] MT6630 unified MAC RXM
+** add rx data and management processing.
+**
+*/
 
 /*******************************************************************************
 *                         C O M P I L E R   F L A G S
@@ -200,10 +324,10 @@ BOOL secCheckClassError(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb, IN P_ST
 	prRxStatus = prSwRfb->prRxStatus;
 
 #if 1
-	if ((prRxStatus->u2StatusFlag & RXS_DW2_RX_CLASSERR_BITMAP) == RXS_DW2_RX_CLASSERR_VALUE) {
+	if (!prStaRec || (prRxStatus->u2StatusFlag & RXS_DW2_RX_CLASSERR_BITMAP) == RXS_DW2_RX_CLASSERR_VALUE) {
 
 		DBGLOG(RSN, TRACE,
-		       "prStaRec=%p RX Status = %hx RX_CLASSERR check!\n", prStaRec, prRxStatus->u2StatusFlag);
+		       "prStaRec=%x RX Status = %x RX_CLASSERR check!\n", prStaRec, prRxStatus->u2StatusFlag);
 
 		/* if (IS_NET_ACTIVE(prAdapter, ucBssIndex)) { */
 		authSendDeauthFrame(prAdapter,
@@ -220,18 +344,16 @@ BOOL secCheckClassError(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb, IN P_ST
 			/* prBssInfo = GET_BSS_INFO_BY_INDEX(prAdapter, ucBssIndex); */
 
 			if ((prRxStatus->u2StatusFlag & RXS_DW2_RX_CLASSERR_BITMAP) == RXS_DW2_RX_CLASSERR_VALUE) {
-				/*
-				 * if ((prStaRec->ucStaState != STA_STATE_3) &&
-				 * IS_BSS_ACTIVE(prBssInfo) &&
-				 * prBssInfo->fgIsNetAbsent == FALSE) {
-				 * (IS_AP_STA(prStaRec) || IS_CLIENT_STA(prStaRec))) {
-				 */
-				if (authSendDeauthFrame(prAdapter,
-							prStaRec,
-							NULL,
-							REASON_CODE_CLASS_3_ERR,
-							(PFN_TX_DONE_HANDLER)
-							NULL) == WLAN_STATUS_SUCCESS) {
+				/*if ((STA_STATE_3 != prStaRec->ucStaState) &&
+				   IS_BSS_ACTIVE(prBssInfo) &&
+				   prBssInfo->fgIsNetAbsent == FALSE) {
+				   (IS_AP_STA(prStaRec) || IS_CLIENT_STA(prStaRec))) { */
+				if (WLAN_STATUS_SUCCESS == authSendDeauthFrame(prAdapter,
+									       prStaRec,
+									       NULL,
+									       REASON_CODE_CLASS_3_ERR,
+									       (PFN_TX_DONE_HANDLER)
+									       NULL)) {
 
 					DBGLOG(RSN, TRACE,
 					       "Send Deauth to MAC:[" MACSTR
@@ -520,52 +642,26 @@ BOOLEAN secEnabledInAis(IN P_ADAPTER_T prAdapter)
 }				/* secEnabledInAis */
 
 /**
-** return the type of Eapol frame.
+	to check if the packet is the second or fourth packet of 4-way handshake
 **/
-enum EAPOL_KEY_TYPE secGetEapolKeyType(PUINT_8 pucPacket)
+BOOLEAN secIs24Of4Packet(IN P_NATIVE_PACKET prPacket)
 {
+	struct sk_buff *prSkb = (struct sk_buff *)prPacket;
+	PUINT_8 pucPacket = (PUINT_8)prSkb->data;
 	UINT_16 u2EthType = 0;
 	UINT_16 u2KeyInfo = 0;
 
-	if (!pucPacket)
-		return EAPOL_KEY_NOT_KEY;
 	WLAN_GET_FIELD_BE16(&pucPacket[ETHER_HEADER_LEN - ETHER_TYPE_LEN], &u2EthType);
 	if (u2EthType != ETH_P_1X)
-		return EAPOL_KEY_NOT_KEY;
+		return FALSE;
 	u2KeyInfo = pucPacket[5+ETHER_HEADER_LEN]<<8 | pucPacket[6+ETHER_HEADER_LEN];
-	/* 802.11-2012, 11.6.2, Figure 11-29
-	  * Key Info: BIT(0,2)-Key descriptor & Version; BIT(3)-Key type; BIT(4,5)-reserved;
-	  * BIT(6)-install; BIT(7)-Ack; BIT(8)-MIC; BIT(9)-secure; BIT(10)-error; BIT(11)-request
-	  * BIT(12)-Encrypted data; BIT(13)-SMK; BIT(14,15)-reserved;
-
-	  * 802.11-2012, 11.6.6 ~ 11.6.7
-	  * 1/4: 0x89
-	  * 2/4: 0x109
-	  * 3/4: 0x13c9 or 0x1389
-	  * 4/4: 0x309
-	  * 1/2: 0x381
-	  * 2/2: 0x301
-	*/
-	DBGLOG(RSN, TRACE, "u2KeyInfo=0x%x\n", (u2KeyInfo & 0x388));
-	/* Only check Bit9, Bit8, Bit7 and Bit3, for Bit6, some times it may be missing */
-	switch (u2KeyInfo & 0x388) {
-	case 0x388:
-	case 0x188: /* BIT(9) may be missing in some AP, we should compatiable with it */
-		return EAPOL_KEY_3_OF_4;
-	case 0x308: /* if BIT(9) in 3/4 is missing, it is hard to distinguish 4/4 and 2/4 */
-		return EAPOL_KEY_4_OF_4;
-	case 0x108: /* BIT(8) | BIT(3) */
-		return EAPOL_KEY_2_OF_4;
-	case 0x88: /* BIT(3) | BIT(7) */
-		return EAPOL_KEY_1_OF_4;
-	case 0x180: /* don't check BIT(9) since some Authenticator may miss it */
-		return EAPOL_KEY_1_OF_2;
-	case 0x100: /* don't check BIT(9) since some Authenticator may miss it */
-		return EAPOL_KEY_2_OF_2;
-	}
-	return EAPOL_KEY_NOT_KEY;
+	/* BIT3 is pairwise key bit, bit 8 is key mic bit.
+		only the two bits are set, it means this is 4-way handshake 4/4  or 2/4 frame */
+	DBGLOG(RSN, TRACE, "u2KeyInfo=%d\n", u2KeyInfo);
+	if ((u2KeyInfo & 0x108) == 0x108)
+		return TRUE;
+	return FALSE;
 }
-
 
 BOOLEAN secIsProtected1xFrame(IN P_ADAPTER_T prAdapter, IN P_STA_RECORD_T prStaRec)
 {
@@ -849,7 +945,7 @@ VOID secPrivacyFreeForEntry(IN P_ADAPTER_T prAdapter, IN UINT_8 ucEntry)
 
 	ASSERT(prAdapter);
 
-	if (ucEntry >= WTBL_SIZE)
+	if (ucEntry > WTBL_SIZE)
 		return;
 
 	DBGLOG(RSN, TRACE, "secPrivacyFreeForEntry %d", ucEntry);
@@ -909,7 +1005,9 @@ VOID secPrivacyFreeSta(IN P_ADAPTER_T prAdapter, IN P_STA_RECORD_T prStaRec)
 			if (prWtbl[entry].ucUsed &&
 				(prStaRec->ucIndex == prWtbl[entry].ucStaIndex)) {
 				secPrivacyFreeForEntry(prAdapter, entry);
-				DBGLOG(RSN, TRACE, "Free the STA entry (%u)!\n", entry);
+#if 1				/* DBG */
+				DBGLOG(RSN, INFO, "Free the STA entry (%lu)!\n", entry);
+#endif
 			}
 		}
 	}
@@ -1086,10 +1184,8 @@ UINT_8 secGetStaIdxByWlanIdx(P_ADAPTER_T prAdapter, UINT_8 ucWlanIdx)
 
 	prWtbl = prAdapter->rWifiVar.arWtbl;
 
-	/*
-	 * DBGLOG(RSN, TRACE, ("secGetStaIdxByWlanIdx=%d "MACSTR" used=%d\n",
-	 * ucWlanIdx, MAC2STR(prWtbl[ucWlanIdx].aucMacAddr), prWtbl[ucWlanIdx].ucUsed));
-	 */
+	/* DBGLOG(RSN, TRACE, ("secGetStaIdxByWlanIdx=%d "MACSTR" used=%d\n",
+	 * ucWlanIdx, MAC2STR(prWtbl[ucWlanIdx].aucMacAddr), prWtbl[ucWlanIdx].ucUsed)); */
 
 	if (prWtbl[ucWlanIdx].ucUsed)
 		return prWtbl[ucWlanIdx].ucStaIndex;
@@ -1207,58 +1303,3 @@ void secPrivacyDumpWTBL3(IN P_ADAPTER_T prAdapter, IN UINT_8 ucIndex)
 }
 
 #endif
-
-VOID secSetKeyCmdAction(P_BSS_INFO_T prBssInfo, UINT_8 ucEapolKeyType, UINT_8 ucAction)
-{
-	ASSERT(prBssInfo);
-
-	switch (ucEapolKeyType) {
-	/* some AP may miss Bit9 in KeyInfo, so the 4/4 we send will also miss it, and it seems like 2/4 */
-	case EAPOL_KEY_4_OF_4:
-	case EAPOL_KEY_2_OF_4:
-		prBssInfo->ucKeyCmdAction = ucAction;
-		break;
-	case EAPOL_KEY_3_OF_4:
-		prBssInfo->ucKeyCmdAction = ucAction;
-		if (ucAction == SEC_QUEUE_KEY_COMMAND)
-			prBssInfo->fgUnencryptedEapol = FALSE;
-		/* If 3/4 is unencrypted,then 4/4 will be unencrypted */
-		else
-			prBssInfo->fgUnencryptedEapol = TRUE;
-		DBGLOG(RSN, INFO, "ucKeyCmdAction is %d, prBssInfo->fgUnencryptedEapol is %d\n",
-			 prBssInfo->ucKeyCmdAction, prBssInfo->fgUnencryptedEapol);
-
-		break;
-	}
-}
-
-UINT_8 secGetBssIdxByNetType(P_ADAPTER_T prAdapter)
-{
-	P_BSS_INFO_T prBssInfo = NULL;
-	UINT_8 i = 0;
-	UINT_8 ucBssIndex = 0xff;
-	BOOLEAN fgP2pDevice = FALSE;
-	BOOLEAN fgAisDevice = FALSE;
-
-	for (; i < BSS_INFO_NUM; i++) {
-		prBssInfo = prAdapter->aprBssInfo[i];
-		if (prBssInfo->eConnectionState != PARAM_MEDIA_STATE_CONNECTED)
-			continue;
-		if (prBssInfo->eNetworkType == NETWORK_TYPE_AIS) {
-			fgAisDevice = TRUE;
-			ucBssIndex = prBssInfo->ucBssIndex;
-#if CFG_ENABLE_WIFI_DIRECT
-		} else	if (prBssInfo->eNetworkType == NETWORK_TYPE_P2P &&
-			prBssInfo->eCurrentOPMode == OP_MODE_P2P_DEVICE) {
-			fgP2pDevice = TRUE;
-			ucBssIndex = prBssInfo->ucBssIndex;
-#endif
-		}
-	}
-	if (fgP2pDevice && fgAisDevice) {
-		DBGLOG(RSN, INFO, "p2p device & ais co-exist\n");
-		return 0xff;
-	}
-	return ucBssIndex;
-}
-

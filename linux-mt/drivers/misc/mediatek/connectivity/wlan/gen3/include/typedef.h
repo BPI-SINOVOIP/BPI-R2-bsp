@@ -1,28 +1,13 @@
 /*
-* Copyright (C) 2016 MediaTek Inc.
-*
-* This program is free software: you can redistribute it and/or modify it under the terms of the
-* GNU General Public License version 2 as published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-* without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License along with this program.
-* If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
 ** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/typedef.h#1
 */
 
-/*
- * ! \file   typedef.h
- *  \brief  Declaration of data type and return values of internal protocol stack.
- *
- *   In this file we declare the data type and return values which will be exported
- *   to the GLUE Layer.
- */
+/*! \file   typedef.h
+    \brief  Declaration of data type and return values of internal protocol stack.
+
+    In this file we declare the data type and return values which will be exported
+    to the GLUE Layer.
+*/
 
 #ifndef _TYPEDEF_H
 #define _TYPEDEF_H

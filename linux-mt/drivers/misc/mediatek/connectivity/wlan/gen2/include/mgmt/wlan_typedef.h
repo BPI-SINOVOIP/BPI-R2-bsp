@@ -1,12 +1,16 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/mgmt/wlan_typedef.h#1
+*/
+
+/*! \file   wlan_typedef.h
+    \brief  Declaration of data type and return values of internal protocol stack.
+
+    In this file we declare the data type and return values which will be exported
+    to all MGMT Protocol Stack.
+*/
+
+/*
+** Log: wlan_typedef.h
 */
 
 #ifndef _WLAN_TYPEDEF_H
@@ -51,7 +55,6 @@ typedef struct _WFD_DBG_CFG_SETTINGS_T WFD_DBG_CFG_SETTINGS_T, *P_WFD_DBG_CFG_SE
 /* BSS related structures */
 /* Type definition for BSS_DESC_T structure, to describe parameter sets of a particular BSS */
 typedef struct _BSS_DESC_T BSS_DESC_T, *P_BSS_DESC_T, **PP_BSS_DESC_T;
-typedef struct _ROAM_BSS_DESC_T ROAM_BSS_DESC_T, *P_ROAM_BSS_DESC_T, **PP_ROAM_BSS_DESC_T;
 
 #if CFG_SUPPORT_HOTSPOT_2_0
 typedef struct _HS20_INFO_T HS20_INFO_T, *P_HS20_INFO_T;
