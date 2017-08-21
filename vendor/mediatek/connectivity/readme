@@ -1,0 +1,42 @@
+This is an instruction of how to enable MTK wifi module
+
+1. Building linux kernel 
+   Please get the source code of linux kernel from branch Wifi_debug_branch of this project, and build it
+
+2. Installing the latest kernel image
+   Please install latest kernel image to SD card.
+   If you don't know how to do it, please 
+   refer to https://github.com/BPI-SINOVOIP/BPI-R2-bsp/blob/master/README.md
+
+3. Install WIFI configuration file and firmware to SD card
+   1) Install the SD card to host PC
+   2) mount /dev/mmcblk01p2 /mnt
+   3) You need to create a new folder /etc/firmware when you copy the following files first time
+   4) Copy the the following files to the folder /mnt/etc/firmware/
+        config\WMT_SOC.cfg
+        firmware\ROMv2_lm_patch_1_0_hdr.bin 
+        firmware\ROMv2_lm_patch_1_1_hdr.bin
+        firmware\WIFI_RAM_CODE_7623
+   5) copy the following utilities to /mnt/usr/bin
+        tools\binary\stp_uart_launcher
+        tools\binary\wmt_loader
+        tools\binary\wmt_loopback
+      
+     Please note that above utilities are built by the following commands(based on arm-linux-gnueabihf-gcc),
+     if you need them in other platform, please rebuild them.
+        arm-linux-gnueabihf-gcc stp_uart_launcher.c -lpthread -o stp_uart_launcher
+        arm-linux-gnueabihf-gcc wmt_loopback.c -o wmt_loopback
+        arm-linux-gnueabihf-gcc wmt_loader.c -o wmt_loader
+
+   6) umount the SD card
+          umount /mnt
+
+4. Install the SD card to R2 board, and turn it on
+5. Run the following commands to enable WIFI module
+   1) wmt_loader
+   2) launcher -p /etc/firmware &
+   3) echo 1 >/dev/wmtWifi
+
+   After completing above commands, we will see a network card wlanX
+
+    
