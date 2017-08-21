@@ -243,7 +243,6 @@ INT32 wmt_ctrl_rx(P_WMT_CTRL_DATA pWmtCtrlData /*UINT8 *pBuff, UINT32 buffLen, U
 	/* sanity ok, proceeding rx operation */
 	/* read_len = mtk_wcn_stp_receive_data(data, size, WMT_TASK_INDX); */
 	readLen = mtk_wcn_stp_receive_data(pBuff, buffLen, WMT_TASK_INDX);
-	WMT_WARN_FUNC("readLen0(%d)\n", readLen);
 
 	while (readLen == 0) {	/* got nothing, wait for STP's signal */
 		WMT_LOUD_FUNC("before wmt_dev_rx_timeout\n");
@@ -267,14 +266,13 @@ INT32 wmt_ctrl_rx(P_WMT_CTRL_DATA pWmtCtrlData /*UINT8 *pBuff, UINT32 buffLen, U
 			WMT_WARN_FUNC("wmt_dev_rx_timeout: interrupted by signal (%ld)\n", waitRet);
 			return waitRet;
 		}
-		WMT_WARN_FUNC("wmt_dev_rx_timeout, iRet(%ld)\n", waitRet);
+		WMT_DBG_FUNC("wmt_dev_rx_timeout, iRet(%ld)\n", waitRet);
 		/* read_len = mtk_wcn_stp_receive_data(data, size, WMT_TASK_INDX); */
 		readLen = mtk_wcn_stp_receive_data(pBuff, buffLen, WMT_TASK_INDX);
 
 		if (0 == readLen)
 			WMT_WARN_FUNC("wmt_ctrl_rx be signaled, but no rx data(%ld)\n", waitRet);
 
-		WMT_WARN_FUNC("readLen1(%d)\n", readLen);
 	}
 
 	if (readSize)
