@@ -159,6 +159,7 @@
 	vqmmc-supply = <&mt6323_vmc_reg>;
 };
 
+/*
 &mmc0 {
 	pinctrl-names = "default", "state_uhs";
 	pinctrl-0 = <&mmc0_pins_default>;
@@ -171,6 +172,7 @@
 	vqmmc-supply = <&mt6323_vio18_reg>;
 	non-removable;
 };
+*/
 
 &nandc {
 	status = "okay";
