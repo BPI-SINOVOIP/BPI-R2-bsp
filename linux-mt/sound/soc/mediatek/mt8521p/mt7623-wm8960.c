@@ -76,15 +76,6 @@ static struct snd_soc_ops stream_hdmi_tx_master_ops = {
 
 static struct snd_soc_dai_link mt7623_wm8960_dai_links[] = {
 	{
-		.name = "demo-hdmi-8ch-i2s-out",
-		.stream_name = "hdmi-pcm-out",
-		.platform_name = "mt8521p-audio",
-		.cpu_dai_name = "mt8521p-hdmi-pcm-out",
-		.codec_dai_name = "i2s-hifi",
-		.codec_name = "hdmi-audio-codec",
-		.ops = &stream_hdmi_tx_master_ops
-	},
-	{
 		.name = "demo-hdmi-rawpcm-out",
 		.stream_name = "hdmi-rawpcm-out",
 		.platform_name = "mt8521p-audio",
