@@ -37,6 +37,9 @@
 #define PWMDWIDTH           0x2c
 #define PWMTHRES            0x30
 
+#define PWM45DWIDTH         0x30
+#define PWM45THRES          0x34
+
 #define PWM_CLK_DIV_MAX     7
 #define PWM_NUM_MAX         8
 
@@ -188,8 +191,13 @@ static int mtk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	value = value | BIT(15) | clkdiv;
 	mtk_pwm_writel(pc, pwm->hwpwm, PWMCON, value);
 
-	mtk_pwm_writel(pc, pwm->hwpwm, PWMDWIDTH, data_width);
-	mtk_pwm_writel(pc, pwm->hwpwm, PWMTHRES, thresh);
+        if(pwm->hwpwm > 2) { /* For PWM 4 and PWM 5  */
+	    mtk_pwm_writel(pc, pwm->hwpwm, PWM45DWIDTH, data_width);
+	    mtk_pwm_writel(pc, pwm->hwpwm, PWM45THRES, thresh);
+        } else {
+	    mtk_pwm_writel(pc, pwm->hwpwm, PWMDWIDTH, data_width);
+	    mtk_pwm_writel(pc, pwm->hwpwm, PWMTHRES, thresh);
+        }
 
 	mtk_pwm_clk_disable(chip, pwm);
 
