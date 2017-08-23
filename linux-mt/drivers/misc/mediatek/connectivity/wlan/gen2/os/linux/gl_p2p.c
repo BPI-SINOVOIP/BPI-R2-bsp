@@ -3036,7 +3036,7 @@ mtk_p2p_wext_discovery_results(IN struct net_device *prDev,
 
 			iwe.cmd = IWEVCUSTOM;
 			iwe.u.data.flags = 0;
-			iwe.u.data.length = 8 + sizeof("p2p_cap=");
+			iwe.u.data.length = 9 + sizeof("p2p_cap=");
 			if (iwe.u.data.length > 40)
 				iwe.u.data.length = 40;
 
@@ -3052,7 +3052,7 @@ mtk_p2p_wext_discovery_results(IN struct net_device *prDev,
 
 			iwe.cmd = IWEVCUSTOM;
 			iwe.u.data.flags = 0;
-			iwe.u.data.length = 12 + sizeof("p2p_dev_type=");
+			iwe.u.data.length = 13 + sizeof("p2p_dev_type=");
 			if (iwe.u.data.length > 40)
 				iwe.u.data.length = 40;
 
