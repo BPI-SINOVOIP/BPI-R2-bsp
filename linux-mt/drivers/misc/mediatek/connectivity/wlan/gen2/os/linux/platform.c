@@ -121,8 +121,8 @@
 *                              C O N S T A N T S
 ********************************************************************************
 */
-#define WIFI_NVRAM_FILE_NAME   "/data/nvram/APCFG/APRDEB/WIFI"
-#define WIFI_NVRAM_CUSTOM_NAME "/data/nvram/APCFG/APRDEB/WIFI_CUSTOM"
+#define WIFI_NVRAM_FILE_NAME   "/etc/firmware/nvram/WIFI"
+#define WIFI_NVRAM_CUSTOM_NAME "/etc/firmware/nvram/WIFI_CUSTOM"
 
 /*******************************************************************************
 *                             D A T A   T Y P E S
@@ -393,7 +393,8 @@ static int nvram_read(char *filename, char *buf, ssize_t len, int offset)
 	}
 
 	do {
-		if ((fd->f_op == NULL) || (fd->f_op->read == NULL)) {
+		//if ((fd->f_op == NULL) || (fd->f_op->read == NULL)) {
+		if ( fd->f_op == NULL ) {
 			DBGLOG(INIT, INFO, "[MT6620][nvram_read] : file can not be read!!\n");
 			break;
 		}
@@ -409,7 +410,7 @@ static int nvram_read(char *filename, char *buf, ssize_t len, int offset)
 			}
 		}
 
-		retLen = fd->f_op->read(fd, buf, len, &fd->f_pos);
+		retLen = vfs_read(fd, buf, len, &fd->f_pos);
 
 	} while (FALSE);
 
@@ -473,7 +474,7 @@ static int nvram_write(char *filename, char *buf, ssize_t len, int offset)
 			}
 		}
 
-		retLen = fd->f_op->write(fd, buf, len, &fd->f_pos);
+		retLen = vfs_write(fd, buf, len, &fd->f_pos);
 
 	} while (FALSE);
 

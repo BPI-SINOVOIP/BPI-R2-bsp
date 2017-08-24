@@ -15,11 +15,13 @@ This is an instruction of how to enable MTK wifi module
    4) Copy the the following files to the folder /mnt/system/etc/firmware/
         config\WMT_SOC.cfg
    5) You need to create a new folder /mnt/etc/firmware when you copy the following files first time
-   6) Copy the the following files to the folder /mnt/etc/firmware/
+   6) Copy the following files to the folder /mnt/etc/firmware/
         firmware\ROMv2_lm_patch_1_0_hdr.bin 
         firmware\ROMv2_lm_patch_1_1_hdr.bin
         firmware\WIFI_RAM_CODE_7623
-   5) copy the following utilities to /mnt/usr/bin
+   6) Copy the following file to the folder /mnt/etc/firmware/nvram/
+        firmware\nvram\WIFI
+   7) copy the following utilities to /mnt/usr/bin
         tools\binary\stp_uart_launcher
         tools\binary\wmt_loader
         tools\binary\wmt_loopback
