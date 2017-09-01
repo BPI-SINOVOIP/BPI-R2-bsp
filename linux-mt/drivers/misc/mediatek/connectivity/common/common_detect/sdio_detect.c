@@ -19,8 +19,12 @@
 
 #include "wmt_detect.h"
 
+#if MTK_HIF_SDIO_AUTOK_ENABLED
+#include <mt_boot.h>
+#endif
+
 unsigned int gComboChipId = -1;
-struct sdio_func *g_func;
+struct sdio_func *g_func = NULL;
 
 MTK_WCN_HIF_SDIO_CHIP_INFO gChipInfoArray[] = {
 	/* MT6620 *//* Not an SDIO standard class device */
@@ -33,12 +37,6 @@ MTK_WCN_HIF_SDIO_CHIP_INFO gChipInfoArray[] = {
 
 	/* MT6630 *//* SDIO1: Wi-Fi, SDIO2: BGF */
 	{{SDIO_DEVICE(0x037A, 0x6630)}, 0x6630},
-
-	/* MT6632 *//* SDIO1: Wi-Fi */
-	{{SDIO_DEVICE(0x037A, 0x6602)}, 0x6632},
-
-	/* MT6632 *//* SDIO2: BGF */
-	{{SDIO_DEVICE(0x037A, 0x6632)}, 0x6632},
 
 };
 
@@ -65,12 +63,6 @@ static const struct sdio_device_id mtk_sdio_id_tbl[] = {
 
 	/* MT6630 *//* SDIO1: Wi-Fi, SDIO2: BGF */
 	{SDIO_DEVICE(0x037A, 0x6630)},
-
-	/* MT6632 *//* SDIO1: Wi-Fi */
-	{SDIO_DEVICE(0x037A, 0x6602)},
-
-	/* MT6632 *//* SDIO2: BGF */
-	{SDIO_DEVICE(0x037A, 0x6632)},
 	{ /* end: all zeroes */ },
 };
 
@@ -93,7 +85,7 @@ int hif_sdio_is_chipid_valid(int chipId)
 
 	int left = 0;
 	int middle = 0;
-	int right = ARRAY_SIZE(gChipInfoArray) - 1;
+	int right = sizeof(gChipInfoArray) / sizeof(gChipInfoArray[0]) - 1;
 
 	if ((chipId < gChipInfoArray[left].chipId) || (chipId > gChipInfoArray[right].chipId))
 		return index;
@@ -112,7 +104,7 @@ int hif_sdio_is_chipid_valid(int chipId)
 		middle = (left + right) / 2;
 	}
 
-	if (index < 0)
+	if (0 > index)
 		WMT_DETECT_ERR_FUNC("no supported chipid found\n");
 	else
 		WMT_DETECT_INFO_FUNC("index:%d, chipId:0x%x\n", index, gChipInfoArray[index].chipId);
@@ -122,7 +114,7 @@ int hif_sdio_is_chipid_valid(int chipId)
 
 int hif_sdio_match_chipid_by_dev_id(const struct sdio_device_id *id)
 {
-	int maxIndex = ARRAY_SIZE(gChipInfoArray);
+	int maxIndex = sizeof(gChipInfoArray) / sizeof(gChipInfoArray[0]);
 	int index = 0;
 	struct sdio_device_id *localId = NULL;
 	int chipId = -1;
@@ -134,12 +126,12 @@ int hif_sdio_match_chipid_by_dev_id(const struct sdio_device_id *id)
 			WMT_DETECT_INFO_FUNC
 			    ("valid chipId found, index(%d), vendor id(0x%x), device id(0x%x), chip id(0x%x)\n", index,
 			     localId->vendor, localId->device, chipId);
-			mtk_wcn_wmt_set_chipid(chipId);
 			gComboChipId = chipId;
+			mtk_wcn_wmt_set_chipid(gComboChipId);
 			break;
 		}
 	}
-	if (chipId < 0) {
+	if (0 > chipId) {
 		WMT_DETECT_ERR_FUNC("No valid chipId found, vendor id(0x%x), device id(0x%x)\n", id->vendor,
 				    id->device);
 	}
@@ -153,13 +145,13 @@ int sdio_detect_query_chipid(int waitFlag)
 	unsigned int maxTimeSlot = 15;
 	unsigned int counter = 0;
 	/* gComboChipId = 0x6628; */
-	if (waitFlag == 0)
+	if (0 == waitFlag)
 		return gComboChipId;
-	if (hif_sdio_is_chipid_valid(gComboChipId) >= 0)
+	if (0 <= hif_sdio_is_chipid_valid(gComboChipId))
 		return gComboChipId;
 
 	while (counter < maxTimeSlot) {
-		if (hif_sdio_is_chipid_valid(gComboChipId) >= 0)
+		if (0 <= hif_sdio_is_chipid_valid(gComboChipId))
 			break;
 		msleep(timeSlotMs);
 		counter++;
@@ -171,8 +163,44 @@ int sdio_detect_query_chipid(int waitFlag)
 int sdio_detect_do_autok(int chipId)
 {
 	int i_ret = 0;
-	/*reserve this function is in order to compatible native code*/
+
+#if MTK_HIF_SDIO_AUTOK_ENABLED
+#if 0
+	BOOTMODE boot_mode;
+
+	boot_mode = get_boot_mode();
+
+	if (boot_mode == META_BOOT) {
+		WMT_DETECT_INFO_FUNC("omit autok in meta mode\n");
+		return 0;
+	}
+#endif
+	if (0x6630 == chipId) {
+#ifdef CONFIG_SDIOAUTOK_SUPPORT
+		if (NULL != g_func) {
+			WMT_DETECT_INFO_FUNC("wait_sdio_autok_ready++\n");
+			i_ret = wait_sdio_autok_ready(g_func->card->host);
+			WMT_DETECT_INFO_FUNC("wait_sdio_autok_ready--\n");
+			if (0 == i_ret) {
+				WMT_DETECT_INFO_FUNC("wait_sdio_autok_ready return success\n");
+			} else {
+				WMT_DETECT_INFO_FUNC("wait_sdio_autok_ready return fail, i_ret:%d\n", i_ret);
+				gComboChipId = -1;
+			}
+		} else {
+			WMT_DETECT_INFO_FUNC("g_func NULL, omit autok\n");
+		}
+#else
+		i_ret = 0;
+		WMT_DETECT_INFO_FUNC("MTK_SDIOAUTOK_SUPPORT not defined\n");
+#endif
+	} else {
+		WMT_DETECT_INFO_FUNC("MT%x does not support SDIO3.0 autoK is not needed\n", chipId);
+	}
+#else
+	i_ret = 0;
 	WMT_DETECT_INFO_FUNC("MTK_HIF_SDIO_AUTOK_ENABLED is not defined\n");
+#endif
 	return i_ret;
 }
 
@@ -195,7 +223,7 @@ static int sdio_detect_probe(struct sdio_func *func, const struct sdio_device_id
 	WMT_DETECT_INFO_FUNC("vendor(0x%x) device(0x%x) num(0x%x)\n", func->vendor, func->device, func->num);
 	chipId = hif_sdio_match_chipid_by_dev_id(id);
 
-	if ((chipId == 0x6630 || chipId == 0x6632) && (func->num == 1)) {
+	if ((0x6630 == chipId) && (1 == func->num)) {
 		int ret = 0;
 
 		g_func = func;

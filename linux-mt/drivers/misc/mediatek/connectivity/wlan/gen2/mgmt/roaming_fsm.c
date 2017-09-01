@@ -1,12 +1,60 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id:
+*/
+
+/*! \file   "roaming_fsm.c"
+    \brief  This file defines the FSM for Roaming MODULE.
+
+    This file defines the FSM for Roaming MODULE.
+*/
+
+/*
+** Log: roaming_fsm.c
+ *
+ * 11 24 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * Adjust code for DBG and CONFIG_XLOG.
+ *
+ * 11 11 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * modify the xlog related code.
+ *
+ * 11 02 2011 wh.su
+ * [WCXRP00001078] [MT6620 Wi-Fi][Driver] Adding the mediatek log improment support : XLOG
+ * adding the code for XLOG.
+ *
+ * 08 31 2011 tsaiyuan.hsu
+ * [WCXRP00000931] [MT5931 Wi-Fi][DRV/FW] add swcr to disable roaming from driver
+ * remove obsolete code.
+ *
+ * 08 15 2011 tsaiyuan.hsu
+ * [WCXRP00000931] [MT5931 Wi-Fi][DRV/FW] add swcr to disable roaming from driver
+ * add swcr in driver reg, 0x9fxx0000, to disable roaming .
+ *
+ * 03 16 2011 tsaiyuan.hsu
+ * [WCXRP00000517] [MT6620 Wi-Fi][Driver][FW] Fine Tune Performance of Roaming
+ * remove obsolete definition and unused variables.
+ *
+ * 02 26 2011 tsaiyuan.hsu
+ * [WCXRP00000391] [MT6620 Wi-Fi][FW] Add Roaming Support
+ * not send disassoc or deauth to leaving AP so as to improve performace of roaming.
+ *
+ * 01 27 2011 tsaiyuan.hsu
+ * [WCXRP00000392] [MT6620 Wi-Fi][Driver] Add Roaming Support
+ * add roaming fsm
+ * 1. not support 11r, only use strength of signal to determine roaming.
+ * 2. not enable CFG_SUPPORT_ROAMING until completion of full test.
+ * 3. in 6620, adopt work-around to avoid sign extension problem of cck of hw
+ * 4. assume that change of link quality in smooth way.
+ *
+ * 01 27 2011 tsaiyuan.hsu
+ * [WCXRP00000392] [MT6620 Wi-Fi][Driver] Add Roaming Support
+ * add roaming fsm
+ * 1. not support 11r, only use strength of signal to determine roaming.
+ * 2. not enable CFG_SUPPORT_ROAMING until completion of full test.
+ * 3. in 6620, adopt work-around to avoid sign extension problem of cck of hw
+ * 4. assume that change of link quality in smooth way.
+ *
 */
 
 /*******************************************************************************
@@ -57,6 +105,13 @@ static PUINT_8 apucDebugRoamingState[ROAMING_STATE_NUM] = {
 *                                 M A C R O S
 ********************************************************************************
 */
+/*
+#define ROAMING_ENABLE_CHECK(_roam) \
+{ \
+	if (!(_roam->fgIsEnableRoaming)) \
+		return; \
+}
+*/
 /*******************************************************************************
 *                   F U N C T I O N   D E C L A R A T I O N S
 ********************************************************************************
@@ -90,7 +145,6 @@ VOID roamingFsmInit(IN P_ADAPTER_T prAdapter)
 	prRoamingFsmInfo->fgIsEnableRoaming = prConnSettings->fgIsEnableRoaming;
 	prRoamingFsmInfo->eCurrentState = ROAMING_STATE_IDLE;
 	prRoamingFsmInfo->rRoamingDiscoveryUpdateTime = 0;
-	prRoamingFsmInfo->DrvRoamingAllow = 1;
 
 }				/* end of roamingFsmInit() */
 
@@ -176,81 +230,6 @@ VOID roamingFsmScanResultsUpdate(IN P_ADAPTER_T prAdapter)
 
 }				/* end of roamingFsmScanResultsUpdate() */
 
-static BOOLEAN roamingFsmIsNeedScan(IN P_ADAPTER_T prAdapter)
-{
-	P_SCAN_INFO_T prScanInfo;
-	P_LINK_T prRoamBSSDescList;
-	P_ROAM_BSS_DESC_T prRoamBssDesc;
-	P_BSS_INFO_T prAisBssInfo;
-	P_BSS_DESC_T prBssDesc;
-	CMD_ID_SET_ROAMING_SKIP_T rCmdSwCtrl;
-	BOOLEAN fgIsNeedScan = FALSE;
-	BOOLEAN fgIsRoamingSSID = FALSE;
-
-	prAisBssInfo = &(prAdapter->rWifiVar.arBssInfo[NETWORK_TYPE_AIS_INDEX]);
-	prScanInfo = &(prAdapter->rWifiVar.rScanInfo);
-	prRoamBSSDescList = &prScanInfo->rRoamBSSDescList;
-	/* Count same BSS Desc from current SCAN result list. */
-	LINK_FOR_EACH_ENTRY(prRoamBssDesc, prRoamBSSDescList, rLinkEntry, ROAM_BSS_DESC_T) {
-		if (EQUAL_SSID(prRoamBssDesc->aucSSID,
-				       prRoamBssDesc->ucSSIDLen,
-				       prAisBssInfo->aucSSID, prAisBssInfo->ucSSIDLen)) {
-			fgIsRoamingSSID = TRUE;
-			fgIsNeedScan = TRUE;
-			DBGLOG(INIT, INFO, "roamingFsmSteps: IsRoamingSSID:%d\n", fgIsRoamingSSID);
-			break;
-		}
-	}
-
-	if (!fgIsRoamingSSID) {
-		prBssDesc = scanSearchBssDescByBssid(prAdapter, prAisBssInfo->aucBSSID);
-		if (prBssDesc) {
-
-			rCmdSwCtrl.IsRoamingSkipOneAp = TRUE;
-			wlanSendSetQueryCmd(prAdapter,
-					    CMD_ID_SET_ROAMING_SKIP,
-					    TRUE,
-					    FALSE,
-					    FALSE, NULL, NULL, sizeof(CMD_ID_SET_ROAMING_SKIP_T),
-					    (PUINT_8)&rCmdSwCtrl, NULL, 0);
-
-			DBGLOG(INIT, INFO, "roamingFsmSteps: RCPI:%d RoamSkipTimes:%d\n",
-								prBssDesc->ucRCPI, prAisBssInfo->ucRoamSkipTimes);
-			if (prBssDesc->ucRCPI > CFG_GOOG_RCPI_THRESHOLD) {
-				prAisBssInfo->ucRoamSkipTimes = CFG_GOOG_RCPI_SCAN_SKIP_TIMES;
-				prAisBssInfo->fgGoodRcpiArea = TRUE;
-				prAisBssInfo->fgPoorRcpiArea = FALSE;
-			} else {
-				if (prAisBssInfo->fgGoodRcpiArea) {
-					prAisBssInfo->ucRoamSkipTimes--;
-				} else if (prBssDesc->ucRCPI > CFG_POOR_RCPI_THRESHOLD) {
-					if (!prAisBssInfo->fgPoorRcpiArea) {
-						prAisBssInfo->ucRoamSkipTimes = CFG_POOR_RCPI_SCAN_SKIP_TIMES;
-						prAisBssInfo->fgPoorRcpiArea = TRUE;
-						prAisBssInfo->fgGoodRcpiArea = FALSE;
-					} else {
-						prAisBssInfo->ucRoamSkipTimes--;
-					}
-				} else {
-					prAisBssInfo->fgPoorRcpiArea = FALSE;
-					prAisBssInfo->fgGoodRcpiArea = FALSE;
-					prAisBssInfo->ucRoamSkipTimes--;
-				}
-			}
-
-			if (prAisBssInfo->ucRoamSkipTimes == 0) {
-				prAisBssInfo->ucRoamSkipTimes = CFG_GOOG_RCPI_SCAN_SKIP_TIMES;
-				prAisBssInfo->fgPoorRcpiArea = FALSE;
-				prAisBssInfo->fgGoodRcpiArea = FALSE;
-				DBGLOG(INIT, INFO, "roamingFsmSteps: Need Scan\n");
-				fgIsNeedScan = TRUE;
-			}
-		}
-	}
-
-	return fgIsNeedScan;
-}
-
 /*----------------------------------------------------------------------------*/
 /*!
 * @brief The Core FSM engine of ROAMING for AIS Infra.
@@ -299,13 +278,10 @@ VOID roamingFsmSteps(IN P_ADAPTER_T prAdapter, IN ENUM_ROAMING_STATE_T eNextStat
 		case ROAMING_STATE_DISCOVERY:
 			{
 				OS_SYSTIME rCurrentTime;
-				BOOLEAN fgIsNeedScan = FALSE;
-
-				fgIsNeedScan = roamingFsmIsNeedScan(prAdapter);
 
 				GET_CURRENT_SYSTIME(&rCurrentTime);
 				if (CHECK_FOR_TIMEOUT(rCurrentTime, prRoamingFsmInfo->rRoamingDiscoveryUpdateTime,
-						      SEC_TO_SYSTIME(ROAMING_DISCOVERY_TIMEOUT_SEC)) && fgIsNeedScan) {
+						      SEC_TO_SYSTIME(ROAMING_DISCOVERY_TIMEOUT_SEC))) {
 					DBGLOG(ROAMING, LOUD, "roamingFsmSteps: DiscoveryUpdateTime Timeout");
 					aisFsmRunEventRoamingDiscovery(prAdapter, TRUE);
 				} else {
@@ -554,7 +530,7 @@ WLAN_STATUS roamingFsmProcessEvent(IN P_ADAPTER_T prAdapter, IN P_ROAMING_PARAM_
 {
 	DBGLOG(ROAMING, LOUD, "ROAMING Process Events: Current Time = %u\n", kalGetTimeTick());
 
-	if (prParam->u2Event == ROAMING_EVENT_DISCOVERY)
+	if (ROAMING_EVENT_DISCOVERY == prParam->u2Event)
 		roamingFsmRunEventDiscovery(prAdapter, prParam);
 
 	return WLAN_STATUS_SUCCESS;

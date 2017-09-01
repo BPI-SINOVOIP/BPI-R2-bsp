@@ -1,13 +1,18 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: tdls.c#1
 */
+
+/*! \file tdls.c
+    \brief This file includes IEEE802.11z TDLS support.
+*/
+
+/*
+** Log: tdls.c
+ *
+ * 11 13 2013 vend_samp.lin
+ * NULL
+ * Initial version.
+ */
 
 /*******************************************************************************
  *						C O M P I L E R	 F L A G S
@@ -3653,12 +3658,12 @@ VOID TdlsexBssExtCapParse(STA_RECORD_T *prStaRec, UINT_8 *pucIE)
 		return;
 
 	/*
-	 * from bit0 ~
-	 *
-	 * bit 38: TDLS Prohibited
-	 * The TDLS Prohibited subfield indicates whether the use of TDLS is prohibited. The
-	 * field is set to 1 to indicate that TDLS is prohibited and to 0 to indicate that TDLS is
-	 * allowed.
+	   from bit0 ~
+
+	   bit 38: TDLS Prohibited
+	   The TDLS Prohibited subfield indicates whether the use of TDLS is prohibited. The
+	   field is set to 1 to indicate that TDLS is prohibited and to 0 to indicate that TDLS is
+	   allowed.
 	 */
 	if (IE_LEN(pucIE) < 5)
 		return;		/* we need 39/8 = 5 bytes */
@@ -3709,14 +3714,14 @@ TdlsexCfg80211TdlsMgmt(struct wiphy *wiphy, struct net_device *dev,
 	TDLS_MGMT_TX_INFO *prMgmtTxInfo;
 
 	/*
-	 * Have correct behavior for STAUT receiving TDLS Setup Request after sending TDLS
-	 * Set Request and before receiving TDLS Setup Response:
-	 * -- Source Address of received Request is higher than own MAC address
-	 * -- Source Address of received Request is lower than own MAC address
-	 *
-	 * ==> STA with larger MAC address will send the response frame.
-	 *
-	 * Supplicant will do this in wpa_tdls_process_tpk_m1().
+	   Have correct behavior for STAUT receiving TDLS Setup Request after sending TDLS
+	   Set Request and before receiving TDLS Setup Response:
+	   -- Source Address of received Request is higher than own MAC address
+	   -- Source Address of received Request is lower than own MAC address
+
+	   ==> STA with larger MAC address will send the response frame.
+
+	   Supplicant will do this in wpa_tdls_process_tpk_m1().
 	 */
 
 	/* sanity check */
@@ -3776,8 +3781,8 @@ TdlsexCfg80211TdlsMgmt(struct wiphy *wiphy, struct net_device *dev,
 			   prMgmtTxInfo, sizeof(TDLS_MGMT_TX_INFO), FALSE, FALSE, FALSE, FALSE, &u4BufLen);
 
 	/*
-	 * clear all content to avoid any bug if we dont yet execute TdlsexMgmtCtrl()
-	 * then kalIoctl finishes
+	   clear all content to avoid any bug if we dont yet execute TdlsexMgmtCtrl()
+	   then kalIoctl finishes
 	 */
 	kalMemZero(prMgmtTxInfo, sizeof(TDLS_MGMT_TX_INFO));
 
@@ -3836,13 +3841,13 @@ int TdlsexCfg80211TdlsOper(struct wiphy *wiphy, struct net_device *dev,
 	rCmdLink.fgIsEnabled = FALSE;
 
 	/*
-	 * enum nl80211_tdls_operation {
-	 * NL80211_TDLS_DISCOVERY_REQ,
-	 * NL80211_TDLS_SETUP,
-	 * NL80211_TDLS_TEARDOWN,
-	 * NL80211_TDLS_ENABLE_LINK,
-	 * NL80211_TDLS_DISABLE_LINK,
-	 * };
+	   enum nl80211_tdls_operation {
+	   NL80211_TDLS_DISCOVERY_REQ,
+	   NL80211_TDLS_SETUP,
+	   NL80211_TDLS_TEARDOWN,
+	   NL80211_TDLS_ENABLE_LINK,
+	   NL80211_TDLS_DISABLE_LINK,
+	   };
 	 */
 
 	switch (oper) {
@@ -4134,8 +4139,8 @@ TDLS_STATUS TdlsexKeyHandle(ADAPTER_T *prAdapter, PARAM_KEY_T *prNewKey)
 		return TDLS_STATUS_FAILURE;
 
 	/*
-	 * supplicant will set key before updating station & enabling the link so we need to
-	 * backup the key information and set key when link is enabled
+	   supplicant will set key before updating station & enabling the link so we need to
+	   backup the key information and set key when link is enabled
 	 */
 	prStaRec = cnmGetStaRecByAddress(prAdapter, NETWORK_TYPE_AIS_INDEX, prNewKey->arBSSID);
 	if ((prStaRec != NULL) && IS_TDLS_STA(prStaRec)) {
@@ -4270,8 +4275,8 @@ TDLS_STATUS TdlsexLinkCtrl(ADAPTER_T *prAdapter, VOID *pvSetBuffer, UINT_32 u4Se
 					    __func__, (UINT32) prStaRec->rTdlsKeyTemp.u4Length);
 
 			/*
-			 * reminder the function that we are CIPHER_SUITE_CCMP,
-			 * do not change cipher type to CIPHER_SUITE_WEP128
+			   reminder the function that we are CIPHER_SUITE_CCMP,
+			   do not change cipher type to CIPHER_SUITE_WEP128
 			 */
 			_wlanoidSetAddKey(prAdapter, &prStaRec->rTdlsKeyTemp,
 					  prStaRec->rTdlsKeyTemp.u4Length, FALSE, CIPHER_SUITE_CCMP, &u4BufLen);
@@ -4386,7 +4391,6 @@ TDLS_STATUS TdlsexMgmtCtrl(ADAPTER_T *prAdapter, VOID *pvSetBuffer, UINT_32 u4Se
 
 	switch (prMgmtTxInfo->ucActionCode) {
 	case TDLS_FRM_ACTION_DISCOVERY_RESPONSE:
-	case TDLS_FRM_ACTION_DISCOVERY_REQ:
 		prStaRec = NULL;
 		break;
 
@@ -4397,8 +4401,8 @@ TDLS_STATUS TdlsexMgmtCtrl(ADAPTER_T *prAdapter, VOID *pvSetBuffer, UINT_32 u4Se
 			/* TODO: Still can setup link during rekey */
 
 			/*
-			 * return success to avoid supplicant clear TDLS entry;
-			 * Or we cannot send out any TDLS tear down frame to the peer
+			   return success to avoid supplicant clear TDLS entry;
+			   Or we cannot send out any TDLS tear down frame to the peer
 			 */
 			DBGLOG(TDLS, TRACE, "<tdls_cmd> %s: skip new setup on the exist link!\n", __func__);
 			return TDLS_STATUS_SUCCESS;
@@ -4413,11 +4417,11 @@ TDLS_STATUS TdlsexMgmtCtrl(ADAPTER_T *prAdapter, VOID *pvSetBuffer, UINT_32 u4Se
 		prStaRec = cnmGetStaRecByAddress(prAdapter, (UINT_8) NETWORK_TYPE_AIS_INDEX, prMgmtTxInfo->aucPeer);
 #if 0				/* in some cases, the prStaRec is still NULL */
 		/*
-		 * EX: if a peer sends us a TDLS setup request with wrong BSSID,
-		 * supplicant will not call TdlsexPeerAdd() to create prStaRec and
-		 * supplicant will send a TDLS setup response with status code 7.
-		 *
-		 * So in the case, prStaRec will be NULL.
+		   EX: if a peer sends us a TDLS setup request with wrong BSSID,
+		   supplicant will not call TdlsexPeerAdd() to create prStaRec and
+		   supplicant will send a TDLS setup response with status code 7.
+
+		   So in the case, prStaRec will be NULL.
 		 */
 		if (prStaRec == NULL) {
 			DBGLOG(TDLS, ERROR, "<tdls_cfg> %s: cannot find the peer!\n", __func__);
@@ -4427,11 +4431,11 @@ TDLS_STATUS TdlsexMgmtCtrl(ADAPTER_T *prAdapter, VOID *pvSetBuffer, UINT_32 u4Se
 		break;
 
 		/*
-		 * TODO: Discovery response frame
-		 * Note that the TDLS Discovery Response frame is not a TDLS frame but a 11
-		 * Public Action frame.
-		 * In WiFi TDLS Tech Minutes June 8 2010.doc,
-		 * a public action frame (i.e. it is no longer an encapsulated data frame)
+		   TODO: Discovery response frame
+		   Note that the TDLS Discovery Response frame is not a TDLS frame but a 11
+		   Public Action frame.
+		   In WiFi TDLS Tech Minutes June 8 2010.doc,
+		   a public action frame (i.e. it is no longer an encapsulated data frame)
 		 */
 
 	default:
@@ -4557,24 +4561,24 @@ TDLS_STATUS TdlsexPeerAdd(ADAPTER_T *prAdapter, VOID *pvSetBuffer, UINT_32 u4Set
 	}
 
 	/*
-	 * create new entry if not exist
-	 *
-	 * 1. we are initiator
-	 * (1) send TDLS setup request
-	 * wpa_sm_tdls_peer_addset(sm, peer->addr, 1, 0, 0, NULL, 0, NULL, NULL, 0, NULL, 0);
-	 * create a station record with STA_STATE_1.
-	 * (2) got TDLS setup response and send TDLS setup confirm
-	 * wpa_tdls_enable_link()
-	 * update a station record with STA_STATE_3.
-	 *
-	 * 2. we are responder
-	 * (1) got TDLS setup request
-	 * wpa_sm_tdls_peer_addset(sm, peer->addr, 1, 0, 0, NULL, 0, NULL, NULL, 0, NULL, 0);
-	 * create a station record with STA_STATE_1.
-	 * (2) send TDLS setup response
-	 * (3) got TDLS setup confirm
-	 * wpa_tdls_enable_link()
-	 * update a station record with STA_STATE_3.
+	   create new entry if not exist
+
+	   1. we are initiator
+	   (1) send TDLS setup request
+	   wpa_sm_tdls_peer_addset(sm, peer->addr, 1, 0, 0, NULL, 0, NULL, NULL, 0, NULL, 0);
+	   create a station record with STA_STATE_1.
+	   (2) got TDLS setup response and send TDLS setup confirm
+	   wpa_tdls_enable_link()
+	   update a station record with STA_STATE_3.
+
+	   2. we are responder
+	   (1) got TDLS setup request
+	   wpa_sm_tdls_peer_addset(sm, peer->addr, 1, 0, 0, NULL, 0, NULL, NULL, 0, NULL, 0);
+	   create a station record with STA_STATE_1.
+	   (2) send TDLS setup response
+	   (3) got TDLS setup confirm
+	   wpa_tdls_enable_link()
+	   update a station record with STA_STATE_3.
 	 */
 	if (prStaRec == NULL) {
 		prStaRec = cnmStaRecAlloc(prAdapter, (UINT_8) NETWORK_TYPE_AIS_INDEX);
@@ -4594,8 +4598,8 @@ TDLS_STATUS TdlsexPeerAdd(ADAPTER_T *prAdapter, VOID *pvSetBuffer, UINT_32 u4Set
 #if 0
 		if ((prStaRec->ucStaState > STA_STATE_1) && (IS_TDLS_STA(prStaRec))) {
 			/*
-			 * test plan: The STAUT should locally tear down existing TDLS direct link and
-			 * respond with Set up Response frame.
+			   test plan: The STAUT should locally tear down existing TDLS direct link and
+			   respond with Set up Response frame.
 			 */
 			cnmStaRecChangeState(prAdapter, prStaRec, STA_STATE_1);
 		}
@@ -4631,7 +4635,7 @@ TDLS_STATUS TdlsexPeerAdd(ADAPTER_T *prAdapter, VOID *pvSetBuffer, UINT_32 u4Set
 		prStaRec->fgHasBasicPhyType = TRUE;
 	} else {
 		/* use mandatory for 11N only BSS */
-		/* ASSERT(prStaRec->ucPhyTypeSet & PHY_TYPE_SET_802_11N); */
+/* ASSERT(prStaRec->ucPhyTypeSet & PHY_TYPE_SET_802_11N); */
 
 		prStaRec->ucNonHTBasicPhyType = PHY_TYPE_HR_DSSS_INDEX;
 		prStaRec->fgHasBasicPhyType = FALSE;
@@ -4722,24 +4726,24 @@ TDLS_STATUS TdlsexPeerUpdate(ADAPTER_T *prAdapter, VOID *pvSetBuffer, UINT_32 u4
 	prStaRec = cnmGetStaRecByAddress(prAdapter, (UINT_8) NETWORK_TYPE_AIS_INDEX, prCmd->aucPeerMac);
 
 	/*
-	 * create new entry if not exist
-	 *
-	 * 1. we are initiator
-	 * (1) send TDLS setup request
-	 * wpa_sm_tdls_peer_addset(sm, peer->addr, 1, 0, 0, NULL, 0, NULL, NULL, 0, NULL, 0);
-	 * create a station record with STA_STATE_1.
-	 * (2) got TDLS setup response and send TDLS setup confirm
-	 * wpa_tdls_enable_link()
-	 * update a station record with STA_STATE_3.
-	 *
-	 * 2. we are responder
-	 * (1) got TDLS setup request
-	 * wpa_sm_tdls_peer_addset(sm, peer->addr, 1, 0, 0, NULL, 0, NULL, NULL, 0, NULL, 0);
-	 * create a station record with STA_STATE_1.
-	 * (2) send TDLS setup response
-	 * (3) got TDLS setup confirm
-	 * wpa_tdls_enable_link()
-	 * update a station record with STA_STATE_3.
+	   create new entry if not exist
+
+	   1. we are initiator
+	   (1) send TDLS setup request
+	   wpa_sm_tdls_peer_addset(sm, peer->addr, 1, 0, 0, NULL, 0, NULL, NULL, 0, NULL, 0);
+	   create a station record with STA_STATE_1.
+	   (2) got TDLS setup response and send TDLS setup confirm
+	   wpa_tdls_enable_link()
+	   update a station record with STA_STATE_3.
+
+	   2. we are responder
+	   (1) got TDLS setup request
+	   wpa_sm_tdls_peer_addset(sm, peer->addr, 1, 0, 0, NULL, 0, NULL, NULL, 0, NULL, 0);
+	   create a station record with STA_STATE_1.
+	   (2) send TDLS setup response
+	   (3) got TDLS setup confirm
+	   wpa_tdls_enable_link()
+	   update a station record with STA_STATE_3.
 	 */
 	if ((prStaRec == NULL) || (prStaRec->fgIsInUse == 0)) {
 		DBGLOG(TDLS, ERROR, "<tdls_cmd> %s: cannot find the peer!\n", __func__);
@@ -4782,22 +4786,22 @@ TDLS_STATUS TdlsexPeerUpdate(ADAPTER_T *prAdapter, VOID *pvSetBuffer, UINT_32 u4
 	/* prStaRec->ucStaState shall be STA_STATE_1 */
 
 	prStaRec->u2CapInfo = prCmd->u2Capability;
-	/* prStaRec->u2OperationalRateSet */
+/*	prStaRec->u2OperationalRateSet */
 	prStaRec->u2AssocId = 0;	/* no use */
 	prStaRec->u2ListenInterval = 0;	/* unknown */
-	/* prStaRec->ucDesiredPhyTypeSet */
-	/* prStaRec->u2DesiredNonHTRateSet */
-	/* prStaRec->u2BSSBasicRateSet */
-	/* prStaRec->ucMcsSet */
-	/* prStaRec->fgSupMcs32 */
-	/* prStaRec->u2HtCapInfo */
+/*	prStaRec->ucDesiredPhyTypeSet */
+/*	prStaRec->u2DesiredNonHTRateSet */
+/*	prStaRec->u2BSSBasicRateSet */
+/*	prStaRec->ucMcsSet */
+/*	prStaRec->fgSupMcs32 */
+/*	prStaRec->u2HtCapInfo */
 	prStaRec->fgIsQoS = TRUE;
 	prStaRec->fgIsUapsdSupported = (prCmd->UapsdBitmap == 0) ? FALSE : TRUE;
-	/* prStaRec->ucAmpduParam */
-	/* prStaRec->u2HtExtendedCap */
+/*	prStaRec->ucAmpduParam */
+/*	prStaRec->u2HtExtendedCap */
 	prStaRec->u4TxBeamformingCap = 0;	/* no use */
 	prStaRec->ucAselCap = 0;	/* no use */
-	prStaRec->ucRCPI = 120;
+	prStaRec->ucRCPI = 0;
 	prStaRec->ucBmpTriggerAC = prCmd->UapsdBitmap;
 	prStaRec->ucBmpDeliveryAC = prCmd->UapsdBitmap;
 	prStaRec->ucUapsdSp = prCmd->UapsdMaxSp;
@@ -4830,7 +4834,7 @@ TDLS_STATUS TdlsexPeerUpdate(ADAPTER_T *prAdapter, VOID *pvSetBuffer, UINT_32 u4
 	DBGLOG(TDLS, INFO, "<tdls_cmd> %s: UAPSD 0x%x %d MCS=0x%x\n",
 			    __func__, prCmd->UapsdBitmap, prCmd->UapsdMaxSp, prStaRec->ucMcsSet);
 
-	/* cnmStaRecChangeState(prAdapter, prStaRec, STA_STATE_3); */
+/* cnmStaRecChangeState(prAdapter, prStaRec, STA_STATE_3); */
 
 	DBGLOG(TDLS, INFO, "<tdls_cmd> %s: update a peer [%pM]\n",
 			    __func__, (prStaRec->aucMacAddr));
@@ -4893,8 +4897,8 @@ BOOLEAN TdlsexRxFrameDrop(GLUE_INFO_T *prGlueInfo, UINT_8 *pPkt)
 
 		/* inform tear down to supplicant only in OPEN/NONE mode */
 		/*
-		 * we need to tear down the link manually; or supplicant will display
-		 * "No FTIE in TDLS Teardown" and it will not tear down the link
+		   we need to tear down the link manually; or supplicant will display
+		   "No FTIE in TDLS Teardown" and it will not tear down the link
 		 */
 		cfg80211_tdls_oper_request(prGlueInfo->prDevHandler,
 					   pPkt + 6, TDLS_FRM_ACTION_TEARDOWN, *(pPkt + 13 + 4), GFP_ATOMIC);
@@ -4985,13 +4989,13 @@ VOID TdlsexRxFrameHandle(GLUE_INFO_T *prGlueInfo, UINT8 *pPkt, UINT16 u2PktLen)
 				kalMemCopy(&prGlueInfo->rTdlsHtCap, pPkt - 2, ucElmLen + 2);
 
 				/*
-				 * cannot backup in prStaRec; or
-				 *
-				 * 1. we build a TDLS link
-				 * 2. peer re-sends setup req
-				 * 3. we backup HT cap element
-				 * 4. supplicant disables the link
-				 * 5. we clear the prStaRec
+				   cannot backup in prStaRec; or
+
+				   1. we build a TDLS link
+				   2. peer re-sends setup req
+				   3. we backup HT cap element
+				   4. supplicant disables the link
+				   5. we clear the prStaRec
 				 */
 
 				DBGLOG(TDLS, TRACE,
@@ -5045,36 +5049,36 @@ TDLS_STATUS TdlsexStaRecIdxGet(ADAPTER_T *prAdapter, MSDU_INFO_T *prMsduInfo)
 	prStaRec = cnmGetStaRecByAddress(prAdapter, (UINT_8) NETWORK_TYPE_AIS_INDEX, prMsduInfo->aucEthDestAddr);
 
 	/*
-	 * TDLS Setup Request frames, TDLS Setup Response frames and TDLS Setup Confirm
-	 * frames shall be transmitted through the AP and shall not be transmitted to a group
-	 * address.
-	 *
-	 * 1. In first time, prStaRec == NULL or prStaRec->ucStaState != STA_STATE_3,
-	 * we will send them to AP;
-	 * 2. When link is still on, if you command to send TDLS setup from supplicant,
-	 * supplicant will DISABLE LINK first, prStaRec will be NULL then send TDLS
-	 * setup frame to the peer.
+	   TDLS Setup Request frames, TDLS Setup Response frames and TDLS Setup Confirm
+	   frames shall be transmitted through the AP and shall not be transmitted to a group
+	   address.
+
+	   1. In first time, prStaRec == NULL or prStaRec->ucStaState != STA_STATE_3,
+	   we will send them to AP;
+	   2. When link is still on, if you command to send TDLS setup from supplicant,
+	   supplicant will DISABLE LINK first, prStaRec will be NULL then send TDLS
+	   setup frame to the peer.
 	 */
 
 	do {
 		if ((prStaRec != NULL) && (prStaRec->ucStaState == STA_STATE_3) && (IS_TDLS_STA(prStaRec))) {
 			/*
-			 * TDLS Test Case 5.3 Tear Down
-			 * Automatically sends TDLS Teardown frame to STA 2 via AP
-			 *
-			 * 11.21.5 TDLS Direct Link Teardown
-			 * The TDLS Teardown frame shall be sent over the direct path and the reason
-			 * code shall be set to "TDLS 40 direct link teardown for unspecified reason",
-			 * except when the TDLS peer STA is unreachable via the TDLS direct link,
-			 * in which case, the TDLS Teardown frame shall be sent through the AP and
-			 * the reason code shall be set to "TDLS direct link teardown due to TDLS peer
-			 * STA unreachable via the TDLS direct link".
+			   TDLS Test Case 5.3 Tear Down
+			   Automatically sends TDLS Teardown frame to STA 2 via AP
+
+			   11.21.5 TDLS Direct Link Teardown
+			   The TDLS Teardown frame shall be sent over the direct path and the reason
+			   code shall be set to "TDLS 40 direct link teardown for unspecified reason",
+			   except when the TDLS peer STA is unreachable via the TDLS direct link,
+			   in which case, the TDLS Teardown frame shall be sent through the AP and
+			   the reason code shall be set to "TDLS direct link teardown due to TDLS peer
+			   STA unreachable via the TDLS direct link".
 			 */
 			/* if (prStaRec->fgIsInPS == TRUE) */
 			/*
-			 * check if the packet is tear down:
-			 * we do not want to use PTI to indicate the tear down and
-			 * we want to send the tear down to AP then AP help us to send it
+			   check if the packet is tear down:
+			   we do not want to use PTI to indicate the tear down and
+			   we want to send the tear down to AP then AP help us to send it
 			 */
 			struct sk_buff *prSkb;
 			UINT8 *pEth;
@@ -5097,8 +5101,8 @@ TDLS_STATUS TdlsexStaRecIdxGet(ADAPTER_T *prAdapter, MSDU_INFO_T *prMsduInfo)
 					(ucActionCode == TDLS_FRM_ACTION_TEARDOWN) &&
 					(ucReasonCode == TDLS_REASON_CODE_UNREACHABLE)) {
 					/*
-					 * when we cannot reach the peer,
-					 * we need AP's help to send the tear down frame
+					   when we cannot reach the peer,
+					   we need AP's help to send the tear down frame
 					 */
 					prBssInfo = &(prAdapter->rWifiVar.arBssInfo[NETWORK_TYPE_AIS_INDEX]);
 					prStaRec = prBssInfo->prStaRecOfAP;
@@ -5113,8 +5117,7 @@ TDLS_STATUS TdlsexStaRecIdxGet(ADAPTER_T *prAdapter, MSDU_INFO_T *prMsduInfo)
 				}
 			}
 			prMsduInfo->ucStaRecIndex = prStaRec->ucIndex;
-		} else
-			Status = TDLS_STATUS_FAILURE;
+		}
 	} while (FALSE);
 
 	DBGLOG(TDLS, INFO, "<tdls> %s: (Status=%x) [%pM] ucStaRecIndex = %d!\n",
@@ -5165,8 +5168,8 @@ VOID TdlsexTxQuotaCheck(GLUE_INFO_T *prGlueInfo, STA_RECORD_T *prStaRec, UINT8 F
 
 			/* inform tear down to supplicant only in OPEN/NONE mode */
 			/*
-			 * we need to tear down the link manually; or supplicant will display
-			 * "No FTIE in TDLS Teardown" and it will not tear down the link
+			   we need to tear down the link manually; or supplicant will display
+			   "No FTIE in TDLS Teardown" and it will not tear down the link
 			 */
 			cfg80211_tdls_oper_request(prGlueInfo->prDevHandler,
 						   prStaRec->aucMacAddr, TDLS_FRM_ACTION_TEARDOWN,

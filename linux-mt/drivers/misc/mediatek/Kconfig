@@ -1,5 +1,7 @@
 menu "Mediatek Peripherals "
 
+config MTK_PLATFORM
+        string "MTK platform name"
 source "drivers/misc/mediatek/usb20/Kconfig"
 source "drivers/misc/mediatek/ice_debug/Kconfig"
 source "drivers/misc/mediatek/trustzone/Kconfig"

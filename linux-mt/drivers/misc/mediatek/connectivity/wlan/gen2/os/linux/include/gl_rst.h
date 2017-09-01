@@ -1,12 +1,10 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/os/linux/include/gl_rst.h#1
+*/
+
+/*! \file   gl_rst.h
+    \brief  Declaration of functions and finite state machine for
+	    MT6620 Whole-Chip Reset Mechanism
 */
 
 #ifndef _GL_RST_H
@@ -70,13 +68,10 @@ typedef enum _ENUM_WMTRSTMSG_TYPE_T {
 typedef void (*PF_WMT_CB) (ENUM_WMTDRV_TYPE_T,	/* Source driver type */
 			   ENUM_WMTDRV_TYPE_T,	/* Destination driver type */
 			   ENUM_WMTMSG_TYPE_T,	/* Message type */
-			   /*
-			    * READ-ONLY buffer. Buffer is allocated and freed by WMT_drv. Client
-			    * can't touch this buffer after this function return.
-			    */
-			   void *,
-			   /* Buffer size in unit of byte */
-			   unsigned int);
+			   void *,	/* READ-ONLY buffer. Buffer is allocated and freed by WMT_drv. Client
+					   can't touch this buffer after this function return. */
+			   unsigned int	/* Buffer size in unit of byte */
+);
 
 /*******************************************************************************
 *                    E X T E R N A L   F U N C T I O N S
@@ -93,7 +88,6 @@ typedef void (*PF_WMT_CB) (ENUM_WMTDRV_TYPE_T,	/* Source driver type */
 		mtk_wcn_wmt_assert(WMTDRV_TYPE_WIFI, 0x40); \
 	} while (0)
 
-
 #if CFG_CHIP_RESET_SUPPORT
 extern int mtk_wcn_wmt_msgcb_reg(ENUM_WMTDRV_TYPE_T eType, PF_WMT_CB pCb);
 extern int mtk_wcn_wmt_msgcb_unreg(ENUM_WMTDRV_TYPE_T eType);
@@ -102,11 +96,6 @@ extern int wifi_reset_end(ENUM_RESET_STATUS_T);
 #endif
 extern MTK_WCN_BOOL mtk_wcn_wmt_assert(ENUM_WMTDRV_TYPE_T type, UINT32 reason);
 extern BOOLEAN mtk_wcn_set_connsys_power_off_flag(BOOLEAN value);
-
-/*----------------------------------------------------------------------------*/
-/* WMT Core Dump Support                                                                */
-/*----------------------------------------------------------------------------*/
-extern BOOLEAN mtk_wcn_stp_coredump_start_get(VOID);
 
 /*******************************************************************************
 *                            P U B L I C   D A T A
@@ -140,7 +129,5 @@ VOID glResetUninit(VOID);
 VOID glSendResetRequest(VOID);
 
 BOOLEAN kalIsResetting(VOID);
-
-BOOLEAN glIsWmtCodeDump(VOID);
 
 #endif /* _GL_RST_H */

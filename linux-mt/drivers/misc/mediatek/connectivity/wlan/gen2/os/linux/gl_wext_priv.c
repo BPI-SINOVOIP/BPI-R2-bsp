@@ -1,23 +1,217 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/os/linux/gl_wext_priv.c#4
+*/
+
+/*! \file gl_wext_priv.c
+    \brief This file includes private ioctl support.
+*/
+
+/*
+** Log: gl_wext_priv.c
+ *
+ * 07 17 2012 yuche.tsai
+ * NULL
+ * Let netdev bring up.
+ *
+ * 06 13 2012 yuche.tsai
+ * NULL
+ * Update maintrunk driver.
+ * Add support for driver compose assoc request frame.
+ *
+ * 03 20 2012 wh.su
+ * [WCXRP00001153] [MT6620 Wi-Fi][Driver] Adding the get_ch_list and set_tx_power proto type function
+ * [WCXRP00001202] [MT6628 Wi-Fi][FW] Adding the New PN init code
+ * use return to avoid the ioctl return not supported
+ *
+ * 03 02 2012 terry.wu
+ * NULL
+ * Snc CFG80211 modification for ICS migration from branch 2.2.
+ *
+ * 01 16 2012 wh.su
+ * [WCXRP00001170] [MT6620 Wi-Fi][Driver] Adding the related code for set/get band ioctl
+ * Adding the template code for set / get band IOCTL (with ICS supplicant_6)..
+ *
+ * 01 05 2012 wh.su
+ * [WCXRP00001153] [MT6620 Wi-Fi][Driver] Adding the get_ch_list and set_tx_power proto type function
+ * Adding the related ioctl / wlan oid function to set the Tx power cfg.
+ *
+ * 01 02 2012 wh.su
+ * [WCXRP00001153] [MT6620 Wi-Fi][Driver] Adding the get_ch_list and set_tx_power proto type function
+ * Adding the proto type function for set_int set_tx_power and get int get_ch_list.
+ *
+ * 11 10 2011 cp.wu
+ * [WCXRP00001098] [MT6620 Wi-Fi][Driver] Replace printk by DBG LOG macros in linux porting layer
+ * 1. eliminaite direct calls to printk in porting layer.
+ * 2. replaced by DBGLOG, which would be XLOG on ALPS platforms.
+ *
+ * 11 02 2011 chinghwa.yu
+ * [WCXRP00000063] Update BCM CoEx design and settings
+ * Fixed typo.
+ *
+ * 09 20 2011 chinglan.wang
+ * [WCXRP00000989] [WiFi Direct] [Driver] Add a new io control API to start the formation for the sigma test.
+ * .
+ *
+ * 07 28 2011 chinghwa.yu
+ * [WCXRP00000063] Update BCM CoEx design and settings
+ * Add BWCS cmd and event.
+ *
+ * 07 18 2011 chinghwa.yu
+ * [WCXRP00000063] Update BCM CoEx design and settings[WCXRP00000612] [MT6620 Wi-Fi] [FW] CSD update SWRDD algorithm
+ * Add CMD/Event for RDD and BWCS.
+ *
+ * 03 17 2011 chinglan.wang
+ * [WCXRP00000570] [MT6620 Wi-Fi][Driver] Add Wi-Fi Protected Setup v2.0 feature
+ * .
+ *
+ * 03 07 2011 terry.wu
+ * [WCXRP00000521] [MT6620 Wi-Fi][Driver] Remove non-standard debug message
+ * Toggle non-standard debug messages to comments.
+ *
+ * 01 27 2011 cm.chang
+ * [WCXRP00000402] [MT6620 Wi-Fi][Driver] Enable MCR read/write by iwpriv by default
+ * .
+ *
+ * 01 26 2011 wh.su
+ * [WCXRP00000396] [MT6620 Wi-Fi][Driver] Support Sw Ctrl ioctl at linux
+ * adding the SW cmd ioctl support, use set/get structure ioctl.
+ *
+ * 01 20 2011 eddie.chen
+ * [WCXRP00000374] [MT6620 Wi-Fi][DRV] SW debug control
+ * Adjust OID order.
+ *
+ * 01 20 2011 eddie.chen
+ * [WCXRP00000374] [MT6620 Wi-Fi][DRV] SW debug control
+ * Add Oid for sw control debug command
+ *
+ * 01 07 2011 cm.chang
+ * [WCXRP00000336] [MT6620 Wi-Fi][Driver] Add test mode commands in normal phone operation
+ * Add a new compiling option to control if MCR read/write is permitted
+ *
+ * 12 31 2010 cm.chang
+ * [WCXRP00000336] [MT6620 Wi-Fi][Driver] Add test mode commands in normal phone operation
+ * Add some iwpriv commands to support test mode operation
+ *
+ * 12 15 2010 george.huang
+ * [WCXRP00000152] [MT6620 Wi-Fi] AP mode power saving function
+ * Support set PS profile and set WMM-PS related iwpriv.
+ *
+ * 11 08 2010 wh.su
+ * [WCXRP00000171] [MT6620 Wi-Fi][Driver] Add message check code same behavior as mt5921
+ * add the message check code from mt5921.
+ *
+ * 10 18 2010 cp.wu
+ * [WCXRP00000056] [MT6620 Wi-Fi][Driver] NVRAM implementation with Version Check
+ * [WCXRP00000086] [MT6620 Wi-Fi][Driver] The mac address is all zero at android
+ * complete implementation of Android NVRAM access
+ *
+ * 09 24 2010 cp.wu
+ * [WCXRP00000056] [MT6620 Wi-Fi][Driver] NVRAM implementation with Version Check
+ * correct typo for NVRAM access.
+ *
+ * 09 23 2010 cp.wu
+ * [WCXRP00000056] [MT6620 Wi-Fi][Driver] NVRAM implementation with Version Check
+ * add skeleton for NVRAM integration
+ *
+ * 08 04 2010 cp.wu
+ * NULL
+ * revert changelist #15371, efuse read/write access will be done by RF test approach
+ *
+ * 08 04 2010 cp.wu
+ * NULL
+ * add OID definitions for EFUSE read/write access.
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 06 06 2010 kevin.huang
+ * [WPD00003832][MT6620 5931] Create driver base
+ * [MT6620 5931] Create driver base
+ *
+ * 06 01 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * enable OID_CUSTOM_MTK_WIFI_TEST for RFTest & META tool
+ *
+ * 05 29 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * fix private ioctl for rftest
+ *
+ * 04 21 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * add for private ioctl support
+**  \main\maintrunk.MT5921\32 2009-10-08 10:33:25 GMT mtk01090
+**  Avoid accessing private data of net_device directly. Replace with netdev_priv(). Add more checking for input
+**  parameters and pointers.
+**  \main\maintrunk.MT5921\31 2009-09-29 16:46:21 GMT mtk01090
+**  Remove unused functions
+**  \main\maintrunk.MT5921\30 2009-09-29 14:46:47 GMT mtk01090
+**  Fix compile warning
+**  \main\maintrunk.MT5921\29 2009-09-29 14:28:48 GMT mtk01090
+**  Fix compile warning
+**  \main\maintrunk.MT5921\28 2009-09-28 22:21:38 GMT mtk01090
+**  Refine lines to suppress compile warning
+**  \main\maintrunk.MT5921\27 2009-09-28 20:19:14 GMT mtk01090
+**  Add private ioctl to carry OID structures. Restructure public/private ioctl interfaces to Linux kernel.
+**  \main\maintrunk.MT5921\26 2009-08-18 22:56:53 GMT mtk01090
+**  Add Linux SDIO (with mmc core) support.
+**  Add Linux 2.6.21, 2.6.25, 2.6.26.
+**  Fix compile warning in Linux.
+**  \main\maintrunk.MT5921\25 2009-05-07 22:26:15 GMT mtk01089
+**  Add mandatory and private IO control for Linux BWCS
+**  \main\maintrunk.MT5921\24 2009-04-29 10:07:05 GMT mtk01088
+**  fixed the compiling error at linux
+**  \main\maintrunk.MT5921\23 2009-04-24 09:09:45 GMT mtk01088
+**  mark the code not used at linux supplicant v0.6.7
+**  \main\maintrunk.MT5921\22 2008-11-24 21:03:51 GMT mtk01425
+**  1. Add PTA_ENABLED flag
+**  \main\maintrunk.MT5921\21 2008-08-29 14:55:59 GMT mtk01088
+**  adjust the code for meet the coding style, and add assert check
+**  \main\maintrunk.MT5921\20 2008-07-16 15:23:20 GMT mtk01104
+**  Support GPIO2 mode
+**  \main\maintrunk.MT5921\19 2008-07-15 17:43:11 GMT mtk01084
+**  modify variable name
+**  \main\maintrunk.MT5921\18 2008-07-14 14:37:58 GMT mtk01104
+**  Add exception handle about length in function priv_set_struct()
+**  \main\maintrunk.MT5921\17 2008-07-14 13:55:32 GMT mtk01104
+**  Support PRIV_CMD_BT_COEXIST
+**  \main\maintrunk.MT5921\16 2008-07-09 00:20:15 GMT mtk01461
+**  Add priv oid to support WMM_PS_TEST
+**  \main\maintrunk.MT5921\15 2008-06-02 11:15:22 GMT mtk01461
+**  Update after wlanoidSetPowerMode changed
+**  \main\maintrunk.MT5921\14 2008-05-30 19:31:07 GMT mtk01461
+**  Add IOCTL for Power Mode
+**  \main\maintrunk.MT5921\13 2008-05-30 18:57:15 GMT mtk01461
+**  Not use wlanoidSetCSUMOffloadForLinux()
+**  \main\maintrunk.MT5921\12 2008-05-30 15:13:18 GMT mtk01084
+**  rename wlanoid
+**  \main\maintrunk.MT5921\11 2008-05-29 14:16:31 GMT mtk01084
+**  rename for wlanoidSetBeaconIntervalForLinux
+**  \main\maintrunk.MT5921\10 2008-04-17 23:06:37 GMT mtk01461
+**  Add iwpriv support for AdHocMode setting
+**  \main\maintrunk.MT5921\9 2008-03-31 21:00:55 GMT mtk01461
+**  Add priv IOCTL for VOIP setting
+**  \main\maintrunk.MT5921\8 2008-03-31 13:49:43 GMT mtk01461
+**  Add priv ioctl to turn on / off roaming
+**  \main\maintrunk.MT5921\7 2008-03-26 15:35:14 GMT mtk01461
+**  Add CSUM offload priv ioctl for Linux
+**  \main\maintrunk.MT5921\6 2008-03-11 14:50:59 GMT mtk01461
+**  Unify priv ioctl
+**  \main\maintrunk.MT5921\5 2007-11-06 19:32:30 GMT mtk01088
+**  add WPS code
+**  \main\maintrunk.MT5921\4 2007-10-30 12:01:39 GMT MTK01425
+**  1. Update wlanQueryInformation and wlanSetInformation
 */
 
 /*******************************************************************************
- *                         C O M P I L E R   F L A G S
- ********************************************************************************
- */
+*                         C O M P I L E R   F L A G S
+********************************************************************************
+*/
 
 /*******************************************************************************
- *                    E X T E R N A L   R E F E R E N C E S
- ********************************************************************************
- */
+*                    E X T E R N A L   R E F E R E N C E S
+********************************************************************************
+*/
 #include "precomp.h"
 
 #include "gl_os.h"
@@ -33,7 +227,7 @@
 *                              C O N S T A N T S
 ********************************************************************************
 */
-#define NUM_SUPPORTED_OIDS		(sizeof(arWlanOidReqTable) / sizeof(WLAN_REQ_ENTRY))
+#define NUM_SUPPORTED_OIDS      (sizeof(arWlanOidReqTable) / sizeof(WLAN_REQ_ENTRY))
 #define CMD_START			"START"
 #define CMD_STOP			"STOP"
 #define CMD_SCAN_ACTIVE			"SCAN-ACTIVE"
@@ -87,11 +281,10 @@
 #define MIRACAST_MCHAN_BW       25
 #endif
 
-#define	CMD_BAND_AUTO		0
+#define	CMD_BAND_AUTO	0
 #define	CMD_BAND_5G		1
 #define	CMD_BAND_2G		2
-#define	CMD_BAND_ALL		3
-#define	CMD_OID_BUF_LENGTH	4096
+#define	CMD_BAND_ALL	3
 
 /* Mediatek private command */
 
@@ -167,20 +360,18 @@ reqExtSetAcpiDevicePowerState(IN P_GLUE_INFO_T prGlueInfo,
 *                       P R I V A T E   D A T A
 ********************************************************************************
 */
-static UINT_8 aucOidBuf[CMD_OID_BUF_LENGTH] = { 0 };
+static UINT_8 aucOidBuf[4096] = { 0 };
 
 /* OID processing table */
-/*
- * Order is important here because the OIDs should be in order of
- * increasing value for binary searching.
- */
+/* Order is important here because the OIDs should be in order of
+   increasing value for binary searching. */
 static WLAN_REQ_ENTRY arWlanOidReqTable[] = {
 	/*
-	 * {(NDIS_OID)rOid,
-	 * (PUINT_8)pucOidName,
-	 * fgQryBufLenChecking, fgSetBufLenChecking, fgIsHandleInGlueLayerOnly, u4InfoBufLen,
-	 * pfOidQueryHandler,
-	 * pfOidSetHandler}
+	   {(NDIS_OID)rOid,
+	   (PUINT_8)pucOidName,
+	   fgQryBufLenChecking, fgSetBufLenChecking, fgIsHandleInGlueLayerOnly, u4InfoBufLen,
+	   pfOidQueryHandler,
+	   pfOidSetHandler}
 	 */
 	/* General Operational Characteristics */
 
@@ -203,11 +394,11 @@ static WLAN_REQ_ENTRY arWlanOidReqTable[] = {
 	 NULL}
 	,
 	/*
-	 * {OID_802_11_CONFIGURATION,
-	 * DISP_STRING("OID_802_11_CONFIGURATION"),
-	 * TRUE, TRUE, ENUM_OID_GLUE_EXTENSION, sizeof(PARAM_802_11_CONFIG_T),
-	 * (PFN_OID_HANDLER_FUNC_REQ)reqExtQueryConfiguration,
-	 * (PFN_OID_HANDLER_FUNC_REQ)reqExtSetConfiguration},
+	   {OID_802_11_CONFIGURATION,
+	   DISP_STRING("OID_802_11_CONFIGURATION"),
+	   TRUE, TRUE, ENUM_OID_GLUE_EXTENSION, sizeof(PARAM_802_11_CONFIG_T),
+	   (PFN_OID_HANDLER_FUNC_REQ)reqExtQueryConfiguration,
+	   (PFN_OID_HANDLER_FUNC_REQ)reqExtSetConfiguration},
 	 */
 	{OID_PNP_SET_POWER,
 	 DISP_STRING("OID_PNP_SET_POWER"),
@@ -225,105 +416,105 @@ static WLAN_REQ_ENTRY arWlanOidReqTable[] = {
 	,
 
 	/*
-	 * #if PTA_ENABLED
-	 * {OID_CUSTOM_BT_COEXIST_CTRL,
-	 * DISP_STRING("OID_CUSTOM_BT_COEXIST_CTRL"),
-	 * FALSE, TRUE, ENUM_OID_DRIVER_CORE, sizeof(PARAM_CUSTOM_BT_COEXIST_T),
-	 * NULL,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetBtCoexistCtrl},
-	 * #endif
+	   #if PTA_ENABLED
+	   {OID_CUSTOM_BT_COEXIST_CTRL,
+	   DISP_STRING("OID_CUSTOM_BT_COEXIST_CTRL"),
+	   FALSE, TRUE, ENUM_OID_DRIVER_CORE, sizeof(PARAM_CUSTOM_BT_COEXIST_T),
+	   NULL,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetBtCoexistCtrl},
+	   #endif
 	 */
 
 	/*
-	 * {OID_CUSTOM_POWER_MANAGEMENT_PROFILE,
-	 * DISP_STRING("OID_CUSTOM_POWER_MANAGEMENT_PROFILE"),
-	 * FALSE, FALSE, ENUM_OID_DRIVER_CORE, 0,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryPwrMgmtProfParam,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetPwrMgmtProfParam},
-	 * {OID_CUSTOM_PATTERN_CONFIG,
-	 * DISP_STRING("OID_CUSTOM_PATTERN_CONFIG"),
-	 * TRUE, TRUE, ENUM_OID_DRIVER_CORE, sizeof(PARAM_CUSTOM_PATTERN_SEARCH_CONFIG_STRUCT_T),
-	 * NULL,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetPatternConfig},
-	 * {OID_CUSTOM_BG_SSID_SEARCH_CONFIG,
-	 * DISP_STRING("OID_CUSTOM_BG_SSID_SEARCH_CONFIG"),
-	 * FALSE, FALSE, ENUM_OID_DRIVER_CORE, 0,
-	 * NULL,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetBgSsidParam},
-	 * {OID_CUSTOM_VOIP_SETUP,
-	 * DISP_STRING("OID_CUSTOM_VOIP_SETUP"),
-	 * TRUE, TRUE, ENUM_OID_DRIVER_CORE, 4,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryVoipConnectionStatus,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetVoipConnectionStatus},
-	 * {OID_CUSTOM_ADD_TS,
-	 * DISP_STRING("OID_CUSTOM_ADD_TS"),
-	 * TRUE, TRUE, ENUM_OID_DRIVER_CORE, 4,
-	 * NULL,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidAddTS},
-	 * {OID_CUSTOM_DEL_TS,
-	 * DISP_STRING("OID_CUSTOM_DEL_TS"),
-	 * TRUE, TRUE, ENUM_OID_DRIVER_CORE, 4,
-	 * NULL,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidDelTS},
+	   {OID_CUSTOM_POWER_MANAGEMENT_PROFILE,
+	   DISP_STRING("OID_CUSTOM_POWER_MANAGEMENT_PROFILE"),
+	   FALSE, FALSE, ENUM_OID_DRIVER_CORE, 0,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryPwrMgmtProfParam,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetPwrMgmtProfParam},
+	   {OID_CUSTOM_PATTERN_CONFIG,
+	   DISP_STRING("OID_CUSTOM_PATTERN_CONFIG"),
+	   TRUE, TRUE, ENUM_OID_DRIVER_CORE, sizeof(PARAM_CUSTOM_PATTERN_SEARCH_CONFIG_STRUCT_T),
+	   NULL,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetPatternConfig},
+	   {OID_CUSTOM_BG_SSID_SEARCH_CONFIG,
+	   DISP_STRING("OID_CUSTOM_BG_SSID_SEARCH_CONFIG"),
+	   FALSE, FALSE, ENUM_OID_DRIVER_CORE, 0,
+	   NULL,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetBgSsidParam},
+	   {OID_CUSTOM_VOIP_SETUP,
+	   DISP_STRING("OID_CUSTOM_VOIP_SETUP"),
+	   TRUE, TRUE, ENUM_OID_DRIVER_CORE, 4,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryVoipConnectionStatus,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetVoipConnectionStatus},
+	   {OID_CUSTOM_ADD_TS,
+	   DISP_STRING("OID_CUSTOM_ADD_TS"),
+	   TRUE, TRUE, ENUM_OID_DRIVER_CORE, 4,
+	   NULL,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidAddTS},
+	   {OID_CUSTOM_DEL_TS,
+	   DISP_STRING("OID_CUSTOM_DEL_TS"),
+	   TRUE, TRUE, ENUM_OID_DRIVER_CORE, 4,
+	   NULL,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidDelTS},
 	 */
 
 	/*
-	 * #if CFG_LP_PATTERN_SEARCH_SLT
-	 * {OID_CUSTOM_SLT,
-	 * DISP_STRING("OID_CUSTOM_SLT"),
-	 * FALSE, FALSE, ENUM_OID_DRIVER_CORE, 0,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidQuerySltResult,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetSltMode},
-	 * #endif
-	 *
-	 * {OID_CUSTOM_ROAMING_EN,
-	 * DISP_STRING("OID_CUSTOM_ROAMING_EN"),
-	 * TRUE, TRUE, ENUM_OID_DRIVER_CORE, 4,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryRoamingFunction,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetRoamingFunction},
-	 * {OID_CUSTOM_WMM_PS_TEST,
-	 * DISP_STRING("OID_CUSTOM_WMM_PS_TEST"),
-	 * TRUE, TRUE, ENUM_OID_DRIVER_CORE, 4,
-	 * NULL,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetWiFiWmmPsTest},
-	 * {OID_CUSTOM_COUNTRY_STRING,
-	 * DISP_STRING("OID_CUSTOM_COUNTRY_STRING"),
-	 * FALSE, FALSE, ENUM_OID_DRIVER_CORE, 0,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryCurrentCountry,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetCurrentCountry},
-	 *
-	 * #if CFG_SUPPORT_802_11D
-	 * {OID_CUSTOM_MULTI_DOMAIN_CAPABILITY,
-	 * DISP_STRING("OID_CUSTOM_MULTI_DOMAIN_CAPABILITY"),
-	 * FALSE, FALSE, ENUM_OID_DRIVER_CORE, 0,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryMultiDomainCap,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetMultiDomainCap},
-	 * #endif
-	 *
-	 * {OID_CUSTOM_GPIO2_MODE,
-	 * DISP_STRING("OID_CUSTOM_GPIO2_MODE"),
-	 * FALSE, TRUE, ENUM_OID_DRIVER_CORE, sizeof(ENUM_PARAM_GPIO2_MODE_T),
-	 * NULL,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetGPIO2Mode},
-	 * {OID_CUSTOM_CONTINUOUS_POLL,
-	 * DISP_STRING("OID_CUSTOM_CONTINUOUS_POLL"),
-	 * FALSE, TRUE, ENUM_OID_DRIVER_CORE, sizeof(PARAM_CONTINUOUS_POLL_T),
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryContinuousPollInterval,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetContinuousPollProfile},
-	 * {OID_CUSTOM_DISABLE_BEACON_DETECTION,
-	 * DISP_STRING("OID_CUSTOM_DISABLE_BEACON_DETECTION"),
-	 * FALSE, TRUE, ENUM_OID_DRIVER_CORE, 4,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryDisableBeaconDetectionFunc,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetDisableBeaconDetectionFunc},
+	   #if CFG_LP_PATTERN_SEARCH_SLT
+	   {OID_CUSTOM_SLT,
+	   DISP_STRING("OID_CUSTOM_SLT"),
+	   FALSE, FALSE, ENUM_OID_DRIVER_CORE, 0,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidQuerySltResult,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetSltMode},
+	   #endif
+
+	   {OID_CUSTOM_ROAMING_EN,
+	   DISP_STRING("OID_CUSTOM_ROAMING_EN"),
+	   TRUE, TRUE, ENUM_OID_DRIVER_CORE, 4,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryRoamingFunction,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetRoamingFunction},
+	   {OID_CUSTOM_WMM_PS_TEST,
+	   DISP_STRING("OID_CUSTOM_WMM_PS_TEST"),
+	   TRUE, TRUE, ENUM_OID_DRIVER_CORE, 4,
+	   NULL,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetWiFiWmmPsTest},
+	   {OID_CUSTOM_COUNTRY_STRING,
+	   DISP_STRING("OID_CUSTOM_COUNTRY_STRING"),
+	   FALSE, FALSE, ENUM_OID_DRIVER_CORE, 0,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryCurrentCountry,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetCurrentCountry},
+
+	   #if CFG_SUPPORT_802_11D
+	   {OID_CUSTOM_MULTI_DOMAIN_CAPABILITY,
+	   DISP_STRING("OID_CUSTOM_MULTI_DOMAIN_CAPABILITY"),
+	   FALSE, FALSE, ENUM_OID_DRIVER_CORE, 0,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryMultiDomainCap,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetMultiDomainCap},
+	   #endif
+
+	   {OID_CUSTOM_GPIO2_MODE,
+	   DISP_STRING("OID_CUSTOM_GPIO2_MODE"),
+	   FALSE, TRUE, ENUM_OID_DRIVER_CORE, sizeof(ENUM_PARAM_GPIO2_MODE_T),
+	   NULL,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetGPIO2Mode},
+	   {OID_CUSTOM_CONTINUOUS_POLL,
+	   DISP_STRING("OID_CUSTOM_CONTINUOUS_POLL"),
+	   FALSE, TRUE, ENUM_OID_DRIVER_CORE, sizeof(PARAM_CONTINUOUS_POLL_T),
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryContinuousPollInterval,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetContinuousPollProfile},
+	   {OID_CUSTOM_DISABLE_BEACON_DETECTION,
+	   DISP_STRING("OID_CUSTOM_DISABLE_BEACON_DETECTION"),
+	   FALSE, TRUE, ENUM_OID_DRIVER_CORE, 4,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryDisableBeaconDetectionFunc,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetDisableBeaconDetectionFunc},
 	 */
 
 	/* WPS */
 	/*
-	 * {OID_CUSTOM_DISABLE_PRIVACY_CHECK,
-	 * DISP_STRING("OID_CUSTOM_DISABLE_PRIVACY_CHECK"),
-	 * FALSE, TRUE, ENUM_OID_DRIVER_CORE, 4,
-	 * NULL,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetDisablePriavcyCheck},
+	   {OID_CUSTOM_DISABLE_PRIVACY_CHECK,
+	   DISP_STRING("OID_CUSTOM_DISABLE_PRIVACY_CHECK"),
+	   FALSE, TRUE, ENUM_OID_DRIVER_CORE, 4,
+	   NULL,
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetDisablePriavcyCheck},
 	 */
 
 	{OID_CUSTOM_MCR_RW,
@@ -362,16 +553,16 @@ static WLAN_REQ_ENTRY arWlanOidReqTable[] = {
 	,
 
 	/*
-	 * {OID_CUSTOM_TEST_RX_STATUS,
-	 * DISP_STRING("OID_CUSTOM_TEST_RX_STATUS"),
-	 * FALSE, TRUE, ENUM_OID_DRIVER_CORE, sizeof(PARAM_CUSTOM_RFTEST_RX_STATUS_STRUCT_T),
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryRfTestRxStatus,
-	 * NULL},
-	 * {OID_CUSTOM_TEST_TX_STATUS,
-	 * DISP_STRING("OID_CUSTOM_TEST_TX_STATUS"),
-	 * FALSE, TRUE, ENUM_OID_DRIVER_CORE, sizeof(PARAM_CUSTOM_RFTEST_TX_STATUS_STRUCT_T),
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryRfTestTxStatus,
-	 * NULL},
+	   {OID_CUSTOM_TEST_RX_STATUS,
+	   DISP_STRING("OID_CUSTOM_TEST_RX_STATUS"),
+	   FALSE, TRUE, ENUM_OID_DRIVER_CORE, sizeof(PARAM_CUSTOM_RFTEST_RX_STATUS_STRUCT_T),
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryRfTestRxStatus,
+	   NULL},
+	   {OID_CUSTOM_TEST_TX_STATUS,
+	   DISP_STRING("OID_CUSTOM_TEST_TX_STATUS"),
+	   FALSE, TRUE, ENUM_OID_DRIVER_CORE, sizeof(PARAM_CUSTOM_RFTEST_TX_STATUS_STRUCT_T),
+	   (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryRfTestTxStatus,
+	   NULL},
 	 */
 	{OID_CUSTOM_ABORT_TEST_MODE,
 	 DISP_STRING("OID_CUSTOM_ABORT_TEST_MODE"),
@@ -381,7 +572,7 @@ static WLAN_REQ_ENTRY arWlanOidReqTable[] = {
 	,
 	{OID_CUSTOM_MTK_WIFI_TEST,
 	 DISP_STRING("OID_CUSTOM_MTK_WIFI_TEST"),
-	 FALSE, FALSE, ENUM_OID_DRIVER_CORE, sizeof(PARAM_MTK_WIFI_TEST_STRUCT_T),
+	 TRUE, TRUE, ENUM_OID_DRIVER_CORE, sizeof(PARAM_MTK_WIFI_TEST_STRUCT_T),
 	 (PFN_OID_HANDLER_FUNC_REQ) wlanoidRftestQueryAutoTest,
 	 (PFN_OID_HANDLER_FUNC_REQ) wlanoidRftestSetAutoTest}
 	,
@@ -398,18 +589,17 @@ static WLAN_REQ_ENTRY arWlanOidReqTable[] = {
 	,
 #endif
 
-	/*
-	 * {OID_CUSTOM_SINGLE_ANTENNA,
-	 * DISP_STRING("OID_CUSTOM_SINGLE_ANTENNA"),
-	 * FALSE, FALSE, ENUM_OID_DRIVER_CORE, 4,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryBtSingleAntenna,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetBtSingleAntenna},
-	 * {OID_CUSTOM_SET_PTA,
-	 * DISP_STRING("OID_CUSTOM_SET_PTA"),
-	 * FALSE, FALSE, ENUM_OID_DRIVER_CORE, 4,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryPta,
-	 * (PFN_OID_HANDLER_FUNC_REQ)wlanoidSetPta},
-	 */
+/*    {OID_CUSTOM_SINGLE_ANTENNA,
+	DISP_STRING("OID_CUSTOM_SINGLE_ANTENNA"),
+	FALSE, FALSE, ENUM_OID_DRIVER_CORE, 4,
+	(PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryBtSingleAntenna,
+	(PFN_OID_HANDLER_FUNC_REQ)wlanoidSetBtSingleAntenna},
+    {OID_CUSTOM_SET_PTA,
+	DISP_STRING("OID_CUSTOM_SET_PTA"),
+	FALSE, FALSE, ENUM_OID_DRIVER_CORE, 4,
+	(PFN_OID_HANDLER_FUNC_REQ)wlanoidQueryPta,
+	(PFN_OID_HANDLER_FUNC_REQ)wlanoidSetPta},
+    */
 
 	{OID_CUSTOM_MTK_NVRAM_RW,
 	 DISP_STRING("OID_CUSTOM_MTK_NVRAM_RW"),
@@ -787,7 +977,7 @@ _priv_set_int(IN struct net_device *prNetDev,
 	ASSERT(prIwReqData);
 	ASSERT(pcExtra);
 
-	if (GLUE_CHK_PR3(prNetDev, prIwReqData, pcExtra) == FALSE)
+	if (FALSE == GLUE_CHK_PR3(prNetDev, prIwReqData, pcExtra))
 		return -EINVAL;
 	prGlueInfo = *((P_GLUE_INFO_T *) netdev_priv(prNetDev));
 
@@ -952,7 +1142,7 @@ _priv_set_int(IN struct net_device *prNetDev,
 		status = wlanoidSetBT(prGlueInfo->prAdapter,
 				      (PVOID)&aucOidBuf[0], sizeof(PARAM_PTA_IPC_T), &u4BufLen);
 
-		if (status != WLAN_STATUS_SUCCESS)
+		if (WLAN_STATUS_SUCCESS != status)
 			status = -EFAULT;
 
 		break;
@@ -1000,22 +1190,22 @@ _priv_set_int(IN struct net_device *prNetDev,
 
 			/* move out to caller to avoid kalIoctrl & suspend/resume deadlock problem ALPS00844864 */
 			/*
-			 * Scenario:
-			 * 1. System enters suspend/resume but not yet enter wlanearlysuspend()
-			 * or wlanlateresume();
-			 *
-			 * 2. System switches to do PRIV_CMD_P2P_MODE and execute kalIoctl()
-			 * and get g_halt_sem then do glRegisterEarlySuspend() or
-			 * glUnregisterEarlySuspend();
-			 *
-			 * But system suspend/resume procedure is not yet finished so we
-			 * suspend;
-			 *
-			 * 3. System switches back to do suspend/resume procedure and execute
-			 * kalIoctl(). But driver does not yet release g_halt_sem so system
-			 * suspend in wlanearlysuspend() or wlanlateresume();
-			 *
-			 * ==> deadlock occurs.
+			   Scenario:
+			   1. System enters suspend/resume but not yet enter wlanearlysuspend()
+			   or wlanlateresume();
+
+			   2. System switches to do PRIV_CMD_P2P_MODE and execute kalIoctl()
+			   and get g_halt_sem then do glRegisterEarlySuspend() or
+			   glUnregisterEarlySuspend();
+
+			   But system suspend/resume procedure is not yet finished so we
+			   suspend;
+
+			   3. System switches back to do suspend/resume procedure and execute
+			   kalIoctl(). But driver does not yet release g_halt_sem so system
+			   suspend in wlanearlysuspend() or wlanlateresume();
+
+			   ==> deadlock occurs.
 			 */
 			if ((!rSetP2P.u4Enable) && (g_u4HaltFlag == 0) && (fgIsResetting == FALSE)) {
 				/* fgIsP2PRegistered == TRUE means P2P is enabled */
@@ -1054,8 +1244,8 @@ _priv_set_int(IN struct net_device *prNetDev,
 			/* PARAM_CUSTOM_WFD_DEBUG_STRUCT_T rWfdDebugModeInfo; */
 			/* rWfdDebugModeInfo.ucWFDDebugMode=(UINT_8)pu4IntBuf[1]; */
 			/* rWfdDebugModeInfo.u2SNPeriod=(UINT_16)pu4IntBuf[2]; */
-			/* DBGLOG(REQ, INFO,("WFD Debug Mode:%d Period:%d\n", */
-			/* rWfdDebugModeInfo.ucWFDDebugMode,rWfdDebugModeInfo.u2SNPeriod)); */
+			/* DBGLOG(REQ, INFO,("WFD Debug Mode:%d Period:%d\n",
+			rWfdDebugModeInfo.ucWFDDebugMode,rWfdDebugModeInfo.u2SNPeriod)); */
 			prGlueInfo->u8MetProfEnable = (UINT_8) pu4IntBuf[1];
 			prGlueInfo->u16MetUdpPort = (UINT_16) pu4IntBuf[2];
 			DBGLOG(REQ, INFO, "MET_PROF: Enable=%d UDP_PORT=%d\n", prGlueInfo->u8MetProfEnable,
@@ -1117,7 +1307,7 @@ _priv_get_int(IN struct net_device *prNetDev,
 	ASSERT(prIwReqInfo);
 	ASSERT(prIwReqData);
 	ASSERT(pcExtra);
-	if (GLUE_CHK_PR3(prNetDev, prIwReqData, pcExtra) == FALSE)
+	if (FALSE == GLUE_CHK_PR3(prNetDev, prIwReqData, pcExtra))
 		return -EINVAL;
 	prGlueInfo = *((P_GLUE_INFO_T *) netdev_priv(prNetDev));
 
@@ -1140,11 +1330,11 @@ _priv_get_int(IN struct net_device *prNetDev,
 			/* printk("Result=%ld\n", *(PUINT_32)&prNdisReq->ndisOidContent[4]); */
 			prIwReqData->mode = *(PUINT_32) &prNdisReq->ndisOidContent[4];
 			/*
-			 * if (copy_to_user(prIwReqData->data.pointer,
-			 * &prNdisReq->ndisOidContent[4], 4)) {
-			 * printk(KERN_NOTICE "priv_get_int() copy_to_user oidBuf fail(3)\n");
-			 * return -EFAULT;
-			 * }
+			   if (copy_to_user(prIwReqData->data.pointer,
+			   &prNdisReq->ndisOidContent[4], 4)) {
+			   printk(KERN_NOTICE "priv_get_int() copy_to_user oidBuf fail(3)\n");
+			   return -EFAULT;
+			   }
 			 */
 		}
 		return status;
@@ -1248,7 +1438,7 @@ _priv_get_int(IN struct net_device *prNetDev,
 			UINT_8 NumOfChannel = 50;
 			UINT_8 ucMaxChannelNum = 50;
 			INT_32 ch[50];
-			/* RF_CHANNEL_INFO_T aucChannelList[50]; */
+			/*RF_CHANNEL_INFO_T aucChannelList[50];*/
 			P_RF_CHANNEL_INFO_T paucChannelList;
 			P_RF_CHANNEL_INFO_T ChannelList_t;
 
@@ -1272,9 +1462,9 @@ _priv_get_int(IN struct net_device *prNetDev,
 						|| ChannelList_t->ucChannelNum == 40
 						|| ChannelList_t->ucChannelNum == 44
 						|| ChannelList_t->ucChannelNum == 48)) {
-						ch[j] = (INT_32) ChannelList_t->ucChannelNum;
-						ChannelList_t++;
-						j++;
+							ch[j] = (INT_32) ChannelList_t->ucChannelNum;
+							ChannelList_t++;
+							j++;
 					}
 				}
 			} else {
@@ -1317,10 +1507,7 @@ _priv_get_int(IN struct net_device *prNetDev,
 			wlanQueryDebugCode(prGlueInfo->prAdapter);
 
 			kalMemSet(gucBufDbgCode, '.', sizeof(gucBufDbgCode));
-			u4BufLen = prIwReqData->data.length;
-			if (u4BufLen > sizeof(gucBufDbgCode))
-				u4BufLen = sizeof(gucBufDbgCode);
-			if (copy_to_user(prIwReqData->data.pointer, gucBufDbgCode, u4BufLen))
+			if (copy_to_user(prIwReqData->data.pointer, gucBufDbgCode, prIwReqData->data.length))
 				return -EFAULT;
 			else
 				return status;
@@ -1352,9 +1539,7 @@ static int
 _priv_set_ints(IN struct net_device *prNetDev,
 	      IN struct iw_request_info *prIwReqInfo, IN union iwreq_data *prIwReqData, IN char *pcExtra)
 {
-	UINT_16 i = 0;
-	UINT_32 u4SubCmd, u4BufLen, u4CmdLen;
-	INT_32  setting[4] = {0};
+	UINT_32 u4SubCmd, u4BufLen;
 	P_GLUE_INFO_T prGlueInfo;
 	int status = 0;
 	WLAN_STATUS rStatus = WLAN_STATUS_SUCCESS;
@@ -1365,20 +1550,24 @@ _priv_set_ints(IN struct net_device *prNetDev,
 	ASSERT(prIwReqData);
 	ASSERT(pcExtra);
 
-	if (GLUE_CHK_PR3(prNetDev, prIwReqData, pcExtra) == FALSE)
+	if (FALSE == GLUE_CHK_PR3(prNetDev, prIwReqData, pcExtra))
 		return -EINVAL;
 	prGlueInfo = *((P_GLUE_INFO_T *) netdev_priv(prNetDev));
 
 	u4SubCmd = (UINT_32) prIwReqData->data.flags;
-	u4CmdLen = (UINT_32) prIwReqData->data.length;
 
 	switch (u4SubCmd) {
 	case PRIV_CMD_SET_TX_POWER:
 		{
-			if (u4CmdLen > 4)
-				return -EINVAL;
-			if (copy_from_user(setting, prIwReqData->data.pointer, u4CmdLen))
-				return -EFAULT;
+			INT_32 *setting = prIwReqData->data.pointer;
+			UINT_16 i;
+
+#if 0
+			DBGLOG(REQ, INFO, "Tx power num = %d\n", prIwReqData->data.length);
+
+			DBGLOG(REQ, INFO, "Tx power setting = %d %d %d %d\n",
+				setting[0], setting[1], setting[2], setting[3]);
+#endif
 			prTxpwr = &prGlueInfo->rTxPwr;
 			if (setting[0] == 0 && prIwReqData->data.length == 4 /* argc num */) {
 				/* 0 (All networks), 1 (legacy STA), 2 (Hotspot AP), 3 (P2P), 4 (BT over Wi-Fi) */
@@ -1466,7 +1655,7 @@ _priv_get_ints(IN struct net_device *prNetDev,
 	ASSERT(prIwReqInfo);
 	ASSERT(prIwReqData);
 	ASSERT(pcExtra);
-	if (GLUE_CHK_PR3(prNetDev, prIwReqData, pcExtra) == FALSE)
+	if (FALSE == GLUE_CHK_PR3(prNetDev, prIwReqData, pcExtra))
 		return -EINVAL;
 	prGlueInfo = *((P_GLUE_INFO_T *) netdev_priv(prNetDev));
 
@@ -1535,6 +1724,7 @@ _priv_set_struct(IN struct net_device *prNetDev,
 	/* WLAN_STATUS rStatus = WLAN_STATUS_SUCCESS; */
 	UINT_32 u4CmdLen = 0;
 	P_NDIS_TRANSPORT_STRUCT prNdisReq;
+	PUINT_32 pu4IntBuf = NULL;
 
 	P_GLUE_INFO_T prGlueInfo = NULL;
 	UINT_32 u4BufLen = 0;
@@ -1546,7 +1736,7 @@ _priv_set_struct(IN struct net_device *prNetDev,
 
 	kalMemZero(&aucOidBuf[0], sizeof(aucOidBuf));
 
-	if (GLUE_CHK_PR2(prNetDev, prIwReqData) == FALSE)
+	if (FALSE == GLUE_CHK_PR2(prNetDev, prIwReqData))
 		return -EINVAL;
 	prGlueInfo = *((P_GLUE_INFO_T *) netdev_priv(prNetDev));
 
@@ -1572,7 +1762,7 @@ _priv_set_struct(IN struct net_device *prNetDev,
 
 		rStatus = wlanSetInformation(prGlueInfo->prAdapter,
 					     wlanoidSetBtCoexistCtrl, (PVOID)&aucOidBuf[0], u4CmdLen, &u4BufLen);
-		if (rStatus != WLAN_STATUS_SUCCESS)
+		if (WLAN_STATUS_SUCCESS != rStatus)
 			status = -EFAULT;
 		break;
 #endif
@@ -1611,7 +1801,7 @@ _priv_set_struct(IN struct net_device *prNetDev,
 		status = wlanoidSetBT(prGlueInfo->prAdapter, (PVOID)&aucOidBuf[0], u4CmdLen, &u4BufLen);
 #endif
 
-		if (status != WLAN_STATUS_SUCCESS)
+		if (WLAN_STATUS_SUCCESS != status)
 			status = -EFAULT;
 
 		break;
@@ -1620,19 +1810,13 @@ _priv_set_struct(IN struct net_device *prNetDev,
 	case PRIV_CMD_WSC_PROBE_REQ:
 		{
 			/* retrieve IE for Probe Request */
-			u4CmdLen = prIwReqData->data.length;
-			if (u4CmdLen > GLUE_INFO_WSCIE_LENGTH) {
-				DBGLOG(REQ, ERROR, "Input data length is invalid %u\n", u4CmdLen);
-				return -EINVAL;
-			}
-
-			if (u4CmdLen > 0) {
-				if (copy_from_user(prGlueInfo->aucWSCIE, prIwReqData->data.pointer, u4CmdLen)) {
-					DBGLOG(REQ, ERROR, "Copy from user failed\n");
+			if (prIwReqData->data.length > 0) {
+				if (copy_from_user(prGlueInfo->aucWSCIE, prIwReqData->data.pointer,
+						   prIwReqData->data.length)) {
 					status = -EFAULT;
 					break;
 				}
-				prGlueInfo->u2WSCIELen = u4CmdLen;
+				prGlueInfo->u2WSCIELen = prIwReqData->data.length;
 			} else {
 				prGlueInfo->u2WSCIELen = 0;
 			}
@@ -1640,17 +1824,11 @@ _priv_set_struct(IN struct net_device *prNetDev,
 		break;
 #endif
 	case PRIV_CMD_OID:
-		u4CmdLen = prIwReqData->data.length;
-		if (u4CmdLen > CMD_OID_BUF_LENGTH) {
-			DBGLOG(REQ, ERROR, "Input data length is invalid %u\n", u4CmdLen);
-			return -EINVAL;
-		}
-
-		if (copy_from_user(&aucOidBuf[0], prIwReqData->data.pointer, u4CmdLen)) {
+		if (copy_from_user(&aucOidBuf[0], prIwReqData->data.pointer, prIwReqData->data.length)) {
 			status = -EFAULT;
 			break;
 		}
-		if (!kalMemCmp(&aucOidBuf[0], pcExtra, u4CmdLen))
+		if (!kalMemCmp(&aucOidBuf[0], pcExtra, prIwReqData->data.length))
 			DBGLOG(REQ, INFO, "pcExtra buffer is valid\n");
 		else
 			DBGLOG(REQ, INFO, "pcExtra 0x%p\n", pcExtra);
@@ -1668,15 +1846,12 @@ _priv_set_struct(IN struct net_device *prNetDev,
 		break;
 
 	case PRIV_CMD_SW_CTRL:
-		u4CmdLen = prIwReqData->data.length;
+		pu4IntBuf = (PUINT_32) prIwReqData->data.pointer;
 		prNdisReq = (P_NDIS_TRANSPORT_STRUCT) &aucOidBuf[0];
 
-		if (u4CmdLen > (sizeof(aucOidBuf) - OFFSET_OF(NDIS_TRANSPORT_STRUCT, ndisOidContent))) {
-			DBGLOG(REQ, ERROR, "Input data length is invalid %u\n", u4CmdLen);
-			return -EINVAL;
-		}
-
-		if (copy_from_user(&prNdisReq->ndisOidContent[0], prIwReqData->data.pointer, u4CmdLen)) {
+		/* kalMemCopy(&prNdisReq->ndisOidContent[0], prIwReqData->data.pointer, 8); */
+		if (copy_from_user(&prNdisReq->ndisOidContent[0], prIwReqData->data.pointer,
+			prIwReqData->data.length)) {
 			status = -EFAULT;
 			break;
 		}
@@ -1718,6 +1893,7 @@ _priv_get_struct(IN struct net_device *prNetDev,
 
 	P_GLUE_INFO_T prGlueInfo = NULL;
 	UINT_32 u4BufLen = 0;
+	PUINT_32 pu4IntBuf = NULL;
 	int status = 0;
 
 	kalMemZero(&aucOidBuf[0], sizeof(aucOidBuf));
@@ -1745,8 +1921,7 @@ _priv_get_struct(IN struct net_device *prNetDev,
 
 	switch (u4SubCmd) {
 	case PRIV_CMD_OID:
-		if (copy_from_user(&aucOidBuf[0], prIwReqData->data.pointer,
-					sizeof(NDIS_TRANSPORT_STRUCT) + sizeof(UINT_8)*16)) {
+		if (copy_from_user(&aucOidBuf[0], prIwReqData->data.pointer, sizeof(NDIS_TRANSPORT_STRUCT))) {
 			DBGLOG(REQ, INFO, "priv_get_struct() copy_from_user oidBuf fail\n");
 			return -EFAULT;
 		}
@@ -1760,7 +1935,7 @@ _priv_get_struct(IN struct net_device *prNetDev,
 			prNdisReq->outNdisOidLength = u4BufLen;
 			if (copy_to_user(prIwReqData->data.pointer,
 					 &aucOidBuf[0],
-					 u4BufLen + sizeof(NDIS_TRANSPORT_STRUCT) + sizeof(UINT_8)*16 -
+					 u4BufLen + sizeof(NDIS_TRANSPORT_STRUCT) -
 					 sizeof(prNdisReq->ndisOidContent))) {
 				DBGLOG(REQ, INFO, "priv_get_struct() copy_to_user oidBuf fail(1)\n");
 				return -EFAULT;
@@ -1775,16 +1950,11 @@ _priv_get_struct(IN struct net_device *prNetDev,
 		return -EFAULT;
 
 	case PRIV_CMD_SW_CTRL:
+		pu4IntBuf = (PUINT_32) prIwReqData->data.pointer;
 		prNdisReq = (P_NDIS_TRANSPORT_STRUCT) &aucOidBuf[0];
 
-		if (prIwReqData->data.length > (sizeof(aucOidBuf) - OFFSET_OF(NDIS_TRANSPORT_STRUCT, ndisOidContent))) {
-			DBGLOG(REQ, INFO, "priv_get_struct() exceeds length limit\n");
-			return -EFAULT;
-		}
-
-		if (copy_from_user(&prNdisReq->ndisOidContent[0],
-				   prIwReqData->data.pointer,
-				   prIwReqData->data.length)) {
+		if (copy_from_user(&prNdisReq->ndisOidContent[0], prIwReqData->data.pointer,
+			prIwReqData->data.length)) {
 			DBGLOG(REQ, INFO, "priv_get_struct() copy_from_user oidBuf fail\n");
 			return -EFAULT;
 		}
@@ -1857,12 +2027,12 @@ priv_set_ndis(IN struct net_device *prNetDev, IN NDIS_TRANSPORT_STRUCT * prNdisR
 	DBGLOG(REQ, INFO, "priv_set_ndis(): prNdisReq->ndisOidCmd(0x%lX)\n", prNdisReq->ndisOidCmd);
 #endif
 
-	if (reqSearchSupportedOidEntry(prNdisReq->ndisOidCmd, &prWlanReqEntry) == FALSE) {
+	if (FALSE == reqSearchSupportedOidEntry(prNdisReq->ndisOidCmd, &prWlanReqEntry)) {
 		/* WARNLOG(("Set OID: 0x%08lx (unknown)\n", prNdisReq->ndisOidCmd)); */
 		return -EOPNOTSUPP;
 	}
 
-	if (prWlanReqEntry->pfOidSetHandler == NULL) {
+	if (NULL == prWlanReqEntry->pfOidSetHandler) {
 		/* WARNLOG(("Set %s: Null set handler\n", prWlanReqEntry->pucOidName)); */
 		return -EOPNOTSUPP;
 	}
@@ -1917,7 +2087,7 @@ priv_set_ndis(IN struct net_device *prNetDev, IN NDIS_TRANSPORT_STRUCT * prNdisR
 		break;
 	}
 
-	if (status != WLAN_STATUS_SUCCESS)
+	if (WLAN_STATUS_SUCCESS != status)
 		return -EFAULT;
 
 	return 0;
@@ -1970,12 +2140,12 @@ priv_get_ndis(IN struct net_device *prNetDev, IN NDIS_TRANSPORT_STRUCT * prNdisR
 	DBGLOG(REQ, INFO, "priv_get_ndis(): prNdisReq->ndisOidCmd(0x%lX)\n", prNdisReq->ndisOidCmd);
 #endif
 
-	if (reqSearchSupportedOidEntry(prNdisReq->ndisOidCmd, &prWlanReqEntry) == FALSE) {
+	if (FALSE == reqSearchSupportedOidEntry(prNdisReq->ndisOidCmd, &prWlanReqEntry)) {
 		/* WARNLOG(("Query OID: 0x%08lx (unknown)\n", prNdisReq->ndisOidCmd)); */
 		return -EOPNOTSUPP;
 	}
 
-	if (prWlanReqEntry->pfOidQueryHandler == NULL) {
+	if (NULL == prWlanReqEntry->pfOidQueryHandler) {
 		/* WARNLOG(("Query %s: Null query handler\n", prWlanReqEntry->pucOidName)); */
 		return -EOPNOTSUPP;
 	}
@@ -2034,7 +2204,7 @@ priv_get_ndis(IN struct net_device *prNetDev, IN NDIS_TRANSPORT_STRUCT * prNdisR
 		break;
 	}
 
-	if (status != WLAN_STATUS_SUCCESS)
+	if (WLAN_STATUS_SUCCESS != status)
 		return -EOPNOTSUPP;
 
 	return 0;
@@ -2207,10 +2377,10 @@ _priv_set_string(IN struct net_device *prNetDev,
 		IN struct iw_request_info *prIwReqInfo, IN union iwreq_data *prIwReqData, IN char *pcExtra)
 {
 	P_GLUE_INFO_T GlueInfo;
-	INT_32 status = 0;
-	UINT_32 subcmd;
-	UINT_8 *pucInBuf = aucOidBuf;
-	UINT_32 u4BufLen;
+	INT_32 Status;
+	UINT_32 Subcmd;
+	UINT_8 *InBuf;
+	UINT_32 InBufLen;
 
 	/* sanity check */
 	ASSERT(prNetDev);
@@ -2218,36 +2388,36 @@ _priv_set_string(IN struct net_device *prNetDev,
 	ASSERT(prIwReqData);
 	ASSERT(pcExtra);
 
+	/* init */
+	DBGLOG(REQ, INFO, "priv_set_string (%s)(%d)\n",
+			   (UINT8 *) prIwReqData->data.pointer, (INT32) prIwReqData->data.length);
 
-	if (GLUE_CHK_PR3(prNetDev, prIwReqData, pcExtra) == FALSE)
+	if (FALSE == GLUE_CHK_PR3(prNetDev, prIwReqData, pcExtra))
 		return -EINVAL;
-
-	u4BufLen = prIwReqData->data.length;
 	GlueInfo = *((P_GLUE_INFO_T *) netdev_priv(prNetDev));
 
-	if (u4BufLen > CMD_OID_BUF_LENGTH) {
-		DBGLOG(REQ, ERROR, "Input data length is invalid %u\n", u4BufLen);
-		return -EINVAL;
-	}
+	InBuf = aucOidBuf;
+	InBufLen = prIwReqData->data.length;
+	Status = 0;
 
-	if (copy_from_user(pucInBuf, prIwReqData->data.pointer, u4BufLen))
+	if (copy_from_user(InBuf, prIwReqData->data.pointer, prIwReqData->data.length))
 		return -EFAULT;
 
-	subcmd = CmdStringDecParse(prIwReqData->data.pointer, &pucInBuf, &u4BufLen);
-	DBGLOG(REQ, INFO, "priv_set_string> command = %u\n", (UINT32) subcmd);
+	Subcmd = CmdStringDecParse(prIwReqData->data.pointer, &InBuf, &InBufLen);
+	DBGLOG(REQ, INFO, "priv_set_string> command = %u\n", (UINT32) Subcmd);
 
 	/* handle the command */
-	switch (subcmd) {
+	switch (Subcmd) {
 #if (CFG_SUPPORT_TDLS == 1)
 	case PRIV_CMD_OTHER_TDLS:
-		TdlsexCmd(GlueInfo, pucInBuf, u4BufLen);
+		TdlsexCmd(GlueInfo, InBuf, InBufLen);
 		break;
 #endif /* CFG_SUPPORT_TDLS */
 
 #if (CFG_SUPPORT_TXR_ENC == 1)
 	case PRIV_CMD_OTHER_TAR:
 	{
-		rlmCmd(GlueInfo, pucInBuf, u4BufLen);
+		rlmCmd(GlueInfo, InBuf, InBufLen);
 		break;
 	}
 #endif /* CFG_SUPPORT_TXR_ENC */
@@ -2255,7 +2425,7 @@ _priv_set_string(IN struct net_device *prNetDev,
 		break;
 	}
 
-	return status;
+	return Status;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2507,7 +2677,7 @@ int priv_driver_set_chip_config(IN struct net_device *prNetDev, IN char *pcComma
 	PARAM_CUSTOM_CHIP_CONFIG_STRUCT_T rChipConfigInfo;
 
 	ASSERT(prNetDev);
-	if (GLUE_CHK_PR2(prNetDev, pcCommand) == FALSE)
+	if (FALSE == GLUE_CHK_PR2(prNetDev, pcCommand))
 		return -1;
 	prGlueInfo = *((P_GLUE_INFO_T *) netdev_priv(prNetDev));
 	prAdapter = prGlueInfo->prAdapter;
@@ -2566,7 +2736,7 @@ int priv_driver_set_miracast(IN struct net_device *prNetDev, IN char *pcCommand,
 	INT_32 u4Ret;
 
 	ASSERT(prNetDev);
-	if (GLUE_CHK_PR2(prNetDev, pcCommand) == FALSE)
+	if (FALSE == GLUE_CHK_PR2(prNetDev, pcCommand))
 		return -1;
 
 	prGlueInfo = *((P_GLUE_INFO_T *) netdev_priv(prNetDev));
@@ -2702,21 +2872,21 @@ INT_32 priv_driver_cmds(IN struct net_device *prNetDev, IN PCHAR pcCommand, IN I
 	INT_32 i4BytesWritten = 0;
 	INT_32 i4CmdFound = 0;
 
-	if (GLUE_CHK_PR2(prNetDev, pcCommand) == FALSE)
+	if (FALSE == GLUE_CHK_PR2(prNetDev, pcCommand))
 		return -1;
 	prGlueInfo = *((P_GLUE_INFO_T *) netdev_priv(prNetDev));
 
 	if (i4CmdFound == 0) {
 		i4CmdFound = 1;
 
-		if (strncasecmp(pcCommand, CMD_MIRACAST, strlen(CMD_MIRACAST)) == 0)
+		if (strnicmp(pcCommand, CMD_MIRACAST, strlen(CMD_MIRACAST)) == 0)
 			i4BytesWritten = priv_driver_set_miracast(prNetDev, pcCommand, i4TotalLen);
 #if CFG_SUPPORT_BATCH_SCAN
-		else if (strncasecmp(pcCommand, CMD_BATCH_SET, strlen(CMD_BATCH_SET)) == 0) {
+		else if (strnicmp(pcCommand, CMD_BATCH_SET, strlen(CMD_BATCH_SET)) == 0) {
 			kalIoctl(prGlueInfo,
 				 wlanoidSetBatchScanReq,
 				 (PVOID) pcCommand, i4TotalLen, FALSE, FALSE, TRUE, FALSE, &i4BytesWritten);
-		} else if (strncasecmp(pcCommand, CMD_BATCH_GET, strlen(CMD_BATCH_GET)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_BATCH_GET, strlen(CMD_BATCH_GET)) == 0) {
 			/* strcpy(pcCommand, "BATCH SCAN DATA FROM FIRMWARE"); */
 			/* i4BytesWritten = strlen("BATCH SCAN DATA FROM FIRMWARE") + 1; */
 			/* i4BytesWritten = priv_driver_get_linkspeed (prNetDev, pcCommand, i4TotalLen); */
@@ -2749,69 +2919,67 @@ INT_32 priv_driver_cmds(IN struct net_device *prNetDev, IN PCHAR pcCommand, IN I
 			batchConvertResult(&g_rEventBatchResult[0], pcCommand, i4TotalLen, &i4BytesWritten);
 
 			/* Dump for debug */
-			/*
-			 * print_hex_dump(KERN_INFO, "BATCH", DUMP_PREFIX_ADDRESS, 16, 1, pcCommand,
-			 * i4BytesWritten, TRUE);
-			 */
+			/* print_hex_dump(KERN_INFO, "BATCH", DUMP_PREFIX_ADDRESS, 16, 1, pcCommand,
+			i4BytesWritten, TRUE); */
 
-		} else if (strncasecmp(pcCommand, CMD_BATCH_STOP, strlen(CMD_BATCH_STOP)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_BATCH_STOP, strlen(CMD_BATCH_STOP)) == 0) {
 			kalIoctl(prGlueInfo,
 				 wlanoidSetBatchScanReq,
 				 (PVOID) pcCommand, i4TotalLen, FALSE, FALSE, TRUE, FALSE, &i4BytesWritten);
 		}
 #endif
 #if CFG_SUPPORT_GET_CH_ENV
-		else if (strncasecmp(pcCommand, CMD_CH_ENV_GET, strlen(CMD_CH_ENV_GET)) == 0)
+		else if (strnicmp(pcCommand, CMD_CH_ENV_GET, strlen(CMD_CH_ENV_GET)) == 0)
 			scanEnvResult(prGlueInfo, pcCommand, i4TotalLen, &i4BytesWritten);
 #endif
 
 #if 0
 
-		else if (strncasecmp(pcCommand, CMD_RSSI, strlen(CMD_RSSI)) == 0) {
+		else if (strnicmp(pcCommand, CMD_RSSI, strlen(CMD_RSSI)) == 0) {
 			/* i4BytesWritten = wl_android_get_rssi(net, command, i4TotalLen); */
-		} else if (strncasecmp(pcCommand, CMD_LINKSPEED, strlen(CMD_LINKSPEED)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_LINKSPEED, strlen(CMD_LINKSPEED)) == 0) {
 			i4BytesWritten = priv_driver_get_linkspeed(prNetDev, pcCommand, i4TotalLen);
-		} else if (strncasecmp(pcCommand, CMD_PNOSSIDCLR_SET, strlen(CMD_PNOSSIDCLR_SET)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_PNOSSIDCLR_SET, strlen(CMD_PNOSSIDCLR_SET)) == 0) {
 			/* Do nothing */
-		} else if (strncasecmp(pcCommand, CMD_PNOSETUP_SET, strlen(CMD_PNOSETUP_SET)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_PNOSETUP_SET, strlen(CMD_PNOSETUP_SET)) == 0) {
 			/* Do nothing */
-		} else if (strncasecmp(pcCommand, CMD_PNOENABLE_SET, strlen(CMD_PNOENABLE_SET)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_PNOENABLE_SET, strlen(CMD_PNOENABLE_SET)) == 0) {
 			/* Do nothing */
-		} else if (strncasecmp(pcCommand, CMD_SETSUSPENDOPT, strlen(CMD_SETSUSPENDOPT)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_SETSUSPENDOPT, strlen(CMD_SETSUSPENDOPT)) == 0) {
 			/* i4BytesWritten = wl_android_set_suspendopt(net, pcCommand, i4TotalLen); */
-		} else if (strncasecmp(pcCommand, CMD_SETSUSPENDMODE, strlen(CMD_SETSUSPENDMODE)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_SETSUSPENDMODE, strlen(CMD_SETSUSPENDMODE)) == 0) {
 			i4BytesWritten = priv_driver_set_suspend_mode(prNetDev, pcCommand, i4TotalLen);
-		} else if (strncasecmp(pcCommand, CMD_SETBAND, strlen(CMD_SETBAND)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_SETBAND, strlen(CMD_SETBAND)) == 0) {
 			i4BytesWritten = priv_driver_set_band(prNetDev, pcCommand, i4TotalLen);
-		} else if (strncasecmp(pcCommand, CMD_GETBAND, strlen(CMD_GETBAND)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_GETBAND, strlen(CMD_GETBAND)) == 0) {
 			/* i4BytesWritten = wl_android_get_band(net, pcCommand, i4TotalLen); */
-		} else if (strncasecmp(pcCommand, CMD_COUNTRY, strlen(CMD_COUNTRY)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_COUNTRY, strlen(CMD_COUNTRY)) == 0) {
 			i4BytesWritten = priv_driver_set_country(prNetDev, pcCommand, i4TotalLen);
 		}
 		/* Mediatek private command  */
-		else if (strncasecmp(pcCommand, CMD_SET_SW_CTRL, strlen(CMD_SET_SW_CTRL)) == 0) {
+		else if (strnicmp(pcCommand, CMD_SET_SW_CTRL, strlen(CMD_SET_SW_CTRL)) == 0) {
 			i4BytesWritten = priv_driver_set_sw_ctrl(prNetDev, pcCommand, i4TotalLen);
-		} else if (strncasecmp(pcCommand, CMD_GET_SW_CTRL, strlen(CMD_GET_SW_CTRL)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_GET_SW_CTRL, strlen(CMD_GET_SW_CTRL)) == 0) {
 			i4BytesWritten = priv_driver_get_sw_ctrl(prNetDev, pcCommand, i4TotalLen);
-		} else if (strncasecmp(pcCommand, CMD_SET_CFG, strlen(CMD_SET_CFG)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_SET_CFG, strlen(CMD_SET_CFG)) == 0) {
 			i4BytesWritten = priv_driver_set_cfg(prNetDev, pcCommand, i4TotalLen);
-		} else if (strncasecmp(pcCommand, CMD_GET_CFG, strlen(CMD_GET_CFG)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_GET_CFG, strlen(CMD_GET_CFG)) == 0) {
 			i4BytesWritten = priv_driver_get_cfg(prNetDev, pcCommand, i4TotalLen);
-		} else if (strncasecmp(pcCommand, CMD_SET_CHIP, strlen(CMD_SET_CHIP)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_SET_CHIP, strlen(CMD_SET_CHIP)) == 0) {
 			i4BytesWritten = priv_driver_set_chip_config(prNetDev, pcCommand, i4TotalLen);
-		} else if (strncasecmp(pcCommand, CMD_GET_CHIP, strlen(CMD_GET_CHIP)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_GET_CHIP, strlen(CMD_GET_CHIP)) == 0) {
 			i4BytesWritten = priv_driver_get_chip_config(prNetDev, pcCommand, i4TotalLen);
-		} else if (strncasecmp(pcCommand, CMD_SET_DBG_LEVEL, strlen(CMD_SET_DBG_LEVEL)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_SET_DBG_LEVEL, strlen(CMD_SET_DBG_LEVEL)) == 0) {
 			i4BytesWritten = priv_driver_set_dbg_level(prNetDev, pcCommand, i4TotalLen);
-		} else if (strncasecmp(pcCommand, CMD_GET_DBG_LEVEL, strlen(CMD_GET_DBG_LEVEL)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_GET_DBG_LEVEL, strlen(CMD_GET_DBG_LEVEL)) == 0) {
 			i4BytesWritten = priv_driver_get_dbg_level(prNetDev, pcCommand, i4TotalLen);
 		}
 #if CFG_SUPPORT_BATCH_SCAN
-		else if (strncasecmp(pcCommand, CMD_BATCH_SET, strlen(CMD_BATCH_SET)) == 0) {
+		else if (strnicmp(pcCommand, CMD_BATCH_SET, strlen(CMD_BATCH_SET)) == 0) {
 			kalIoctl(prGlueInfo,
 				 wlanoidSetBatchScanReq,
 				 (PVOID) pcCommand, i4TotalLen, FALSE, FALSE, TRUE, &i4BytesWritten);
-		} else if (strncasecmp(pcCommand, CMD_BATCH_GET, strlen(CMD_BATCH_GET)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_BATCH_GET, strlen(CMD_BATCH_GET)) == 0) {
 			/* strcpy(pcCommand, "BATCH SCAN DATA FROM FIRMWARE"); */
 			/* i4BytesWritten = strlen("BATCH SCAN DATA FROM FIRMWARE") + 1; */
 			/* i4BytesWritten = priv_driver_get_linkspeed (prNetDev, pcCommand, i4TotalLen); */
@@ -2844,12 +3012,10 @@ INT_32 priv_driver_cmds(IN struct net_device *prNetDev, IN PCHAR pcCommand, IN I
 			batchConvertResult(&g_rEventBatchResult[0], pcCommand, i4TotalLen, &i4BytesWritten);
 
 			/* Dump for debug */
-			/*
-			 * print_hex_dump(KERN_INFO, "BATCH", DUMP_PREFIX_ADDRESS, 16, 1, pcCommand, i4BytesWritten,
-			 * TRUE);
-			 */
+			/* print_hex_dump(KERN_INFO, "BATCH", DUMP_PREFIX_ADDRESS, 16, 1, pcCommand, i4BytesWritten,
+			TRUE); */
 
-		} else if (strncasecmp(pcCommand, CMD_BATCH_STOP, strlen(CMD_BATCH_STOP)) == 0) {
+		} else if (strnicmp(pcCommand, CMD_BATCH_STOP, strlen(CMD_BATCH_STOP)) == 0) {
 			kalIoctl(prGlueInfo,
 				 wlanoidSetBatchScanReq,
 				 (PVOID) pcCommand, i4TotalLen, FALSE, FALSE, TRUE, &i4BytesWritten);

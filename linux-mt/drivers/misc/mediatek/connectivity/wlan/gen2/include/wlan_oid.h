@@ -1,12 +1,211 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/wlan_oid.h#2
+*/
+
+/*! \file   "wlan_oid.h"
+    \brief This file contains the declairation file of the WLAN OID processing routines
+	   of Windows driver for MediaTek Inc. 802.11 Wireless LAN Adapters.
+*/
+
+/*
+** Log: wlan_oid.h
+ *
+ * 03 02 2012 terry.wu
+ * NULL
+ * Sync CFG80211 modification from branch 2,2.
+ *
+ * 01 05 2012 wh.su
+ * [WCXRP00001153] [MT6620 Wi-Fi][Driver] Adding the get_ch_list and set_tx_power proto type function
+ * Adding the related ioctl / wlan oid function to set the Tx power cfg.
+ *
+ * 07 18 2011 chinghwa.yu
+ * [WCXRP00000063] Update BCM CoEx design and settings[WCXRP00000612] [MT6620 Wi-Fi] [FW] CSD update SWRDD algorithm
+ * Add CMD/Event for RDD and BWCS.
+ *
+ * 03 22 2011 george.huang
+ * [WCXRP00000504] [MT6620 Wi-Fi][FW] Support Sigma CAPI for power saving related command
+ * link with supplicant commands
+ *
+ * 03 17 2011 chinglan.wang
+ * [WCXRP00000570] [MT6620 Wi-Fi][Driver] Add Wi-Fi Protected Setup v2.0 feature
+ * .
+ *
+ * 03 02 2011 george.huang
+ * [WCXRP00000504] [MT6620 Wi-Fi][FW] Support Sigma CAPI for power saving related command
+ * Support UAPSD/OppPS/NoA parameter setting
+ *
+ * 01 20 2011 eddie.chen
+ * [WCXRP00000374] [MT6620 Wi-Fi][DRV] SW debug control
+ * Add Oid for sw control debug command
+ *
+ * 12 07 2010 cm.chang
+ * [WCXRP00000238] MT6620 Wi-Fi][Driver][FW] Support regulation domain setting from NVRAM and supplicant
+ * 1. Country code is from NVRAM or supplicant
+ * 2. Change band definition in CMD/EVENT.
+ *
+ * 10 18 2010 cp.wu
+ * [WCXRP00000056] [MT6620 Wi-Fi][Driver] NVRAM implementation with Version Check
+ * [WCXRP00000086] [MT6620 Wi-Fi][Driver] The mac address is all zero at android
+ * complete implementation of Android NVRAM access
+ *
+ * 10 08 2010 cp.wu
+ * [WCXRP00000084] [MT6620 Wi-Fi][Driver][FW] Add fixed rate support for distance test
+ * adding fixed rate support for distance test. (from registry setting)
+ *
+ * 09 23 2010 cp.wu
+ * [WCXRP00000056] [MT6620 Wi-Fi][Driver] NVRAM implementation with Version Check
+ * add skeleton for NVRAM integration
+ *
+ * 09 08 2010 cp.wu
+ * NULL
+ * use static memory pool for storing IEs of scanning result.
+ *
+ * 09 03 2010 kevin.huang
+ * NULL
+ * Refine #include sequence and solve recursive/nested #include issue
+ *
+ * 08 29 2010 yuche.tsai
+ * NULL
+ * Finish SLT TX/RX & Rate Changing Support.
+ *
+ * 08 04 2010 cp.wu
+ * NULL
+ * revert changelist #15371, efuse read/write access will be done by RF test approach
+ *
+ * 08 04 2010 cp.wu
+ * NULL
+ * add OID definitions for EFUSE read/write access.
+ *
+ * 08 04 2010 yarco.yang
+ * NULL
+ * Add TX_AMPDU and ADDBA_REJECT command
+ *
+ * 08 02 2010 george.huang
+ * NULL
+ * add WMM-PS test related OID/ CMD handlers
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 06 22 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * 1) add command warpper for STA-REC/BSS-INFO sync.
+ * 2) enhance command packet sending procedure for non-oid part
+ * 3) add command packet definitions for STA-REC/BSS-INFO sync.
+ *
+ * 06 18 2010 wh.su
+ * [WPD00003840][MT6620 5931] Security migration
+ * migration from MT6620 firmware.
+ *
+ * 06 07 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * merge wlan_def.h.
+ *
+ * 06 07 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * merge wifi_var.h, precomp.h, cnm_timer.h (data type only)
+ *
+ * 06 06 2010 kevin.huang
+ * [WPD00003832][MT6620 5931] Create driver base
+ * [MT6620 5931] Create driver base
+ *
+ * 06 03 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * move timer callback to glue layer.
+ *
+ * 05 20 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1) integrate OID_GEN_NETWORK_LAYER_ADDRESSES with CMD_ID_SET_IP_ADDRESS
+ * 2) buffer statistics data for 2 seconds
+ * 3) use default value for adhoc parameters instead of 0
+ *
+ * 05 18 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * implement Wakeup-on-LAN except firmware integration part
+ *
+ * 05 17 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * MT6620 is not supporting NDIS_PACKET_TYPE_PROMISCUOUS.
+ *
+
+ *
+ * 05 17 2010 cp.wu
+ * [WPD00003831][MT6620 Wi-Fi] Add framework for Wi-Fi Direct support
+ * 1) add timeout handler mechanism for pending command packets
+ * 2) add p2p add/removal key
+ *
+ * 05 13 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * add NULL OID implementation for WOL-related OIDs.
+ *
+ * 04 22 2010 cp.wu
+ * [WPD00003830]add OID_802_11_PRIVACY_FILTER support
+ * enable RX filter OID
+ *
+ * 04 14 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * information buffer for query oid/ioctl is now buffered in prCmdInfo
+ *  *  *  *  * instead of glue-layer variable to improve multiple oid/ioctl capability
+ *
+ * 03 31 2010 wh.su
+ * [WPD00003816][MT6620 Wi-Fi] Adding the security support
+ * modify the wapi related code for new driver's design.
+ *
+ * 03 26 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * indicate media stream mode after set is done
+ *
+ * 03 24 2010 jeffrey.chang
+ * [WPD00003826]Initial import for Linux port
+ * initial import for Linux port
+ *
+ * 03 03 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * implement custom OID: EEPROM read/write access
+ *
+ * 02 09 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1. Permanent and current MAC address are now retrieved by CMD/EVENT packets instead of hard-coded address
+ *  *  *  *  *  * 2. follow MSDN defined behavior when associates to another AP
+ *  *  *  *  *  * 3. for firmware download, packet size could be up to 2048 bytes
+ *
+ * 01 27 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * 1) implement timeout mechanism when OID is pending for longer than 1 second
+ *  *  * 2) allow OID_802_11_CONFIGURATION to be executed when RF test mode is turned on
+ *
+ * 01 27 2010 wh.su
+ * [WPD00003816][MT6620 Wi-Fi] Adding the security support
+ * .
+ *
+ * 01 22 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * implement following 802.11 OIDs:
+ *  *  *  * OID_802_11_RSSI,
+ *  *  *  * OID_802_11_RSSI_TRIGGER,
+ *  *  *  * OID_802_11_STATISTICS,
+ *  *  *  * OID_802_11_DISASSOCIATE,
+ *  *  *  * OID_802_11_POWER_MODE
+ *
+ * 01 21 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * implement OID_802_11_MEDIA_STREAM_MODE
+ *
+ * 01 21 2010 cp.wu
+ * [WPD00001943]Create WiFi test driver framework on WinXP
+ * implement OID_802_11_SUPPORTED_RATES / OID_802_11_DESIRED_RATES
+**  \main\maintrunk.MT6620WiFiDriver_Prj\6 2009-12-08 11:38:11 GMT mtk02752
+**  add declares for RF test related APIs
+**  \main\maintrunk.MT6620WiFiDriver_Prj\5 2009-11-24 22:41:53 GMT mtk02752
+**  remove u4SysTime, MSDN 10-second will be implemented in FW side
+**  \main\maintrunk.MT6620WiFiDriver_Prj\4 2009-11-23 20:30:13 GMT mtk02752
+**  add u4SysTime field in PARAM_BSSID_EX_T
+**  \main\maintrunk.MT6620WiFiDriver_Prj\3 2009-11-12 19:48:35 GMT mtk02752
+**  allow upper layer to set a packet filter with PROMISCUOUS mode
+**  \main\maintrunk.MT6620WiFiDriver_Prj\2 2009-03-10 20:12:12 GMT mtk01426
+**  Init for develop
+**
 */
 
 #ifndef _WLAN_OID_H
@@ -21,6 +220,12 @@
 *                    E X T E R N A L   R E F E R E N C E S
 ********************************************************************************
 */
+#if DBG
+extern UINT_8 aucDebugModule[DBG_MODULE_NUM];
+extern UINT_32 u4DebugModule;
+UINT_32 u4DebugModuleTemp;
+#endif /* DBG */
+extern int sprintf(char *buf, const char *fmt, ...);
 
 /*******************************************************************************
 *                              C O N S T A N T S
@@ -101,7 +306,6 @@ typedef enum _ENUM_PARAM_AUTH_MODE_T {
 	AUTH_MODE_WPA_NONE,	/*!< For Ad hoc */
 	AUTH_MODE_WPA2,
 	AUTH_MODE_WPA2_PSK,
-	AUTH_MODE_WPA_OSEN,
 	AUTH_MODE_NUM		/*!< Upper bound, not real case */
 } ENUM_PARAM_AUTH_MODE_T, *P_ENUM_PARAM_AUTH_MODE_T;
 
@@ -134,49 +338,33 @@ typedef UINT_8 PARAM_RATES[PARAM_MAX_LEN_RATES];
 typedef UINT_8 PARAM_RATES_EX[PARAM_MAX_LEN_RATES_EX];
 
 typedef enum _ENUM_PARAM_PHY_TYPE_T {
-	PHY_TYPE_802_11ABG = 0,	/*
-				 * !< Can associated with 802.11abg AP,
-				 * Scan dual band.
-				 */
-	PHY_TYPE_802_11BG,	/*
-				 * !< Can associated with 802_11bg AP,
-				 * Scan single band and not report 802_11a BSSs.
-				 */
-	PHY_TYPE_802_11G,	/*
-				 * !< Can associated with 802_11g only AP,
-				 * Scan single band and not report 802_11ab BSSs.
-				 */
-	PHY_TYPE_802_11A,	/*
-				 * !< Can associated with 802_11a only AP,
-				 * Scan single band and not report 802_11bg BSSs.
-				 */
-	PHY_TYPE_802_11B,	/*
-				 * !< Can associated with 802_11b only AP,
-				 * Scan single band and not report 802_11ag BSSs.
-				 */
+	PHY_TYPE_802_11ABG = 0,	/*!< Can associated with 802.11abg AP,
+				Scan dual band. */
+	PHY_TYPE_802_11BG,	/*!< Can associated with 802_11bg AP,
+				Scan single band and not report 802_11a BSSs. */
+	PHY_TYPE_802_11G,	/*!< Can associated with 802_11g only AP,
+				Scan single band and not report 802_11ab BSSs. */
+	PHY_TYPE_802_11A,	/*!< Can associated with 802_11a only AP,
+				Scan single band and not report 802_11bg BSSs. */
+	PHY_TYPE_802_11B,	/*!< Can associated with 802_11b only AP,
+				Scan single band and not report 802_11ag BSSs. */
 	PHY_TYPE_NUM		/* 5 */
 } ENUM_PARAM_PHY_TYPE_T, *P_ENUM_PARAM_PHY_TYPE_T;
 
 typedef enum _ENUM_PARAM_OP_MODE_T {
 	NET_TYPE_IBSS = 0,	/*!< Try to merge/establish an AdHoc, do periodic SCAN for merging. */
 	NET_TYPE_INFRA,		/*!< Try to join an Infrastructure, do periodic SCAN for joining. */
-	NET_TYPE_AUTO_SWITCH,	/*
-				 * !< Try to join an Infrastructure, if fail then try to merge or
-				 * establish an AdHoc, do periodic SCAN for joining or merging.
-				 */
-	NET_TYPE_DEDICATED_IBSS,	/*
-					 * !< Try to merge an AdHoc first,
-					 * if fail then establish AdHoc permanently, no more SCAN.
-					 */
+	NET_TYPE_AUTO_SWITCH,	/*!< Try to join an Infrastructure, if fail then try to merge or
+				   establish an AdHoc, do periodic SCAN for joining or merging. */
+	NET_TYPE_DEDICATED_IBSS,	/*!< Try to merge an AdHoc first,
+					if fail then establish AdHoc permanently, no more SCAN. */
 	NET_TYPE_NUM		/* 4 */
 } ENUM_PARAM_OP_MODE_T, *P_ENUM_PARAM_OP_MODE_T;
 
 typedef struct _PARAM_SSID_T {
 	UINT_32 u4SsidLen;	/*!< SSID length in bytes. Zero length is broadcast(any) SSID */
 	UINT_8 aucSsid[PARAM_MAX_LEN_SSID];
-#if !defined(CFG_MULTI_SSID_SCAN)
 	UINT_32 u4CenterFreq;
-#endif
 } PARAM_SSID_T, *P_PARAM_SSID_T;
 
 typedef struct _PARAM_CONNECT_T {
@@ -279,7 +467,7 @@ typedef struct _PARAM_AUTH_EVENT_T {
 typedef struct _PARAM_BSSID_EX_T {
 	UINT_32 u4Length;	/*!< Length of structure */
 	PARAM_MAC_ADDRESS arMacAddress;	/*!< BSSID */
-	UINT_16 u2CapInfo;
+	UINT_8 Reserved[2];
 	PARAM_SSID_T rSsid;	/*!< SSID */
 	UINT_32 u4Privacy;	/*!< Need WEP encryption */
 	PARAM_RSSI rRssi;	/*!< in dBm */
@@ -625,7 +813,6 @@ typedef struct _PARAM_LINUX_NETDEV_STATISTICS_T {
 typedef struct _PARAM_MTK_WIFI_TEST_STRUCT_T {
 	UINT_32 u4FuncIndex;
 	UINT_32 u4FuncData;
-	UINT_32 u4FuncData2; /*FW don't support*/
 } PARAM_MTK_WIFI_TEST_STRUCT_T, *P_PARAM_MTK_WIFI_TEST_STRUCT_T;
 
 /* 802.11 Media stream constraints */
@@ -709,14 +896,10 @@ typedef struct _PARAM_MTK_SLT_INITIAL_STRUCT_T {
 
 typedef struct _PARAM_MTK_SLT_TEST_STRUCT_T {
 	ENUM_MTK_SLT_FUNC_IDX_T rSltFuncIdx;
-	UINT_32 u4Length;	/*
-				 * Length of structure,
-				 * including myself
-				 */
-	UINT_32 u4FuncInfoLen;	/*
-				 * Include following content
-				 * field and myself
-				 */
+	UINT_32 u4Length;	/* Length of structure,
+				   including myself */
+	UINT_32 u4FuncInfoLen;	/* Include following content
+				   field and myself */
 	union {
 		PARAM_MTK_SLT_INITIAL_STRUCT_T rMtkInitTest;
 		PARAM_MTK_SLT_LP_TEST_STRUCT_T rMtkLpTest;
@@ -800,14 +983,13 @@ typedef struct _PTA_PROFILE_T {
 	ENUM_BT_PROFILE_T eBtProfile;
 	union {
 		UINT_8 aucBTPParams[BT_PROFILE_PARAM_LEN];
-		/*
-		 * 0: sco reserved slot time,
-		 * 1: sco idle slot time,
-		 *  2: acl throughput,
-		 * 3: bt tx power,
-		 * 4: bt rssi
-		 *  5: VoIP interval
-		 *  6: BIT(0) Use this field, BIT(1) 0 apply single/ 1 dual PTA setting.
+		/*  0: sco reserved slot time,
+		   1: sco idle slot time,
+		   2: acl throughput,
+		   3: bt tx power,
+		   4: bt rssi
+		   5: VoIP interval
+		   6: BIT(0) Use this field, BIT(1) 0 apply single/ 1 dual PTA setting.
 		 */
 		UINT_32 au4Btcr[4];
 	} u;
@@ -830,19 +1012,7 @@ typedef struct _PARAM_SCAN_REQUEST_EXT_T {
 	PARAM_SSID_T rSsid;
 	UINT_32 u4IELength;
 	PUINT_8 pucIE;
-	/* partial scan temp save request info */
-	PUINT_8 puPartialScanReq;
 } PARAM_SCAN_REQUEST_EXT_T, *P_PARAM_SCAN_REQUEST_EXT_T;
-
-/* MULTI SSID */
-typedef struct _PARAM_SCAN_REQUEST_ADV_T {
-	UINT_32 u4SsidNum;
-	PARAM_SSID_T rSsid[CFG_SCAN_SSID_MAX_NUM];
-	UINT_32 u4IELength;
-	PUINT_8 pucIE;
-	/* partial scan temp save request info */
-	PUINT_8 puPartialScanReq;
-} PARAM_SCAN_REQUEST_ADV_T, *P_PARAM_SCAN_REQUEST_ADV_T;
 
 /*--------------------------------------------------------------*/
 /*! \brief CFG80211 Scheduled Scan Request Container            */
@@ -865,11 +1035,9 @@ typedef struct _PARAM_HS20_SET_BSSID_POOL {
 #endif
 
 typedef struct _PARAM_CUSTOM_WFD_DEBUG_STRUCT_T {
-	UINT_8 ucWFDDebugMode;	/*
-				 * 0: Disable
-				 * 1:Enable but only show inqueue skb ether SN
-				 * 2.show skb ether SN and the statistics of skb inqueue time
-				 */
+	UINT_8 ucWFDDebugMode;	/* 0: Disable
+				   1:Enable but only show inqueue skb ether SN
+				   2.show skb ether SN and the statistics of skb inqueue time */
 	UINT_16 u2SNPeriod;	/* The Ether SN Period */
 
 	UINT_8 reserved;
@@ -879,113 +1047,18 @@ typedef struct _CMD_GET_PSCAN_CAPABILITY {
 /* TBD */
 } CMD_GET_GSCAN_CAPABILITY, *P_CMD_GET_GSCAN_CAPABILITY;
 
-typedef enum _ENUM_PSCAN_ACT_T {
-	PSCAN_ACT_DISABLE = 0,
-	PSCAN_ACT_ENABLE,
-	PSCAN_ACT_SUSPEND,
-	PSCAN_ACT_CLEAR
-} ENUM_PSCAN_ACT_T, *P_ENUM_PSCAN_ACT_T;
-
 typedef struct _CMD_SET_PSCAN_ENABLE {
 	UINT_8 ucPscanAct;
 	UINT_8 aucReserved[3];
 } CMD_SET_PSCAN_ENABLE, *P_CMD_SET_PSCAN_ENABLE;
 
-/*******************************************************************************
-*                           P R I V A T E   D A T A
-********************************************************************************
-*/
-#define MAX_PACKET_DROP_LENGTH         24
+typedef enum _ENUM_PSCAN_ACT_T {
+	ENABLE,
+	DISABLE,
+	SUSPEND,
+	CLEAR
+} ENUM_PSCAN_ACT_T, *P_ENUM_PSCAN_ACT_T;
 
-typedef struct _PACKET_DROP_HEADER_T {
-	UINT_8		cmdVersion;		/*== 0*/
-	UINT_8		cmdType;		/*== 0*/
-	UINT_8		magicCode;		/*==> Magic code 0x72 */
-	UINT_8		cmdBufferLen;	/*buffer length */
-	UINT_8		buffer[MAX_PACKET_DROP_LENGTH]; /*64bit * 3*/
-} __KAL_ATTRIB_PACKED__ PACKET_DROP_T, *P_PACKET_DROP_T;
-
-typedef struct _PACKET_DROP_SETTING_V1_T {
-	union{
-			/* bit endian issue */
-		struct {
-			UINT_64    all:1;
-			UINT_64    MDNS:1;
-			UINT_64    LLMNR:1;
-			UINT_64    BROWSER:1;
-			UINT_64    CAPWAP:1;
-			UINT_64    DNS:1;
-			UINT_64    NBNS:1;
-			UINT_64    SSDP:1;
-			UINT_64    others:1;
-			UINT_64	   IGMP:1;
-			UINT_64	   DHCP:1;
-			UINT_64	   reserved:53;
-		} UDPbits;
-
-		struct {
-			UINT_64    all:1;
-		} IGMPbits;
-
-		/* byte endian issue */
-		UINT_64   bytes;
-	} Drop_IPv4;
-
-	union{
-		/* bit endian issue */
-		struct {
-			UINT_64    all:1;
-			UINT_64    Multicast:1;
-			UINT_64    reserved:62;
-		} bits;
-		/* byte endian issue */
-		UINT_64   bytes;
-	} Drop_IPv6;
-	union{
-		/* bit endian issue */
-		struct {
-			UINT_64    all:1;
-			UINT_64    CDP:1;
-			UINT_64    STP:1;
-			UINT_64    XID:1;
-			UINT_64    others:1;
-			UINT_64    reserved:59;
-		} bits;
-		/* byte endian issue */
-		UINT_64   bytes;
-	} Drop_SNAP;
-
-} __KAL_ATTRIB_PACKED__ PACKET_DROP_SETTING_V1_T, *P_PACKET_DROP_SETTING_V1_T;
-
-#if CFG_AUTO_CHANNEL_SEL_SUPPORT
-/*--------------------------------------------------------------*/
-/*! \brief MTK Auto Channel Selection related Container         */
-/*--------------------------------------------------------------*/
-typedef struct _LTE_SAFE_CHN_INFO_T {
-	UINT_32 au4SafeChannelBitmask[5]; /* NL80211_TESTMODE_AVAILABLE_CHAN_ATTR_MAX */
-} LTE_SAFE_CHN_INFO_T, *P_CMD_LTE_SAFE_CHN_INFO_T;
-
-typedef struct _PARAM_CHN_LOAD_INFO {
-	/* Per-CHN Load */
-	UINT_8 ucChannel;
-	UINT_16 u2APNum;
-	UINT_8 ucReserved;
-} PARAM_CHN_LOAD_INFO, *P_PARAM_CHN_LOAD_INFO;
-
-typedef struct _PARAM_GET_CHN_INFO {
-	LTE_SAFE_CHN_INFO_T rLteSafeChnList;
-	PARAM_CHN_LOAD_INFO rEachChnLoad[MAX_CHN_NUM];
-	BOOLEAN fgDataReadyBit;
-	UINT_8 aucReserved[3];
-} PARAM_GET_CHN_INFO, *P_PARAM_GET_CHN_INFO;
-
-typedef struct _PARAM_PREFER_CHN_INFO {
-	UINT_8 ucChannel;
-	UINT_16 u2APNumScore;
-	UINT_8 ucReserved;
-} PARAM_PREFER_CHN_INFO, *P_PARAM_PREFER_CHN_INFO;
-
-#endif
 /*******************************************************************************
 *                            P U B L I C   D A T A
 ********************************************************************************
@@ -1032,9 +1105,6 @@ wlanoidSetBssidListScan(IN P_ADAPTER_T prAdapter,
 WLAN_STATUS
 wlanoidSetBssidListScanExt(IN P_ADAPTER_T prAdapter,
 			   IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-WLAN_STATUS
-wlanoidSetBssidListScanAdv(IN P_ADAPTER_T prAdapter, IN PVOID pvSetBuffer,
-			IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);/* MULTI SSID */
 
 WLAN_STATUS
 wlanoidQueryBssidList(IN P_ADAPTER_T prAdapter,
@@ -1137,10 +1207,6 @@ wlanoidSetAtimWindow(IN P_ADAPTER_T prAdapter,
 WLAN_STATUS
 wlanoidSetChannel(IN P_ADAPTER_T prAdapter,
 		  IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-
-WLAN_STATUS
-wlanoidRssiMonitor(IN P_ADAPTER_T prAdapter,
-		   OUT PVOID pvQueryBuffer, IN UINT_32 u4QueryBufferLen, OUT PUINT_32 pu4QueryInfoLen);
 
 WLAN_STATUS
 wlanoidQueryRssi(IN P_ADAPTER_T prAdapter,
@@ -1477,12 +1543,6 @@ WLAN_STATUS
 wlanoidSetCountryCode(IN P_ADAPTER_T prAdapter,
 		      IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
 
-#ifdef CFG_TC1_FEATURE /* for Passive Scan */
-WLAN_STATUS
-wlanoidSetPassiveScan(IN P_ADAPTER_T  prAdapter,
-		      IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-#endif
-
 WLAN_STATUS wlanSendMemDumpCmd(IN P_ADAPTER_T prAdapter, IN PVOID pvQueryBuffer, IN UINT_32 u4QueryBufferLen);
 
 #if CFG_SLT_SUPPORT
@@ -1523,15 +1583,46 @@ WLAN_STATUS
 wlanoidSetTxPower(IN P_ADAPTER_T prAdapter,
 		  IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
 
-WLAN_STATUS
-wlanoidSetRxPacketFilterPriv(IN	P_ADAPTER_T prAdapter,
-	IN	PVOID pvSetBuffer, IN	UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-
 #if CFG_SUPPORT_BUILD_DATE_CODE
 WLAN_STATUS
 wlanoidQueryBuildDateCode(IN P_ADAPTER_T prAdapter,
 			  OUT PVOID pvQueryBuffer, IN UINT_32 u4QueryBufferLen, OUT PUINT_32 pu4QueryInfoLen);
+
 #endif
+
+/*
+WLAN_STATUS
+wlanoidQueryBtSingleAntenna (
+    IN  P_ADAPTER_T prAdapter,
+    OUT PVOID       pvQueryBuffer,
+    IN  UINT_32     u4QueryBufferLen,
+    OUT PUINT_32    pu4QueryInfoLen
+    );
+
+WLAN_STATUS
+wlanoidSetBtSingleAntenna (
+    IN  P_ADAPTER_T prAdapter,
+    IN  PVOID       pvSetBuffer,
+    IN  UINT_32     u4SetBufferLen,
+    OUT PUINT_32    pu4SetInfoLen
+    );
+
+WLAN_STATUS
+wlanoidSetPta (
+    IN  P_ADAPTER_T prAdapter,
+    IN  PVOID       pvSetBuffer,
+    IN  UINT_32     u4SetBufferLen,
+    OUT PUINT_32    pu4SetInfoLen
+    );
+
+WLAN_STATUS
+wlanoidQueryPta (
+    IN  P_ADAPTER_T prAdapter,
+    OUT PVOID       pvQueryBuffer,
+    IN  UINT_32     u4QueryBufferLen,
+    OUT PUINT_32    pu4QueryInfoLen
+    );
+*/
 
 #if CFG_ENABLE_WIFI_DIRECT
 WLAN_STATUS
@@ -1583,67 +1674,42 @@ WLAN_STATUS
 wlanoidSetStopSchedScan(IN P_ADAPTER_T prAdapter,
 			IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
 
-#if CFG_SUPPORT_GSCN
 WLAN_STATUS
 wlanoidSetGSCNAction(IN P_ADAPTER_T prAdapter,
 		     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
 
 WLAN_STATUS
-wlanoidSetGSCNParam(IN P_ADAPTER_T prAdapter,
-		    IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
+wlanoidSetGSCNAParam(IN P_ADAPTER_T prAdapter,
+		     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
 
 WLAN_STATUS
-wlanoidSetGSCNConfig(IN P_ADAPTER_T prAdapter,
-		     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
+wlanoidSetGSCNAConfig(IN P_ADAPTER_T prAdapter,
+		      IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
 
 WLAN_STATUS
 wlanoidGetGSCNResult(IN P_ADAPTER_T prAdapter,
 		     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-#endif
 
 WLAN_STATUS
-wlanoidSetTxRateInfo(IN P_ADAPTER_T prAdapter,
-		     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-
-WLAN_STATUS
-wlanoidSetChipConfig(IN P_ADAPTER_T prAdapter,
-		     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-
-WLAN_STATUS
-wlanoidNotifyFwSuspend(IN P_ADAPTER_T prAdapter,
-		       IN PVOID pvSetBuffer,
-		       IN UINT_32 u4SetBufferLen,
-		       OUT PUINT_32 pu4SetInfoLen);
-
-#if CFG_SUPPORT_TDLS
-WLAN_STATUS
-wlanoidDisableTdlsPs(IN P_ADAPTER_T prAdapter,
-			 IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-#endif
-
-WLAN_STATUS
-wlanoidPacketKeepAlive(IN P_ADAPTER_T prAdapter,
-		       IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-
-#if CFG_AUTO_CHANNEL_SEL_SUPPORT
-WLAN_STATUS
-wlanoidQueryLteSafeChannel(IN P_ADAPTER_T prAdapter,
-			   IN PVOID pvQueryBuffer, IN UINT_32 u4QueryBufferLen, OUT PUINT_32 pu4QueryInfoLen);
-#endif
+wlanoidSetTxRateInfo(
+	IN  P_ADAPTER_T prAdapter,
+	IN  PVOID       pvSetBuffer,
+	IN  UINT_32     u4SetBufferLen,
+	OUT PUINT_32    pu4SetInfoLen
+	);
 
 /*******************************************************************************
 *                              F U N C T I O N S
 ********************************************************************************
 */
 
-#ifdef FW_CFG_SUPPORT
-WLAN_STATUS wlanoidQueryCfgRead(IN P_ADAPTER_T prAdapter,
-				IN PVOID pvQueryBuffer, IN UINT_32 u4QueryBufferLen, OUT PUINT_32 pu4QueryInfoLen);
-#endif
+WLAN_STATUS
+wlanoidSetChipConfig(IN P_ADAPTER_T prAdapter,
+		     IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
+WLAN_STATUS
+wlanoidNotifyFwSuspend(IN P_ADAPTER_T prAdapter,
+								IN PVOID pvSetBuffer,
+								IN UINT_32 u4SetBufferLen,
+								OUT PUINT_32 pu4SetInfoLen);
+
 #endif /* _WLAN_OID_H */
-WLAN_STATUS wlanoidSetPacketFilter(P_ADAPTER_T prAdapter, UINT_32 u4PacketFilter,
-				BOOLEAN fgIsOid, PVOID pvSetBuffer, UINT_32 u4SetBufferLen);
-
-WLAN_STATUS wlanoidSetDrvRoamingPolicy(IN P_ADAPTER_T prAdapter,
-			 IN PVOID pvSetBuffer, IN UINT_32 u4SetBufferLen, OUT PUINT_32 pu4SetInfoLen);
-

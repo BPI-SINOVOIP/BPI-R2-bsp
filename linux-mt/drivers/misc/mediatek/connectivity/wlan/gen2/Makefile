@@ -36,7 +36,7 @@ endif
 #    ccflags-y += -D_HIF_SDIO=1
 #endif
 
-ifeq ($(CONFIG_MTK_PASSPOINT_R2_SUPPORT), y)
+ifeq ($(CONFIG_MTK_PASSPOINT_R1_SUPPORT), y)
     ccflags-y += -DCFG_SUPPORT_HOTSPOT_2_0=1
     ccflags-y += -DCFG_HS20_DEBUG=1
     ccflags-y += -DCFG_ENABLE_GTK_FRAME_FILTER=1
@@ -46,7 +46,7 @@ else
     ccflags-y += -DCFG_ENABLE_GTK_FRAME_FILTER=0
 endif
 
-MTK_MET_PROFILING_SUPPORT = yes
+MTK_MET_PROFILING_SUPPORT = no
 ifeq ($(MTK_MET_PROFILING_SUPPORT), yes)
     ccflags-y += -DCFG_SUPPORT_MET_PROFILING=1
 else
@@ -69,9 +69,6 @@ MTK_SRAM_SIZE_OPTION=0
 ifeq ($(CONFIG_ARCH_MT6755), y)
     MTK_SRAM_SIZE_OPTION=2
 endif
-ifeq ($(CONFIG_MACH_MT6757), y)
-    MTK_SRAM_SIZE_OPTION=2
-endif
 ifeq ($(CONFIG_ARCH_MT6735), y)
     MTK_SRAM_SIZE_OPTION=1
 endif
@@ -84,14 +81,8 @@ endif
 ifeq ($(CONFIG_ARCH_MT6580), y)
     MTK_SRAM_SIZE_OPTION=1
 endif
-ifeq ($(CONFIG_ARCH_MT6570), y)
-    MTK_SRAM_SIZE_OPTION=1
-endif
 ifeq ($(CONFIG_ARCH_MT8163), y)
     MTK_SRAM_SIZE_OPTION=1
-endif
-ifeq ($(CONFIG_ARCH_MT8167), y)
-    MTK_SRAM_SIZE_OPTION=2
 endif
 ccflags-y += -DCFG_SRAM_SIZE_OPTION=$(MTK_SRAM_SIZE_OPTION)
 
@@ -108,7 +99,7 @@ ccflags-y += -DDBG=0
 ccflags-y += -I$(src)/os -I$(src)/os/linux/include -I$(src)/os/linux/hif/ahb/include
 ccflags-y += -I$(src)/include -I$(src)/include/nic -I$(src)/include/mgmt
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/base/power/include
-ccflags-y += -I$(srctree)/drivers/misc/mediatek/base/power/$(MTK_PLATFORM)/
+ccflags-y += -I$(srctree)/drivers/misc/mediatek/include/
 
 MODULE_NAME := wlan_gen2
 obj-$(CONFIG_MTK_COMBO_WIFI) += $(MODULE_NAME).o
@@ -122,7 +113,6 @@ OS_DIR      := os/linux/
 HIF_DIR	    := os/linux/hif/ahb/
 NIC_DIR     := nic/
 MGMT_DIR    := mgmt/
-FWCFG_DIR   := $(srctree)/drivers/misc/mediatek/connectivity/wlan/gen2/$(MTK_PROJECT)/
 DMA_DIR     := ../../../../platform/$(call lc,$(MTK_PLATFORM))/kernel/drivers/wifi/
 PLAT_DIR    := os/linux/plat/$(MTK_PLATFORM)/
 HIF_AHB_PDMA := $(HIF_DIR)$(MTK_PLATFORM)/
@@ -182,9 +172,7 @@ MGMT_OBJS := $(MGMT_DIR)ais_fsm.o \
              $(MGMT_DIR)swcr.o \
  			 $(MGMT_DIR)swcr.o \
 			 $(MGMT_DIR)roaming_fsm.o \
-			 $(MGMT_DIR)hs20.o \
-			$(MGMT_DIR)wnm.o \
-			$(MGMT_DIR)qosmap.o \
+			 $(MGMT_DIR)hs20.o
 
 # ---------------------------------------------------
 # TDLS Objects List
@@ -229,7 +217,9 @@ ifeq ($(WLAN_PROC), y)
 OS_OBJS += gl_proc.o
 endif
 
-ifeq ($(CONFIG_ARCH_MT7623), y)
+$(warning $(CONFIG_MACH_MT7623))
+
+ifeq ($(CONFIG_MACH_MT7623), y)
 HIF_AHB_PDMA = $(HIF_DIR)mt8127/
 endif
 HIF_OBJS :=  $(HIF_DIR)arm.o \
@@ -239,42 +229,6 @@ ifeq ($(CONFIG_ARCH_MT6755), y)
 PLAT_OBJS := $(PLAT_DIR)plat_priv.o
 $(MODULE_NAME)-objs  += $(PLAT_OBJS)
 endif
-
-ifeq ($(CONFIG_MACH_MT6757), y)
-PLAT_OBJS := $(PLAT_DIR)plat_priv.o
-$(MODULE_NAME)-objs  += $(PLAT_OBJS)
-endif
-
-ifeq ($(CONFIG_ARCH_MT6570), y)
-PLAT_OBJS := $(PLAT_DIR)plat_priv.o
-$(MODULE_NAME)-objs  += $(PLAT_OBJS)
-endif
-
-
-ifeq ($(CONFIG_ARCH_MT6735M), y)
-PLAT_OBJS := $(PLAT_DIR)plat_priv.o
-$(MODULE_NAME)-objs  += $(PLAT_OBJS)
-endif
-
-# ---------------------------------------------------
-# FW customization
-# ---------------------------------------------------
-FW_CUSTOMIZATION = y
-ifeq ($(FW_CUSTOMIZATION), y)
-    ifneq ($(wildcard $(FWCFG_DIR)fw_config.c),)
-        COMMON_OBJS += $(MTK_PROJECT)/fw_config.o
-    endif
-    COMMON_OBJS += $(COMMON_DIR)fwcfg.o
-    ccflags-y += -DFW_CFG_SUPPORT
-    ifeq ($(TARGET_BUILD_VARIANT), eng)
-        ccflags-y += -DENABLED_IN_ENGUSERDEBUG
-    endif
-    ifeq ($(TARGET_BUILD_VARIANT), userdebug)
-        ccflags-y += -DENABLED_IN_ENGUSERDEBUG
-    endif
-endif
-# ---------------------------------------------------
-
 $(MODULE_NAME)-objs  += $(COMMON_OBJS)
 $(MODULE_NAME)-objs  += $(NIC_OBJS)
 $(MODULE_NAME)-objs  += $(OS_OBJS)

@@ -1,12 +1,97 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/include/mgmt/rsn.h#1
+*/
+
+/*! \file   rsn.h
+    \brief  The wpa/rsn related define, macro and structure are described here.
+*/
+
+/*
+** Log: rsn.h
+ *
+ * 10 12 2011 wh.su
+ * [WCXRP00001036] [MT6620 Wi-Fi][Driver][FW] Adding the 802.11w code for MFP
+ * adding the 802.11w related function and define .
+ *
+ * 06 22 2011 wh.su
+ * [WCXRP00000806] [MT6620 Wi-Fi][Driver] Move the WPA/RSN IE and WAPI IE structure to mac.h
+ * and let the sw structure not align at byte
+ * Move the WAPI/RSN IE to mac.h and SW structure not align to byte,
+ * Notice needed update P2P.ko.
+ *
+ * 03 17 2011 chinglan.wang
+ * [WCXRP00000570] [MT6620 Wi-Fi][Driver] Add Wi-Fi Protected Setup v2.0 feature
+ * .
+ *
+ * 02 09 2011 wh.su
+ * [WCXRP00000432] [MT6620 Wi-Fi][Driver] Add STA privacy check at hotspot mode
+ * adding the code for check STA privacy bit at AP mode, .
+ *
+ * 11 05 2010 wh.su
+ * [WCXRP00000165] [MT6620 Wi-Fi] [Pre-authentication] Assoc req rsn ie use wrong pmkid value
+ * fixed the.pmkid value mismatch issue
+ *
+ * 10 04 2010 wh.su
+ * [WCXRP00000081] [MT6620][Driver] Fix the compiling error at WinXP while enable P2P
+ * add a kal function for set cipher.
+ *
+ * 09 01 2010 wh.su
+ * NULL
+ * adding the wapi support for integration test.
+ *
+ * 08 30 2010 wh.su
+ * NULL
+ * remove non-used code.
+ *
+ * 08 19 2010 wh.su
+ * NULL
+ * adding the tx pkt call back handle for countermeasure.
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 06 18 2010 wh.su
+ * [WPD00003840][MT6620 5931] Security migration
+ * migration from MT6620 firmware.
+ *
+ * 03 03 2010 wh.su
+ * [BORA00000637][MT6620 Wi-Fi] [Bug] WPA2 pre-authentication timer not correctly initialize
+ * Fixed the pre-authentication timer not correctly init issue, and modify
+ * the security related callback function prototype.
+ *
+ * 01 27 2010 wh.su
+ * [BORA00000476][Wi-Fi][firmware] Add the security module initialize code
+ * add and fixed some security function.
+ *
+ * Dec 4 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adjust the function prototype for generate wap/rsn ie
+ *
+ * Dec 3 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adjust the function input parameter
+ *
+ * Dec 1 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adding some event function declaration
+ *
+ * Nov 26 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * move the internal data structure for pmkid to rsn.h
+ *
+ * Nov 23 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adding the port control and class error function
+ *
+ * Nov 19 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ * adding the pmkid candidate
+ *
+ * Nov 18 2009 mtk01088
+ * [BORA00000476] [Wi-Fi][firmware] Add the security module initialize code
+ *
+**
 */
 
 #ifndef _RSN_H
@@ -35,7 +120,6 @@
 #if CFG_SUPPORT_802_11W
 #define RSN_CIPHER_SUITE_AES_128_CMAC   0x06AC0F00
 #endif
-#define RSN_CIPHER_SUITE_GROUP_NOT_USED 0x07AC0F00
 
 #define WPA_CIPHER_SUITE_NONE           0x00F25000
 #define WPA_CIPHER_SUITE_WEP40          0x01F25000
@@ -55,11 +139,6 @@
 #define WPA_AKM_SUITE_NONE              0x00F25000
 #define WPA_AKM_SUITE_802_1X            0x01F25000
 #define WPA_AKM_SUITE_PSK               0x02F25000
-
-#define WFA_AKM_SUITE_OSEN              0x019A6F50
-/* this define should be in ieee80211.h, but kernel didn't update it. so we define here temporary */
-#define WLAN_AKM_SUITE_OSEN             0x506f9a01
-#define WLAN_CIPHER_SUITE_NO_GROUP_ADDR 0x000fac07
 
 #define ELEM_ID_RSN_LEN_FIXED           20	/* The RSN IE len for associate request */
 
@@ -97,7 +176,7 @@
 /* Flags for PMKID Candidate list structure */
 #define EVENT_PMKID_CANDIDATE_PREAUTH_ENABLED   0x01
 
-#define CONTROL_FLAG_UC_MGMT_NO_ENC             BIT(6)
+#define CONTROL_FLAG_UC_MGMT_NO_ENC             BIT(5)
 
 /*******************************************************************************
 *                            P U B L I C   D A T A
@@ -183,7 +262,6 @@ void rsnSaQueryAction(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb);
 BOOLEAN rsnCheckRxMgmt(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb, IN UINT_8 ucSubtype);
 #endif
 BOOLEAN rsnCheckSecurityModeChanged(P_ADAPTER_T prAdapter, P_BSS_INFO_T prBssInfo, P_BSS_DESC_T prBssDesc);
-BOOLEAN rsnParseOsenIE(P_ADAPTER_T prAdapter, struct IE_WFA_OSEN *prInfoElem, P_RSN_INFO_T prOsenInfo);
 
 /*******************************************************************************
 *                              F U N C T I O N S

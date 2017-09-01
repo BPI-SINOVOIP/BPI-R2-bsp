@@ -138,6 +138,39 @@
 		#clock-cells = <0>;
 	};
 
+        reserved-memory {
+                #address-cells = <2>;
+                #size-cells = <2>;
+                ranges;
+
+                trustzone-bootinfo@80002000 {
+                        compatible = "mediatek,trustzone-bootinfo";
+                        reg = <0 0x80002000 0 0x1000>;
+                };
+
+                ram_console-reserved-memory@83f00000 {
+                        compatible = "mediatek,ram_console";
+                        reg = <0 0x83f00000 0 0x10000>;
+                };
+
+                pstore-reserved-memory@83f10000 {
+                        compatible = "mediatek,pstore";
+                        reg = <0 0x83f10000 0 0xe0000>;
+                };
+
+                minirdump-reserved-memory@83ff0000 {
+                        compatible = "mediatek,minirdump";
+                        reg = <0 0x83ff0000 0 0x10000>;
+                };
+
+                consys-reserve-memory {
+                        compatible = "mediatek,consys-reserve-memory";
+                        no-map;
+                        size = <0 0x100000>;
+                        alignment = <0 0x100000>;
+                };
+        };
+
 	clk_null: clk_null {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -240,6 +273,20 @@
 		clocks = <&system_clk>, <&rtc_clk>;
 		clock-names = "system-clk", "rtc-clk";
 	};
+
+        spi0: spi@1100a000 {
+                compatible = "mediatek,mt7623-spi",
+                             "mediatek,mt2701-spi";
+                #address-cells = <1>;
+                #size-cells = <0>;
+                reg = <0 0x1100a000 0 0x100>;
+                interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_LOW>;
+                clocks = <&topckgen CLK_TOP_SYSPLL3_D2>,
+                         <&topckgen CLK_TOP_SPI0_SEL>,
+                         <&pericfg CLK_PERI_SPI0>;
+                clock-names = "parent-clk", "sel-clk", "spi-clk";
+                status = "disabled";
+        };
 
 	smi_common: smi@1000c000 {
 		compatible = "mediatek,mt7623-smi-common",
@@ -355,6 +402,29 @@
 		clock-names = "main";
 		#io-channel-cells = <1>;
 	};
+
+        btif_tx: btif_tx@11000780 {
+                compatible = "mediatek,btif_tx";
+                reg = <0 0x11000780 0 0x80>;
+                interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_LOW>;
+		status = "okay";
+        };
+
+        btif_rx: btif_rx@11000800 {
+                compatible = "mediatek,btif_rx";
+                reg = <0 0x11000800 0 0x80>;
+                interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_LOW>;
+		status = "okay";
+        };
+
+        btif: btif@1100c000 {
+                compatible = "mediatek,btif";
+                reg = <0 0x1100c000 0 0x1000>;
+                interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_LOW>;
+                clocks = <&pericfg CLK_PERI_BTIF>, <&pericfg CLK_PERI_AP_DMA>;
+                clock-names = "btifc", "apdmac";
+		status = "okay";
+        };
 
 	uart2: serial@11004000 {
 		compatible = "mediatek,mt7623-uart",
@@ -919,6 +989,29 @@
 		clock-names = "apb", "smi";
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_VDEC>;
 	};
+
+	consys: consys@18070000 {
+		compatible = "mediatek,mt7623-consys";
+		reg = <0 0x18070000 0 0x0200>,  /*CONN_MCU_CONFIG_BASE      */
+		      <0 0x10001000 0 0x1600>;  /*TOPCKGEN_BASE             */
+		clocks = <&infracfg CLK_INFRA_CONNMCU>;
+		clock-names = "consysbus";
+		power-domains = <&scpsys MT2701_POWER_DOMAIN_CONN>;
+		interrupts = <GIC_SPI 185 IRQ_TYPE_LEVEL_LOW>,  /* BGF_EINT */
+			     <GIC_SPI 163 IRQ_TYPE_LEVEL_LOW>;  /* WDT_EINT */
+		resets = <&watchdog MT2701_TOPRGU_CONN_MCU_RST>;
+		reset-names = "connsys";
+		status="disabled";
+	};
+
+        wifi:wifi@180f0000 {
+                compatible = "mediatek,mt7623-wifi",
+                             "mediatek,wifi";
+                reg = <0 0x180f0000 0 0x005c>;
+                interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_LOW>;
+                clocks = <&pericfg CLK_PERI_AP_DMA>;
+                clock-names = "wifi-dma";
+        };
 
 	hifsys: syscon@1a000000 {
 		compatible = "mediatek,mt7623-hifsys",

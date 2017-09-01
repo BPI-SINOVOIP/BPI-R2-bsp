@@ -1,12 +1,55 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/os/linux/gl_proc.c#1
+*/
+
+/*! \file   "gl_proc.c"
+    \brief  This file defines the interface which can interact with users in /proc fs.
+
+    Detail description.
+*/
+
+/*
+** Log: gl_proc.c
+ *
+ * 11 10 2011 cp.wu
+ * [WCXRP00001098] [MT6620 Wi-Fi][Driver] Replace printk by DBG LOG macros in linux porting layer
+ * 1. eliminaite direct calls to printk in porting layer.
+ * 2. replaced by DBGLOG, which would be XLOG on ALPS platforms.
+ *
+ * 12 10 2010 kevin.huang
+ * [WCXRP00000128] [MT6620 Wi-Fi][Driver] Add proc support to Android Driver for debug and driver status check
+ * Add Linux Proc Support
+**  \main\maintrunk.MT5921\19 2008-09-02 21:08:37 GMT mtk01461
+**  Fix the compile error of SPRINTF()
+**  \main\maintrunk.MT5921\18 2008-08-10 18:48:28 GMT mtk01461
+**  Update for Driver Review
+**  \main\maintrunk.MT5921\17 2008-08-04 16:52:01 GMT mtk01461
+**  Add proc dbg print message of DOMAIN_INDEX level
+**  \main\maintrunk.MT5921\16 2008-07-10 00:45:16 GMT mtk01461
+**  Remove the check of MCR offset, we may use the MCR address which is not align to DW boundary or proprietary usage.
+**  \main\maintrunk.MT5921\15 2008-06-03 20:49:44 GMT mtk01461
+**  \main\maintrunk.MT5921\14 2008-06-02 22:56:00 GMT mtk01461
+**  Rename some functions for linux proc
+**  \main\maintrunk.MT5921\13 2008-06-02 20:23:18 GMT mtk01461
+**  Revise PROC mcr read / write for supporting TELNET
+**  \main\maintrunk.MT5921\12 2008-03-28 10:40:25 GMT mtk01461
+**  Remove temporary set desired rate in linux proc
+**  \main\maintrunk.MT5921\11 2008-01-07 15:07:29 GMT mtk01461
+**  Add User Update Desired Rate Set for QA in Linux
+**  \main\maintrunk.MT5921\10 2007-12-11 00:11:14 GMT mtk01461
+**  Fix SPIN_LOCK protection
+**  \main\maintrunk.MT5921\9 2007-12-04 18:07:57 GMT mtk01461
+**  Add additional debug category to proc
+**  \main\maintrunk.MT5921\8 2007-11-02 01:03:23 GMT mtk01461
+**  Unify TX Path for Normal and IBSS Power Save + IBSS neighbor learning
+**  \main\maintrunk.MT5921\7 2007-10-25 18:08:14 GMT mtk01461
+**  Add VOIP SCAN Support  & Refine Roaming
+** Revision 1.3  2007/07/05 07:25:33  MTK01461
+** Add Linux initial code, modify doc, add 11BB, RF init code
+**
+** Revision 1.2  2007/06/27 02:18:51  MTK01461
+** Update SCAN_FSM, Initial(Can Load Module), Proc(Can do Reg R/W), TX API
+**
 */
 
 /*******************************************************************************
@@ -21,9 +64,6 @@
 
 #include "precomp.h"
 
-#ifdef FW_CFG_SUPPORT
-#include "fwcfg.h"
-#endif
 /* #include "wlan_lib.h" */
 /* #include "debug.h" */
 
@@ -33,7 +73,6 @@
 */
 
 #define PROC_WLAN_THERMO                        "wlanThermo"
-#define PROC_COUNTRY                            "country"
 #define PROC_DRV_STATUS                         "status"
 #define PROC_RX_STATISTICS                      "rx_statistics"
 #define PROC_TX_STATISTICS                      "tx_statistics"
@@ -42,7 +81,6 @@
 #define PROC_AUTO_PER_CFG						"autoPerCfg"
 #define PROC_ROOT_NAME			"wlan"
 #define PROC_CMD_DEBUG_NAME		"cmdDebug"
-#define PROC_CFG_NAME			"cfg"
 
 #define PROC_MCR_ACCESS_MAX_USER_INPUT_LEN      20
 #define PROC_RX_STATISTICS_MAX_USER_INPUT_LEN   10
@@ -70,9 +108,6 @@
 /* static UINT_32 u4McrOffset; */
 #if CFG_SUPPORT_THERMO_THROTTLING
 static P_GLUE_INFO_T g_prGlueInfo_proc;
-#endif
-#if FW_CFG_SUPPORT
-static P_GLUE_INFO_T gprGlueInfo;
 #endif
 /*******************************************************************************
 *                                 M A C R O S
@@ -560,7 +595,7 @@ static ssize_t procTxDoneCfgWrite(struct file *file, const char *buffer, size_t 
 	temp = &aucProcBuf[0];
 	while (temp) {
 		/* pick up a string and teminated after meet : */
-		if (sscanf(temp, "%5s %d", aucModule, &u4Enabled) != 2)  {
+		if (sscanf(temp, "%s %d", aucModule, &u4Enabled) != 2)  {
 			kalPrint("read param fail, aucModule=%s\n", aucModule);
 			break;
 		}
@@ -690,6 +725,7 @@ static ssize_t procfile_read(struct file *filp, char __user *buf, size_t count, 
 		retval = 0;
 	} else {
 		/*len = sprintf(page, "%d\n", g_psm_enable); */
+#if 1
 		if (gCoexBuf1.availSize <= 0) {
 			DBGLOG(INIT, WARN, "no data available\n");
 			retval = strlen(warn_msg) + 1;
@@ -702,15 +738,15 @@ static ssize_t procfile_read(struct file *filp, char __user *buf, size_t count, 
 				goto err_exit;
 			}
 			*f_pos += retval;
-		} else {
+		} else
+#endif
+		{
 			INT32 i = 0;
 			INT32 len = 0;
 			CHAR msg_info[128];
 			INT32 max_num = 0;
-			/*
-			 * we do not check page buffer, because there are only 100 bytes in g_coex_buf, no reason page
-			 * buffer is not enough, a bomb is placed here on unexpected condition
-			 */
+			/*we do not check page buffer, because there are only 100 bytes in g_coex_buf, no reason page
+			buffer is not enough, a bomb is placed here on unexpected condition */
 
 			DBGLOG(INIT, TRACE, "%d bytes available\n", gCoexBuf1.availSize);
 			max_num = ((sizeof(msg_info) > count ? sizeof(msg_info) : count) - 1) / 5;
@@ -742,6 +778,7 @@ err_exit:
 	return retval;
 }
 
+#if 1
 typedef INT32 (*WLAN_DEV_DBG_FUNC)(void);
 static INT32 wlan_get_thermo_power(void);
 static INT32 wlan_get_link_mode(void);
@@ -782,6 +819,7 @@ INT32 wlan_get_link_mode(void)
 			   prAdapter->rWifiVar.arBssInfo[NETWORK_TYPE_AIS_INDEX].eConnectionState,
 			   prAdapter->rWifiVar.arBssInfo[NETWORK_TYPE_P2P_INDEX].eConnectionState, fgIsAPmode);
 
+#if 1
 
 	if (prAdapter->rWifiVar.arBssInfo[NETWORK_TYPE_AIS_INDEX].eConnectionState == PARAM_MEDIA_STATE_CONNECTED)
 		ucLinkMode |= BIT(0);
@@ -790,6 +828,7 @@ INT32 wlan_get_link_mode(void)
 	if (fgIsAPmode)
 		ucLinkMode |= BIT(2);
 
+#endif
 	gCoexBuf1.buffer[0] = ucLinkMode;
 	gCoexBuf1.availSize = 1;
 
@@ -811,6 +850,7 @@ static ssize_t procfile_write(struct file *filp, const char __user *buffer, size
 	/* gCoexBuf1.availSize = count; */
 
 	/* return gCoexBuf1.availSize; */
+#if 1
 	DBGLOG(INIT, TRACE, "write parameter len = %d\n\r", (INT32) len);
 	if (len >= sizeof(buf)) {
 		DBGLOG(INIT, ERROR, "input handling fail!\n");
@@ -831,6 +871,7 @@ static ssize_t procfile_write(struct file *filp, const char __user *buffer, size
 	if (!i4Ret)
 		DBGLOG(INIT, TRACE, "x = 0x%x\n", x);
 
+#if 1
 	pToken = strsep(&pBuf, "\t\n ");
 	if (pToken != NULL) {
 		i4Ret = kalkStrtos32(pToken, 16, &y); /* y = simple_strtol(pToken, NULL, 16); */
@@ -856,52 +897,24 @@ static ssize_t procfile_write(struct file *filp, const char __user *buffer, size
 	}
 
 	DBGLOG(INIT, TRACE, " x(0x%08x), y(0x%08x), z(0x%08x)\n\r", x, y, z);
+#endif
 
-	if ((ARRAY_SIZE(wlan_dev_dbg_func) > x) && NULL != wlan_dev_dbg_func[x])
+	if (((sizeof(wlan_dev_dbg_func) / sizeof(wlan_dev_dbg_func[0])) > x) && NULL != wlan_dev_dbg_func[x])
 		(*wlan_dev_dbg_func[x]) ();
 	else
 		DBGLOG(INIT, ERROR, "no handler defined for command id(0x%08x)\n\r", x);
+#endif
 
 	/* len = gCoexBuf1.availSize; */
 	return len;
 }
+#endif
 	static const struct file_operations proc_fops = {
 		.owner = THIS_MODULE,
 		.read = procfile_read,
 		.write = procfile_write,
 	};
 #endif
-
-static ssize_t procCountryWrite(struct file *file, const char __user *buffer,
-										size_t count, loff_t *data)
-{
-	UINT_32 u4BufLen = 0;
-	WLAN_STATUS rStatus;
-	UINT_32 u4CopySize = sizeof(aucProcBuf);
-
-	kalMemSet(aucProcBuf, 0, u4CopySize);
-	if (u4CopySize >= count+1)
-		u4CopySize = count;
-
-	if (copy_from_user(aucProcBuf, buffer, u4CopySize)) {
-		pr_err("error of copy from user\n");
-		return -EFAULT;
-	}
-
-	aucProcBuf[u4CopySize] = '\0';
-	rStatus = kalIoctl(g_prGlueInfo_proc, wlanoidSetCountryCode,
-				&aucProcBuf[0], 2, FALSE, FALSE, TRUE, FALSE, &u4BufLen);
-	if (rStatus != WLAN_STATUS_SUCCESS) {
-		DBGLOG(INIT, INFO, "failed set country code: %s\n", aucProcBuf);
-		return -EINVAL;
-	}
-	return count;
-}
-
-static const struct file_operations country_ops = {
-	.owner = THIS_MODULE,
-	.write = procCountryWrite,
-};
 
 INT_32 procInitFs(VOID)
 {
@@ -944,11 +957,6 @@ INT_32 procInitFs(VOID)
 	}
 	proc_set_user(prEntry, KUIDT_INIT(PROC_UID_SHELL), KGIDT_INIT(PROC_GID_WIFI));
 
-	prEntry = proc_create(PROC_COUNTRY, 0664, gprProcRoot, &country_ops);
-	if (prEntry == NULL) {
-		DBGLOG(INIT, ERROR, "Unable to create /proc entry\n\r");
-		return -1;
-	}
 	return 0;
 }				/* end of procInitProcfs() */
 
@@ -1009,140 +1017,3 @@ INT_32 procCreateFsEntry(P_GLUE_INFO_T prGlueInfo)
 	return 0;
 }
 
-#ifdef FW_CFG_SUPPORT
-#define MAX_CFG_OUTPUT_BUF_LENGTH 1024
-static UINT_8 aucCfgBuf[CMD_FORMAT_V1_LENGTH];
-static UINT_8 aucCfgQueryKey[MAX_CMD_NAME_MAX_LENGTH];
-static UINT_8 aucCfgOutputBuf[MAX_CFG_OUTPUT_BUF_LENGTH];
-
-static ssize_t cfgRead(struct file *filp, char __user *buf, size_t count, loff_t *f_pos)
-{
-	WLAN_STATUS rStatus = WLAN_STATUS_FAILURE;
-	UINT_8 *temp = &aucCfgOutputBuf[0];
-	UINT_32 u4CopySize = 0;
-	struct _CMD_HEADER_T cmdV1Header;
-	struct _CMD_FORMAT_V1_T *pr_cmd_v1 = (struct _CMD_FORMAT_V1_T *) cmdV1Header.buffer;
-
-	/* if *f_pos >  0, we should return 0 to make cat command exit */
-	if (*f_pos > 0 || gprGlueInfo == NULL)
-		return 0;
-
-	kalMemSet(aucCfgOutputBuf, '\0', MAX_CFG_OUTPUT_BUF_LENGTH);
-	temp += kalSnprintf(temp, sizeof(aucCfgQueryKey), "\nprocCfgRead() %s:\n",
-			  aucCfgQueryKey);
-
-	/* send to FW */
-	cmdV1Header.cmdVersion = CMD_VER_1;
-	cmdV1Header.cmdType = CMD_TYPE_QUERY;
-	cmdV1Header.itemNum = 1;
-	cmdV1Header.cmdBufferLen = sizeof(struct _CMD_FORMAT_V1_T);
-	kalMemSet(cmdV1Header.buffer, 0, MAX_CMD_BUFFER_LENGTH);
-
-	pr_cmd_v1->itemStringLength = kalStrLen(aucCfgQueryKey);
-	kalMemCopy(pr_cmd_v1->itemString, aucCfgQueryKey, kalStrLen(aucCfgQueryKey));
-
-	rStatus = kalIoctl(gprGlueInfo,
-			wlanoidQueryCfgRead,
-			(PVOID)&cmdV1Header,
-			sizeof(cmdV1Header),
-			TRUE,
-			TRUE,
-			TRUE,
-			FALSE,
-			&u4CopySize);
-	if (rStatus == WLAN_STATUS_FAILURE)
-		DBGLOG(INIT, ERROR, "prCmdV1Header kalIoctl wlanoidQueryCfgRead fail 0x%x\n", rStatus);
-
-	temp += kalSnprintf(temp, sizeof(cmdV1Header.buffer), "%s\n", cmdV1Header.buffer);
-
-	u4CopySize = kalStrLen(aucCfgOutputBuf);
-	if (u4CopySize > count)
-		u4CopySize = count;
-
-	if (copy_to_user(buf, aucCfgOutputBuf, u4CopySize))
-		DBGLOG(INIT, ERROR, "copy to user failed\n");
-
-	*f_pos += u4CopySize;
-	return (ssize_t)u4CopySize;
-}
-
-static ssize_t cfgWrite(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos)
-{
-	/* echo xxx xxx > /proc/net/wlan/cfg */
-	UINT_8 i = 0;
-	UINT_32 u4CopySize = sizeof(aucCfgBuf);
-	UINT_8 token_num = 1;
-
-	kalMemSet(aucCfgBuf, '\0', u4CopySize);
-
-	if (u4CopySize >= (count + 1))
-		u4CopySize = count;
-
-	if (copy_from_user(aucCfgBuf, buf, u4CopySize)) {
-		DBGLOG(INIT, ERROR, "copy from user failed\n");
-		return -EFAULT;
-	}
-
-	if (u4CopySize > 0)
-		aucCfgBuf[u4CopySize - 1] = '\0';
-
-	for (; i < u4CopySize; i++) {
-		if (aucCfgBuf[i] == ' ') {
-			token_num++;
-			break;
-		}
-	}
-
-	DBGLOG(INIT, INFO, "procCfgWrite :%s token_num:%d input_size :%zu\n"
-		, aucCfgBuf, token_num, count);
-
-	if (token_num == 1) {
-		/*set cfg Query key*/
-		kalMemSet(aucCfgQueryKey, '\0', sizeof(aucCfgQueryKey));
-
-		if (u4CopySize > (MAX_CMD_NAME_MAX_LENGTH - 1))
-			u4CopySize = MAX_CMD_NAME_MAX_LENGTH - 1;
-
-		memcpy(aucCfgQueryKey, aucCfgBuf, u4CopySize);
-
-		/*replace Carriage Return (0x0a) to string end of terminal */
-		if ((u4CopySize > 0) && (aucCfgQueryKey[u4CopySize - 1] == 0x0a))
-			aucCfgQueryKey[u4CopySize - 1] = '\0';
-
-	} else {
-		if (u4CopySize)
-			wlanFwCfgParse(gprGlueInfo->prAdapter, aucCfgBuf);
-	}
-
-	return count;
-}
-
-static const struct file_operations cfg_ops = {
-	.owner = THIS_MODULE,
-	.read = cfgRead,
-	.write = cfgWrite,
-};
-
-INT_32 cfgRemoveProcEntry(void)
-{
-	remove_proc_entry(PROC_CFG_NAME, gprProcRoot);
-	return 0;
-}
-
-INT_32 cfgCreateProcEntry(P_GLUE_INFO_T prGlueInfo)
-{
-	struct proc_dir_entry *prEntry;
-
-	prGlueInfo->pProcRoot = gprProcRoot;
-	gprGlueInfo = prGlueInfo;
-
-	prEntry = proc_create(PROC_CFG_NAME, 0664, gprProcRoot, &cfg_ops);
-	if (prEntry == NULL) {
-		DBGLOG(INIT, ERROR, "Unable to create /proc entry cfg\n\r");
-		return -1;
-	}
-	proc_set_user(prEntry, KUIDT_INIT(PROC_UID_SHELL), KGIDT_INIT(PROC_GID_WIFI));
-
-	return 0;
-}
-#endif

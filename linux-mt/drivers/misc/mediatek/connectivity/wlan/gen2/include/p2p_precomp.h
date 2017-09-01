@@ -1,12 +1,12 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: //Department/DaVinci/TRUNK/WiFi_P2P_Driver/include/p2p_precomp.h#1
+*/
+
+/*! \file   p2p_precomp.h
+    \brief  Collection of most compiler flags for p2p driver are described here.
+
+    In this file we collect all compiler flags and detail the p2p driver behavior if
+    enable/disable such switch or adjust numeric parameters.
 */
 
 #ifndef _P2P_PRECOMP_H
@@ -66,6 +66,7 @@
 /* Dependency:  hif_rx.h (P_HIF_RX_HEADER_T) */
 #include "nic_rx.h"
 
+#include "que_mgt.h"
 
 #if CFG_ENABLE_WIFI_DIRECT
 #include "p2p_typedef.h"
@@ -106,7 +107,6 @@
 #include "aa_fsm.h"
 
 #include "cnm_timer.h"
-#include "que_mgt.h"
 
 #if CFG_ENABLE_BT_OVER_WIFI
 #include "bow.h"

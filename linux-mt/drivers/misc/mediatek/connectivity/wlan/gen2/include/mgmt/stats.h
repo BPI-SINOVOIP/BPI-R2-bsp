@@ -1,13 +1,18 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: stats.h#1
 */
+
+/*! \file stats.h
+    \brief This file includes statistics support.
+*/
+
+/*
+** Log: stats.h
+ *
+ * 07 17 2014 samp.lin
+ * NULL
+ * Initial version.
+ */
 
 /*******************************************************************************
  *						C O M P I L E R	 F L A G S
@@ -154,8 +159,8 @@ typedef struct _STATS_INFO_ENV_T {
 	UINT32 u4StayIntByConst[STATS_STAY_INT_CONST_NUM];
 
 	/*
-	 * u4StayIntMaxPast: past maximum delay in firmware
-	 * u4StayIntCnt[]: divide 4 partitions to count each delay in firmware
+	   u4StayIntMaxPast: past maximum delay in firmware
+	   u4StayIntCnt[]: divide 4 partitions to count each delay in firmware
 	 */
 #define STATS_STAY_INT_NUM						4
 	UINT32 u4StayIntMaxPast;
@@ -176,10 +181,8 @@ typedef struct _STATS_INFO_ENV_T {
 	/* ------------------- Others ------------------- */
 	UINT32 u4NumOfChanChange;	/* total channel change count */
 	UINT32 u4NumOfRetryCnt;	/* total TX retry count */
-	UINT32 u4RxFifoFullCnt;	/*
-				 * counter of the number of the packets which
-				 * pass RFCR but are dropped due to FIFO full.
-				 */
+	UINT32 u4RxFifoFullCnt;	/* counter of the number of the packets which
+				   pass RFCR but are dropped due to FIFO full. */
 	UINT32 u4PsIntMax;	/* maximum time from ps to active */
 	UINT_8 ucNumOfPsChange;	/* peer power save change count */
 	UINT_8 ucReserved3[3];

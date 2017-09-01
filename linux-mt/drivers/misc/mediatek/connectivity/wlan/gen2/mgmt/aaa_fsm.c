@@ -1,12 +1,150 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: //Department/DaVinci/BRANCHES/MT6620_WIFI_DRIVER_V2_3/mgmt/aaa_fsm.c#2
+*/
+
+/*! \file   "aaa_fsm.c"
+    \brief  This file defines the FSM for AAA MODULE.
+
+    This file defines the FSM for AAA MODULE.
+*/
+
+/*
+** Log: aaa_fsm.c
+ *
+ * 07 17 2012 yuche.tsai
+ * NULL
+ * Compile no error before trial run.
+ *
+ * 06 13 2012 yuche.tsai
+ * NULL
+ * Update maintrunk driver.
+ * Add support for driver compose assoc request frame.
+ *
+ * 03 02 2012 terry.wu
+ * NULL
+ * Sync CFG80211 modification from branch 2,2.
+ *
+ * 02 22 2012 yuche.tsai
+ * NULL
+ * Solve sigma test 5.1.3 issue, assoc response should have P2P IE.
+ *
+ * 12 02 2011 yuche.tsai
+ * NULL
+ * Resolve inorder issue under AP mode.
+ *
+ * data frame may TX before assoc response frame.
+ *
+ * 11 18 2011 yuche.tsai
+ * NULL
+ * CONFIG P2P support RSSI query, default turned off.
+ *
+ * 06 17 2011 terry.wu
+ * NULL
+ * Add BoW 11N support.
+ *
+ * 06 02 2011 eddie.chen
+ * [WCXRP00000759] [MT6620 Wi-Fi][DRV] Update RCPI in AAA
+ * Update RCPI when receiving Assoc request.
+ *
+ * 04 21 2011 terry.wu
+ * [WCXRP00000674] [MT6620 Wi-Fi][Driver] Refine AAA authSendAuthFrame
+ * Add network type parameter to authSendAuthFrame.
+ *
+ * 04 15 2011 chinghwa.yu
+ * [WCXRP00000065] Update BoW design and settings
+ * Add BOW short range mode.
+ *
+ * 04 09 2011 chinghwa.yu
+ * [WCXRP00000065] Update BoW design and settings
+ * Change Link connection event procedure and change skb length check to 1512 bytes.
+ *
+ * 03 09 2011 wh.su
+ * [WCXRP00000530] [MT6620 Wi-Fi] [Driver] skip doing p2pRunEventAAAComplete after send assoc response Tx Done
+ * Skip to call p2pRunEventAAAComplete to avoid indicate STA connect twice.
+ *
+ * 03 04 2011 terry.wu
+ * [WCXRP00000515] [MT6620 Wi-Fi][Driver] Surpress compiler warning which is identified by GNU compiler collection
+ * Remove unused variable.
+ *
+ * 02 16 2011 yuche.tsai
+ * [WCXRP00000429] [Volunteer Patch][MT6620][Driver] Hot Spot Client Limit Issue
+ * Add more check after RX assoc frame under Hot-Spot mode.
+ *
+ * 02 09 2011 yuche.tsai
+ * [WCXRP00000429] [Volunteer Patch][MT6620][Driver] Hot Spot Client Limit Issue
+ * Fix Client Limit Issue.
+ *
+ * 01 25 2011 yuche.tsai
+ * [WCXRP00000388] [Volunteer Patch][MT6620][Driver/Fw] change Station Type in station record.
+ * Change Station Type in Station Record, Modify MACRO definition for getting station type & network type index & Role.
+ *
+ * 01 15 2011 puff.wen
+ * NULL
+ * [On behalf of Frog] Add CFG_ENABLE_WIFI_DIRECT to p2pRunEventAAAComplete
+ *
+ * 01 14 2011 yuche.tsai
+ * [WCXRP00000352] [Volunteer Patch][MT6620][Driver] P2P Statsion Record Client List Issue
+ * Modify AAA flow according to CM's comment.
+ *
+ * 09 03 2010 kevin.huang
+ * NULL
+ * Refine #include sequence and solve recursive/nested #include issue
+ *
+ * 08 29 2010 yuche.tsai
+ * NULL
+ * Fix Compile warning, type cast from UINT_32 to UINT_16.
+ *
+ * 08 26 2010 yuche.tsai
+ * NULL
+ * In P2P AT GO test mode under WinXP, we would not indicate connected event to host.
+ *
+ * 08 24 2010 cm.chang
+ * NULL
+ * Support RLM initail channel of Ad-hoc, P2P and BOW
+ *
+ * 08 23 2010 chinghwa.yu
+ * NULL
+ * Update for BOW.
+ *
+ * 08 20 2010 kevin.huang
+ * NULL
+ * Modify AAA Module for changing STA STATE 3 at p2p/bowRunEventAAAComplete()
+ *
+ * 08 17 2010 yuche.tsai
+ * NULL
+ * Fix bug while enabling P2P GO.
+ *
+ * 08 16 2010 kevin.huang
+ * NULL
+ * Refine AAA functions
+ *
+ * 07 08 2010 cp.wu
+ *
+ * [WPD00003833] [MT6620 and MT5931] Driver migration - move to new repository.
+ *
+ * 06 21 2010 cp.wu
+ * [WPD00003833][MT6620 and MT5931] Driver migration
+ * refine TX-DONE callback.
+ *
+ * 06 21 2010 yuche.tsai
+ * [WPD00003839][MT6620 5931][P2P] Feature migration
+ * modify due to P2P functino call prototype change.
+ *
+ * 06 17 2010 yuche.tsai
+ * [WPD00003839][MT6620 5931][P2P] Feature migration
+ * First draft for migration P2P FSM from FW to Driver.
+ *
+ * 04 02 2010 kevin.huang
+ * [BORA00000603][WIFISYS] [New Feature] AAA Module Support
+ * Modify CFG flags
+ *
+ * 02 26 2010 kevin.huang
+ * [BORA00000603][WIFISYS] [New Feature] AAA Module Support
+ * add support of Driver STA_RECORD_T activation
+ *
+ * 02 04 2010 kevin.huang
+ * [BORA00000603][WIFISYS] [New Feature] AAA Module Support
+ * Add AAA Module Support, Revise Net Type to Net Type Index for array lookup
 */
 
 /*******************************************************************************
@@ -192,13 +330,14 @@ VOID aaaFsmRunEventRxAuth(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 			if (prBssInfo->fgIsNetActive) {
 
 				/* 4 <1.1> Validate Auth Frame by Auth Algorithm/Transation Seq */
-				if (authProcessRxAuth1Frame(prAdapter,
-						prSwRfb,
-						prBssInfo->aucBSSID,
-						AUTH_ALGORITHM_NUM_OPEN_SYSTEM,
-						AUTH_TRANSACTION_SEQ_1, &u2StatusCode) == WLAN_STATUS_SUCCESS) {
+				if (WLAN_STATUS_SUCCESS ==
+				    authProcessRxAuth1Frame(prAdapter,
+							    prSwRfb,
+							    prBssInfo->aucBSSID,
+							    AUTH_ALGORITHM_NUM_OPEN_SYSTEM,
+							    AUTH_TRANSACTION_SEQ_1, &u2StatusCode)) {
 
-					if (u2StatusCode == STATUS_CODE_SUCCESSFUL) {
+					if (STATUS_CODE_SUCCESSFUL == u2StatusCode) {
 						/* 4 <1.2> Validate Auth Frame for Network Specific Conditions */
 						fgReplyAuth = p2pFuncValidateAuth(prAdapter,
 										  prSwRfb, &prStaRec, &u2StatusCode);
@@ -217,22 +356,25 @@ VOID aaaFsmRunEventRxAuth(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 		{
 			prBssInfo = &(prAdapter->rWifiVar.arBssInfo[NETWORK_TYPE_BOW_INDEX]);
 
-			if ((prBssInfo->fgIsNetActive) && (prBssInfo->eCurrentOPMode == OP_MODE_BOW)) {
+			if ((prBssInfo->fgIsNetActive) && (OP_MODE_BOW == prBssInfo->eCurrentOPMode)) {
 
 				/* 4 <2.1> Validate Auth Frame by Auth Algorithm/Transation Seq */
 				/* Check if for this BSSID */
-				if (authProcessRxAuth1Frame(prAdapter,
-						prSwRfb,
-						prBssInfo->aucBSSID,
-						AUTH_ALGORITHM_NUM_OPEN_SYSTEM,
-						AUTH_TRANSACTION_SEQ_1, &u2StatusCode) == WLAN_STATUS_SUCCESS) {
+				if (WLAN_STATUS_SUCCESS ==
+				    authProcessRxAuth1Frame(prAdapter,
+							    prSwRfb,
+							    prBssInfo->aucBSSID,
+							    AUTH_ALGORITHM_NUM_OPEN_SYSTEM,
+							    AUTH_TRANSACTION_SEQ_1, &u2StatusCode)) {
 
-					if (u2StatusCode == STATUS_CODE_SUCCESSFUL) {
+					if (STATUS_CODE_SUCCESSFUL == u2StatusCode) {
+
 						/* 4 <2.2> Validate Auth Frame for Network Specific Conditions */
 						fgReplyAuth =
 						    bowValidateAuth(prAdapter, prSwRfb, &prStaRec, &u2StatusCode);
 
 					} else {
+
 						fgReplyAuth = TRUE;
 					}
 					eNetTypeIndex = NETWORK_TYPE_BOW_INDEX;
@@ -246,20 +388,21 @@ VOID aaaFsmRunEventRxAuth(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 		return;
 	} while (FALSE);
 
-
+	if (prStaRec) {
+		/* update RCPI */
+		prStaRec->ucRCPI = prSwRfb->prHifRxHdr->ucRcpi;
+	}
+	/* 4 <3> Update STA_RECORD_T and reply Auth_2(Response to Auth_1) Frame */
 	if (fgReplyAuth) {
 
-		/* 4 <3> Update STA_RECORD_T before reply Auth */
 		if (prStaRec) {
-
-			/* Update RCPI */
-			prStaRec->ucRCPI = prSwRfb->prHifRxHdr->ucRcpi;
 
 			if (u2StatusCode == STATUS_CODE_SUCCESSFUL) {
 				if (prStaRec->eAuthAssocState != AA_STATE_IDLE) {
 					DBGLOG(AAA, WARN, "Previous AuthAssocState (%d) != IDLE.\n",
-					       prStaRec->eAuthAssocState);
+							   prStaRec->eAuthAssocState);
 				}
+
 				prStaRec->eAuthAssocState = AAA_STATE_SEND_AUTH2;
 			} else {
 				prStaRec->eAuthAssocState = AA_STATE_IDLE;
@@ -271,7 +414,7 @@ VOID aaaFsmRunEventRxAuth(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 			/* Update the record join time. */
 			GET_CURRENT_SYSTIME(&prStaRec->rUpdateTime);
 
-			/* Update Status/Reason Code */
+			/* Update Station Record - Status/Reason Code */
 			prStaRec->u2StatusCode = u2StatusCode;
 
 			prStaRec->ucAuthAlgNum = AUTH_ALGORITHM_NUM_OPEN_SYSTEM;
@@ -280,12 +423,10 @@ VOID aaaFsmRunEventRxAuth(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRfb)
 			ASSERT(!(u2StatusCode == STATUS_CODE_SUCCESSFUL));
 		}
 
-		/* 4 <4> Reply Auth_2 Frame */
+		/* NOTE: Ignore the return status for AAA */
+		/* 4 <4> Reply  Auth */
 		authSendAuthFrame(prAdapter, prStaRec, eNetTypeIndex, prSwRfb, AUTH_TRANSACTION_SEQ_2, u2StatusCode);
 
-	} else {
-		if (prStaRec)
-			cnmStaRecFree(prAdapter, prStaRec, FALSE);
 	}
 
 }				/* end of aaaFsmRunEventRxAuth() */
@@ -354,7 +495,7 @@ WLAN_STATUS aaaFsmRunEventRxAssoc(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRf
 				if (WLAN_STATUS_SUCCESS ==
 				    assocProcessRxAssocReqFrame(prAdapter, prSwRfb, &u2StatusCode)) {
 
-					if (u2StatusCode == STATUS_CODE_SUCCESSFUL) {
+					if (STATUS_CODE_SUCCESSFUL == u2StatusCode) {
 						/* 4 <2.2> Validate Assoc Req  Frame for Network Specific Conditions */
 						fgReplyAssocResp = p2pFuncValidateAssocReq(prAdapter,
 											   prSwRfb,
@@ -375,14 +516,14 @@ WLAN_STATUS aaaFsmRunEventRxAssoc(IN P_ADAPTER_T prAdapter, IN P_SW_RFB_T prSwRf
 
 			prBssInfo = &(prAdapter->rWifiVar.arBssInfo[NETWORK_TYPE_BOW_INDEX]);
 
-			if ((prBssInfo->fgIsNetActive) && (prBssInfo->eCurrentOPMode == OP_MODE_BOW)) {
+			if ((prBssInfo->fgIsNetActive) && (OP_MODE_BOW == prBssInfo->eCurrentOPMode)) {
 
 				/* 4 <3.1> Validate Auth Frame by Auth Algorithm/Transation Seq */
 				/* Check if for this BSSID */
 				if (WLAN_STATUS_SUCCESS ==
 				    assocProcessRxAssocReqFrame(prAdapter, prSwRfb, &u2StatusCode)) {
 
-					if (u2StatusCode == STATUS_CODE_SUCCESSFUL) {
+					if (STATUS_CODE_SUCCESSFUL == u2StatusCode) {
 
 						/* 4 <3.2> Validate Auth Frame for Network Specific Conditions */
 						fgReplyAssocResp =
@@ -544,8 +685,8 @@ aaaFsmRunEventTxDone(IN P_ADAPTER_T prAdapter, IN P_MSDU_INFO_T prMsduInfo, IN E
 			if (authCheckTxAuthFrame(prAdapter, prMsduInfo, AUTH_TRANSACTION_SEQ_2) != WLAN_STATUS_SUCCESS)
 				break;
 
-			if (prStaRec->u2StatusCode == STATUS_CODE_SUCCESSFUL) {
-				if (rTxDoneStatus == TX_RESULT_SUCCESS) {
+			if (STATUS_CODE_SUCCESSFUL == prStaRec->u2StatusCode) {
+				if (TX_RESULT_SUCCESS == rTxDoneStatus) {
 
 					/* NOTE(Kevin): Change to STATE_2 at TX Done */
 					cnmStaRecChangeState(prAdapter, prStaRec, STA_STATE_2);
@@ -579,8 +720,8 @@ aaaFsmRunEventTxDone(IN P_ADAPTER_T prAdapter, IN P_MSDU_INFO_T prMsduInfo, IN E
 			if (assocCheckTxReAssocRespFrame(prAdapter, prMsduInfo) != WLAN_STATUS_SUCCESS)
 				break;
 
-			if (prStaRec->u2StatusCode == STATUS_CODE_SUCCESSFUL) {
-				if (rTxDoneStatus == TX_RESULT_SUCCESS) {
+			if (STATUS_CODE_SUCCESSFUL == prStaRec->u2StatusCode) {
+				if (TX_RESULT_SUCCESS == rTxDoneStatus) {
 
 					prStaRec->eAuthAssocState = AA_STATE_IDLE;
 

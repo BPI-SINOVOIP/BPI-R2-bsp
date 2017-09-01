@@ -1,14 +1,3 @@
-/*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
-*/
-
 /* porting layer */
 /* Android */
 
@@ -20,18 +9,14 @@
 #define CONF_MTK_AHB_DMA            1
 
 /* Type definition for signed integers */
-/*
- * typedef signed char INT8, *PINT8;
- * typedef signed short INT16, *PINT16;
- * typedef signed int INT_32, *PINT32;
- */
+/*typedef signed char INT8, *PINT8;
+typedef signed short INT16, *PINT16;
+typedef signed int INT_32, *PINT32;*/
 
 /* Type definition for unsigned integers */
-/*
- * typedef unsigned char UINT8, *PUINT8;
- * typedef unsigned short UINT16, *PUINT16;
- * typedef unsigned int UINT32, *PUINT32;
- */
+/*typedef unsigned char UINT8, *PUINT8;
+typedef unsigned short UINT16, *PUINT16;
+typedef unsigned int UINT32, *PUINT32;*/
 
 #ifndef VOID
 /*typedef void VOID, *PVOID;*/

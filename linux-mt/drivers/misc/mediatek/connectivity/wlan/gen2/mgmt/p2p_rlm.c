@@ -1,12 +1,10 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: @(#) p2p_rlm.c@@
+*/
+
+/*! \file   "p2p_rlm.c"
+    \brief
+
 */
 
 /*******************************************************************************
@@ -430,14 +428,14 @@ VOID rlmUpdateParamsForAP(P_ADAPTER_T prAdapter, P_BSS_INFO_T prBssInfo, BOOLEAN
 			} else if (!(prStaRec->u2HtCapInfo & HT_CAP_INFO_SUP_CHNL_WIDTH)) {
 				/* 20MHz-only */
 				/*
-				 * The HT Protection field may be set to 20 MHz protection
-				 * mode only if the following are true:
-				 * \A1X All STAs detected (by any means) in the primary channel
-				 * and all STAs detected (by any means) in      the secondary
-				 * channel are HT STAs and all STAs that are members of
-				 * this BSS are HT STAs, and
-				 * \A1X This BSS is a 20/40 MHz BSS, and
-				 * \A1X There is at least one 20 MHz HT STA associated with this BSS.
+				   The HT Protection field may be set to 20 MHz protection
+				   mode only if the following are true:
+				   \A1X All STAs detected (by any means) in the primary channel
+				   and all STAs detected (by any means) in      the secondary
+				   channel are HT STAs and all STAs that are members of
+				   this BSS are HT STAs, and
+				   \A1X This BSS is a 20/40 MHz BSS, and
+				   \A1X There is at least one 20 MHz HT STA associated with this BSS.
 				 */
 				if (eHtProtectMode == HT_PROTECT_MODE_NONE && prBssInfo->fgAssoc40mBwAllowed)
 					eHtProtectMode = HT_PROTECT_MODE_20M;
@@ -690,10 +688,8 @@ rlmFuncCommonChannelList(IN P_ADAPTER_T prAdapter,
 			while (ucOriChnlSize > 0) {
 				if (prChannelEntryI->ucRegulatoryClass == prChannelEntryII->ucRegulatoryClass) {
 					prChannelEntryIII->ucRegulatoryClass = prChannelEntryI->ucRegulatoryClass;
-					/*
-					 * TODO: Currently we assume that the regulatory class the same,
-					 * the channels are the same.
-					 */
+					/* TODO: Currently we assume that the regulatory class the same,
+					 * the channels are the same. */
 					kalMemCopy(prChannelEntryIII->aucChannelList, prChannelEntryII->aucChannelList,
 						   prChannelEntryII->ucNumberOfChannels);
 					prChannelEntryIII->ucNumberOfChannels = prChannelEntryII->ucNumberOfChannels;

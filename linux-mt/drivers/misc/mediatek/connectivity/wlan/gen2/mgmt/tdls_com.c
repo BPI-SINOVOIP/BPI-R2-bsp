@@ -1,13 +1,18 @@
 /*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+** Id: tdls_com.c#1
 */
+
+/*! \file tdls_com.c
+    \brief This file includes IEEE802.11z TDLS main support.
+*/
+
+/*
+** Log: tdls_com.c
+ *
+ * 11 13 2013 vend_samp.lin
+ * NULL
+ * Initial version.
+ */
 
 /*******************************************************************************
  *						C O M P I L E R	 F L A G S
@@ -128,8 +133,8 @@ UINT_32 TdlsFrameGeneralIeAppend(ADAPTER_T *prAdapter, STA_RECORD_T *prStaRec, U
 
 	/* 3. Frame Formation - (8) Supported channels element */
 	/*
-	 * The Supported channels element is included in Request frame and also in Response
-	 * frame if Status Code 0 (successful).
+	   The Supported channels element is included in Request frame and also in Response
+	   frame if Status Code 0 (successful).
 	 */
 	if (u2StatusCode == 0) {
 		SUPPORTED_CHANNELS_IE(pPkt)->ucId = ELEM_ID_SUP_CHS;
@@ -160,15 +165,15 @@ UINT_32 TdlsFrameGeneralIeAppend(ADAPTER_T *prAdapter, STA_RECORD_T *prStaRec, U
 	/* 3. Frame Formation - (14) HT capabilities element */
 
 	/* no need to check AP capability */
-	/* if ((prAdapter->rWifiVar.ucAvailablePhyTypeSet & PHY_TYPE_SET_802_11N) && */
+/* if ((prAdapter->rWifiVar.ucAvailablePhyTypeSet & PHY_TYPE_SET_802_11N) && */
 
 	/*
-	 * after we set ucPhyTypeSet to PHY_TYPE_SET_802_11N in TdlsexRxFrameHandle(),
-	 * supplicant will disable link if exists and we will clear prStaRec.
-	 *
-	 *  finally, prStaRec->ucPhyTypeSet will also be 0
-	 *
-	 *  so we have a fix in TdlsexPeerAdd().
+	   after we set ucPhyTypeSet to PHY_TYPE_SET_802_11N in TdlsexRxFrameHandle(),
+	   supplicant will disable link if exists and we will clear prStaRec.
+
+	   finally, prStaRec->ucPhyTypeSet will also be 0
+
+	   so we have a fix in TdlsexPeerAdd().
 	 */
 	if (!prStaRec || (prStaRec->ucPhyTypeSet & PHY_TYPE_SET_802_11N)) {
 		/* TODO: prAdapter->rWifiVar.rConnSettings.uc5GBandwidthMode */
@@ -193,14 +198,14 @@ UINT_32 TdlsFrameGeneralIeAppend(ADAPTER_T *prAdapter, STA_RECORD_T *prStaRec, U
 	/* 3. Frame Formation - (17) WMM Information element */
 
 	/* always support */
-	/* if (prAdapter->rWifiVar.fgSupportQoS) */
+/* if (prAdapter->rWifiVar.fgSupportQoS) */
 
 	{
 		/* force to support all UAPSD in TDLS link */
-		u4IeLen = mqmGenerateWmmInfoIEByParam(TRUE /*prAdapter->rWifiVar.fgSupportUAPSD */,
-						      0xf /*prPmProfSetupInfo->ucBmpDeliveryAC */,
-						      0xf /*prPmProfSetupInfo->ucBmpTriggerAC */,
-						      WMM_MAX_SP_LENGTH_ALL /*prPmProfSetupInfo->ucUapsdSp */,
+		u4IeLen = mqmGenerateWmmInfoIEByParam(TRUE /*prAdapter->rWifiVar.fgSupportUAPSD */ ,
+						      0xf /*prPmProfSetupInfo->ucBmpDeliveryAC */ ,
+						      0xf /*prPmProfSetupInfo->ucBmpTriggerAC */ ,
+						      WMM_MAX_SP_LENGTH_ALL /*prPmProfSetupInfo->ucUapsdSp */ ,
 						      pPkt);
 
 		pPkt += u4IeLen;
@@ -247,7 +252,7 @@ do { \
 	UINT8 *pPkt, *pucInitiator, *pucResponder;
 	UINT32 u4PktLen, u4IeLen;
 	UINT16 u2CapInfo;
-	/* UINT8 *pPktTemp; */
+/* UINT8 *pPktTemp; */
 
 	prGlueInfo = (GLUE_INFO_T *) prAdapter->prGlueInfo;
 
@@ -276,8 +281,8 @@ do { \
 	/* make up frame content */
 	if (ucActionCode != TDLS_FRM_ACTION_DISCOVERY_RESPONSE) {
 		/*
-		 * The STAUT will not respond to a TDLS Discovery Request Frame with different BSSID.
-		 * Supplicant will check this in wpa_tdls_process_discovery_request().
+		   The STAUT will not respond to a TDLS Discovery Request Frame with different BSSID.
+		   Supplicant will check this in wpa_tdls_process_discovery_request().
 		 */
 
 		/* TODO: reduce 1600 to correct size */
@@ -295,7 +300,7 @@ do { \
 		}
 
 		/* 1. 802.3 header */
-		/* pPktTemp = pPkt; */
+/* pPktTemp = pPkt; */
 		kalMemCopy(pPkt, pPeerMac, TDLS_FME_MAC_ADDR_LEN);
 		LR_TDLS_FME_FIELD_FILL(TDLS_FME_MAC_ADDR_LEN);
 		kalMemCopy(pPkt, prBssInfo->aucOwnMacAddr, TDLS_FME_MAC_ADDR_LEN);
@@ -361,20 +366,20 @@ do { \
 	/* Fill elements */
 	if (ucActionCode != TDLS_FRM_ACTION_TEARDOWN) {
 		/*
-		 * Capability
-		 *
-		 * Support Rates
-		 * Extended Support Rates
-		 * Supported Channels
-		 * HT Capabilities
-		 * WMM Information Element
-		 *
-		 * Extended Capabilities
-		 * Link Identifier
-		 *
-		 * RSNIE
-		 * FTIE
-		 * Timeout Interval
+		   Capability
+
+		   Support Rates
+		   Extended Support Rates
+		   Supported Channels
+		   HT Capabilities
+		   WMM Information Element
+
+		   Extended Capabilities
+		   Link Identifier
+
+		   RSNIE
+		   FTIE
+		   Timeout Interval
 		 */
 		if (ucActionCode != TDLS_FRM_ACTION_CONFIRM) {
 			/* 3. Frame Formation - (4) Capability: 0x31 0x04, privacy bit will be set */
@@ -384,11 +389,11 @@ do { \
 
 			/* 4. Append general IEs */
 			/*
-			 * TODO check HT: prAdapter->rWifiVar.rConnSettings.uc2G4BandwidthMode
-			 * must be CONFIG_BW_20_40M.
-			 *
-			 * TODO check HT: HT_CAP_INFO_40M_INTOLERANT must be clear if
-			 * Tdls 20/40 is enabled.
+			   TODO check HT: prAdapter->rWifiVar.rConnSettings.uc2G4BandwidthMode
+			   must be CONFIG_BW_20_40M.
+
+			   TODO check HT: HT_CAP_INFO_40M_INTOLERANT must be clear if
+			   Tdls 20/40 is enabled.
 			 */
 			u4IeLen = TdlsFrameGeneralIeAppend(prAdapter, prStaRec, u2StatusCode, pPkt);
 			LR_TDLS_FME_FIELD_FILL(u4IeLen);
@@ -425,22 +430,22 @@ do { \
 
 	/* 6. Frame Formation - 20/40 BSS Coexistence */
 	/*
-	 * Follow WiFi test plan, add 20/40 element to request/response/confirm.
+	   Follow WiFi test plan, add 20/40 element to request/response/confirm.
 	 */
-	/* if (prGlueInfo->rTdlsLink.fgIs2040Sup == TRUE) */ /* force to enable */
+/* if (prGlueInfo->rTdlsLink.fgIs2040Sup == TRUE) */ /* force to enable */
 	if (ucActionCode != TDLS_FRM_ACTION_TEARDOWN) {
 		/*
-		 * bit0 = 1: The Information Request field is used to indicate that a
-		 * transmitting STA is requesting the recipient to transmit a 20/40 BSS
-		 * Coexistence Management frame with the transmitting STA as the
-		 * recipient.
-		 *
-		 * bit1 = 0: The Forty MHz Intolerant field is set to 1 to prohibit an AP
-		 * that receives this information or reports of this information from
-		 * operating a 20/40 MHz BSS.
-		 *
-		 * bit2 = 0: The 20 MHz BSS Width Request field is set to 1 to prohibit
-		 * a receiving AP from operating its BSS as a 20/40 MHz BSS.
+		   bit0 = 1: The Information Request field is used to indicate that a
+		   transmitting STA is requesting the recipient to transmit a 20/40 BSS
+		   Coexistence Management frame with the transmitting STA as the
+		   recipient.
+
+		   bit1 = 0: The Forty MHz Intolerant field is set to 1 to prohibit an AP
+		   that receives this information or reports of this information from
+		   operating a 20/40 MHz BSS.
+
+		   bit2 = 0: The 20 MHz BSS Width Request field is set to 1 to prohibit
+		   a receiving AP from operating its BSS as a 20/40 MHz BSS.
 		 */
 		BSS_20_40_COEXIST_IE(pPkt)->ucId = ELEM_ID_20_40_BSS_COEXISTENCE;
 		BSS_20_40_COEXIST_IE(pPkt)->ucLength = 1;
@@ -449,14 +454,14 @@ do { \
 	}
 
 	/* 6. Frame Formation - HT Operation element */
-	/* u4IeLen = rlmFillHtOpIeBody(prBssInfo, pPkt); */
-	/* LR_TDLS_FME_FIELD_FILL(u4IeLen); */
+/* u4IeLen = rlmFillHtOpIeBody(prBssInfo, pPkt); */
+/* LR_TDLS_FME_FIELD_FILL(u4IeLen); */
 
 	/* 7. Frame Formation - Link identifier element */
 	/* Note1: Link ID sequence must be correct; Or the calculated MIC will be error */
 	/*
-	 * Note2: When we receive a setup request with link ID, Marvell will send setup response
-	 * to the peer in link ID, not the SA in the WLAN header.
+	   Note2: When we receive a setup request with link ID, Marvell will send setup response
+	   to the peer in link ID, not the SA in the WLAN header.
 	 */
 	TDLS_LINK_IDENTIFIER_IE(pPkt)->ucId = ELEM_ID_LINK_IDENTIFIER;
 	TDLS_LINK_IDENTIFIER_IE(pPkt)->ucLength = ELEM_LEN_LINK_IDENTIFIER;
@@ -512,13 +517,13 @@ do { \
 
 	/* 8. Append security IEs */
 	/*
-	 * 11.21.5 TDLS Direct Link Teardown
-	 * If the STA has security enabled on the link 37 with the AP, then the FTIE shall be
-	 * included in the TDLS Teardown frame.
-	 *
-	 * For ralink station, it can accept our tear down without FTIE but marvell station.
+	   11.21.5 TDLS Direct Link Teardown
+	   If the STA has security enabled on the link 37 with the AP, then the FTIE shall be
+	   included in the TDLS Teardown frame.
+
+	   For ralink station, it can accept our tear down without FTIE but marvell station.
 	 */
-	/* if ((ucActionCode != TDLS_FRM_ACTION_TEARDOWN) && (pAppendIe != NULL)) */
+/* if ((ucActionCode != TDLS_FRM_ACTION_TEARDOWN) && (pAppendIe != NULL)) */
 	if (pAppendIe != NULL) {
 		if ((ucActionCode != TDLS_FRM_ACTION_TEARDOWN) ||
 		    ((ucActionCode == TDLS_FRM_ACTION_TEARDOWN) &&
@@ -539,8 +544,8 @@ do { \
 	if (ucActionCode != TDLS_FRM_ACTION_DISCOVERY_RESPONSE) {
 #if 0
 		/*
-		 * Note1: remember to modify our MAC & AP MAC & peer MAC in LINK ID
-		 * Note2: dialog token in rsp & confirm must be same as sender.
+		   Note1: remember to modify our MAC & AP MAC & peer MAC in LINK ID
+		   Note2: dialog token in rsp & confirm must be same as sender.
 		 */
 
 #if 1
@@ -706,12 +711,12 @@ do { \
 		wlanHardStartXmit(prMsduInfo, prMsduInfo->dev);
 	} else {
 		/*
-		 * A TDLS capable STA that receives a TDLS Discovery Request frame is required to
-		 * send the response "to the requesting STA, via the direct path."
-		 * However, prior to establishment of the direct link, the responding STA may not
-		 * know the rate capabilities of the requesting STA. In this case, the responding
-		 * STA shall send the TDLS Discovery Response frame using a rate from the
-		 * BSSBasicRateSet of the BSS to which the STA is currently associated.
+		   A TDLS capable STA that receives a TDLS Discovery Request frame is required to
+		   send the response "to the requesting STA, via the direct path."
+		   However, prior to establishment of the direct link, the responding STA may not
+		   know the rate capabilities of the requesting STA. In this case, the responding
+		   STA shall send the TDLS Discovery Response frame using a rate from the
+		   BSSBasicRateSet of the BSS to which the STA is currently associated.
 		 */
 		prMsduInfoMgmt->ucPacketType = HIF_TX_PACKET_TYPE_MGMT;
 		prMsduInfoMgmt->ucStaRecIndex = prBssInfo->prStaRecOfAP->ucIndex;

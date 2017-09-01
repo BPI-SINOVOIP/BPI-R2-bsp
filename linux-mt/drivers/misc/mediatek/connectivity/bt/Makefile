@@ -1,10 +1,16 @@
-#########################################################
-# Bluetooth character device driver
-
-ccflags-y += -D CREATE_NODE_DYNAMIC=1
+ifeq ($(CONFIG_MTK_COMBO_BT_HCI),y)
 
 ccflags-y += \
-	-I$(src)/../common/common_main/include \
-	-I$(src)/../common/common_main/linux/include
+        -I$(src)/include \
+        -I$(src)/../common/combo/linux/include \
+        -I$(src)/../common/combo/core/include \
+        -I$(src)/../common/combo/include \
+        -I$(src)/../common/common_detect
 
-obj-$(CONFIG_MTK_COMBO_BT) += stp_chrdev_bt.o
+ifeq ($(CONFIG_BT),y)
+ccflags-y += -D MTK_BT_HCI  -D REMOVE_MK_NODE=1
+endif
+
+obj-$(CONFIG_MTK_COMBO_BT_HCI)	+= stp_chrdev_bt_hci.o
+
+endif

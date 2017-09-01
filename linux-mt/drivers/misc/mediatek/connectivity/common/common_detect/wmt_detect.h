@@ -25,7 +25,7 @@
 #include <linux/sched.h>
 #include <linux/poll.h>
 #include <asm/current.h>
-#include <linux/uaccess.h>
+#include <asm/uaccess.h>
 #include <linux/proc_fs.h>
 #include <linux/wait.h>
 #include <linux/time.h>
@@ -55,45 +55,40 @@ extern unsigned int gWmtDetectDbgLvl;
 #define WMT_DETECT_LOUD_FUNC(fmt, arg...) \
 do { \
 	if (gWmtDetectDbgLvl >= WMT_DETECT_LOG_LOUD) \
-		pr_warn(DFT_TAG"[L]%s:"  fmt, __func__, ##arg); \
+		pr_debug(DFT_TAG"[L]%s:"  fmt, __func__ , ##arg); \
 } while (0)
 #define WMT_DETECT_DBG_FUNC(fmt, arg...) \
 do { \
 	if (gWmtDetectDbgLvl >= WMT_DETECT_LOG_DBG) \
-		pr_warn(DFT_TAG"[D]%s:"  fmt, __func__, ##arg); \
+		pr_debug(DFT_TAG"[D]%s:"  fmt, __func__ , ##arg); \
 } while (0)
 #define WMT_DETECT_INFO_FUNC(fmt, arg...) \
 do { \
 	if (gWmtDetectDbgLvl >= WMT_DETECT_LOG_INFO) \
-		pr_err(DFT_TAG"[I]%s:"  fmt, __func__, ##arg); \
+		pr_err(DFT_TAG"[I]%s:"  fmt, __func__ , ##arg); \
 } while (0)
 #define WMT_DETECT_WARN_FUNC(fmt, arg...) \
 do { \
 	if (gWmtDetectDbgLvl >= WMT_DETECT_LOG_WARN) \
-		pr_warn(DFT_TAG"[W]%s(%d):"  fmt, __func__, __LINE__, ##arg); \
+		pr_warn(DFT_TAG"[W]%s(%d):"  fmt, __func__ , __LINE__, ##arg); \
 } while (0)
 #define WMT_DETECT_ERR_FUNC(fmt, arg...) \
 do { \
 	if (gWmtDetectDbgLvl >= WMT_DETECT_LOG_ERR) \
-		pr_err(DFT_TAG"[E]%s(%d):"  fmt, __func__, __LINE__, ##arg); \
+		pr_err(DFT_TAG"[E]%s(%d):"  fmt, __func__ , __LINE__, ##arg); \
 } while (0)
 
-#define WMT_DETECT_IOC_MAGIC            'w'
-#define COMBO_IOCTL_GET_CHIP_ID       _IOR(WMT_DETECT_IOC_MAGIC, 0, int)
-#define COMBO_IOCTL_SET_CHIP_ID       _IOW(WMT_DETECT_IOC_MAGIC, 1, int)
-#define COMBO_IOCTL_EXT_CHIP_DETECT   _IOR(WMT_DETECT_IOC_MAGIC, 2, int)
-#define COMBO_IOCTL_GET_SOC_CHIP_ID   _IOR(WMT_DETECT_IOC_MAGIC, 3, int)
-#define COMBO_IOCTL_DO_MODULE_INIT    _IOR(WMT_DETECT_IOC_MAGIC, 4, int)
-#define COMBO_IOCTL_MODULE_CLEANUP    _IOR(WMT_DETECT_IOC_MAGIC, 5, int)
-#define COMBO_IOCTL_EXT_CHIP_PWR_ON   _IOR(WMT_DETECT_IOC_MAGIC, 6, int)
-#define COMBO_IOCTL_EXT_CHIP_PWR_OFF  _IOR(WMT_DETECT_IOC_MAGIC, 7, int)
-#define COMBO_IOCTL_DO_SDIO_AUDOK     _IOR(WMT_DETECT_IOC_MAGIC, 8, int)
+#define WMT_IOC_MAGIC			'w'
+#define COMBO_IOCTL_GET_CHIP_ID		  _IOR(WMT_IOC_MAGIC, 0, int)
+#define COMBO_IOCTL_SET_CHIP_ID		  _IOW(WMT_IOC_MAGIC, 1, int)
+#define COMBO_IOCTL_EXT_CHIP_DETECT   _IOR(WMT_IOC_MAGIC, 2, int)
+#define COMBO_IOCTL_GET_SOC_CHIP_ID   _IOR(WMT_IOC_MAGIC, 3, int)
+#define COMBO_IOCTL_DO_MODULE_INIT    _IOR(WMT_IOC_MAGIC, 4, int)
+#define COMBO_IOCTL_MODULE_CLEANUP    _IOR(WMT_IOC_MAGIC, 5, int)
+#define COMBO_IOCTL_EXT_CHIP_PWR_ON   _IOR(WMT_IOC_MAGIC, 6, int)
+#define COMBO_IOCTL_EXT_CHIP_PWR_OFF  _IOR(WMT_IOC_MAGIC, 7, int)
+#define COMBO_IOCTL_DO_SDIO_AUDOK     _IOR(WMT_IOC_MAGIC, 8, int)
 
-typedef enum _ENUM_WMT_CHIP_TYPE_T {
-	WMT_CHIP_TYPE_COMBO,
-	WMT_CHIP_TYPE_SOC,
-	WMT_CHIP_TYPE_INVALID
-} ENUM_WMT_CHIP_TYPE;
 /*******************************************************************************
 *                   F U N C T I O N   D E C L A R A T I O N S
 ********************************************************************************/
@@ -101,7 +96,9 @@ extern int wmt_detect_ext_chip_detect(void);
 extern int wmt_detect_ext_chip_pwr_on(void);
 extern int wmt_detect_ext_chip_pwr_off(void);
 
+#ifdef MTK_WCN_SOC_CHIP_SUPPORT
 extern unsigned int wmt_plat_get_soc_chipid(void);
+#endif
 
 #ifdef MTK_WCN_COMBO_CHIP_SUPPORT
 /* mtk_uart_pdn_enable -- request uart port enter/exit deep idle mode, this API is defined in uart driver
@@ -113,6 +110,5 @@ extern unsigned int wmt_plat_get_soc_chipid(void);
  */
 extern unsigned int mtk_uart_pdn_enable(char *port, int enable);
 #endif
-extern int wmt_detect_set_chip_type(int chip_id);
-extern ENUM_WMT_CHIP_TYPE wmt_detect_get_chip_type(void);
+
 #endif
