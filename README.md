@@ -18,9 +18,10 @@ Getting started
 
 How to build both U-boot and Linux kernel
 ------------------------------------------
-To build this project, the following package is required:
+To build this project, the following packages are required:
 ```
 	gcc-arm-linux-gnueabihf 
+	u-boot-tools
 ```
 1. Clone this code to a host PC on which the Ubuntu 16.04 is installed
 2. Run script build.sh

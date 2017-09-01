@@ -10,7 +10,7 @@ MODE=$1
 BPILINUX=linux-mt
 BPIPACK=mt-pack
 BPISOC=mtk
-
+RET=0
 
 cp_download_files()
 {
@@ -107,9 +107,11 @@ fi
 echo -e "\033[31m Now building...\033[0m"
 echo
 case $mode in
-	1) make && 
+	1) RET=1;make && 
 	   make pack && 
-	   cp_download_files;;
+	   cp_download_files &&
+           RET=0
+           ;;
 	2) make u-boot;;
 	3) make kernel;;
 	4) make kernel-config;;
@@ -119,5 +121,10 @@ case $mode in
 esac
 echo
 
-echo -e "\033[31m Build success!\033[0m"
+if [ "$RET" -eq "0" ];
+then
+  echo -e "\033[32m Build success!\033[0m"
+else
+  echo -e "\033[31m Build failed!\033[0m"
+fi
 echo
