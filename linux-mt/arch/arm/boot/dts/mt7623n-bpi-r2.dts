@@ -412,6 +412,19 @@
                         pinmux = <MT7623_PIN_207_PWM4_FUNC_PWM4>;
                 };
         };
+
+        mipi_dsi_pin: mipi_dsi_pin {
+                pins_cmd_dat {
+                      pinmux = <MT7623_PIN_100_MIPI_TDP0_FUNC_TDP0>,
+                               <MT7623_PIN_99_MIPI_TDN0_FUNC_TDN0>,
+                               <MT7623_PIN_98_MIPI_TDP1_FUNC_TDP1>,
+                               <MT7623_PIN_97_MIPI_TDN1_FUNC_TDN1>,
+                               <MT7623_PIN_96_MIPI_TCP_FUNC_TCP>,
+                               <MT7623_PIN_95_MIPI_TCN_FUNC_TCN>;
+               };
+
+      };
+
 };
 
 &pwrap {
@@ -692,3 +705,14 @@
 &pwm {
 	status = "okay";
 };
+
+&mipi_tx0 {
+        pinctrl-names = "default";
+        pinctrl-0 = <&mipi_dsi_pin>;
+        status = "okay";
+
+};
+
+
+
+
