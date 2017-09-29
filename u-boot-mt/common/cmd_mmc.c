@@ -876,4 +876,100 @@ U_BOOT_CMD(
 #endif
 	"mmc setdsr - set DSR register value\n"
 	);
+
+
 #endif /* !CONFIG_GENERIC_MMC */
+
+
+#ifdef FEATURE_MMC_BOOT_MODE
+
+extern int emmc_part_read(u8 partno, u32 blknr, u32 blkcnt, unsigned long *dst);
+extern int emmc_part_write(u8 partno, u32 blknr, u32 blkcnt, unsigned long *src);
+extern void emmc_dump_ext_csd(void);
+extern int emmc_set_part_config(u8 cfg);
+
+static int do_emmcops(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	enum mmc_state state;
+
+	if (argc < 2)
+		return CMD_RET_USAGE;
+
+	if (strcmp(argv[1], "ecsd") == 0) {
+		emmc_dump_ext_csd();
+		return 0;
+	}
+
+	if ((argc == 3) && (strcmp(argv[1], "pconf") == 0)) {
+		u8 cfg;
+		cfg = (u8)simple_strtoul(argv[2], NULL, 16);
+		return emmc_set_part_config(cfg);
+	}
+
+	state = MMC_INVALID;
+	if (argc == 6 && strcmp(argv[1], "read") == 0) {
+		state = MMC_READ;
+	}
+	else if (argc == 6 && strcmp(argv[1], "write") == 0) {
+		state = MMC_WRITE;
+	}
+	else {
+		return CMD_RET_USAGE;
+	}
+
+	if (state != MMC_INVALID) {
+		u32 part, blk, cnt;
+		int n;
+		unsigned long * addr;
+		struct mmc *mmc = find_mmc_device(0);
+
+		part = simple_strtoul(argv[2], NULL, 16);
+		addr = (void *)simple_strtoul(argv[3], NULL, 16);
+		blk = simple_strtoul(argv[4], NULL, 16);
+		cnt = simple_strtoul(argv[5], NULL, 16);
+
+		if (!mmc) {
+			printf("no emmc device.\n");
+			return 1;
+		}
+
+		printf("\neMMC %s: part # %d, block # %d, count %d ... ", argv[1], part, blk, cnt);
+
+		mmc_init(mmc);
+
+		switch (state) {
+
+		case MMC_READ:
+
+			n = emmc_part_read(part, blk, cnt, addr);
+			/* flush cache after read */
+			flush_cache((ulong)addr, cnt * 512); /* FIXME */
+			break;
+		case MMC_WRITE:
+			n = emmc_part_write(part, blk, cnt, addr);
+			break;
+		default:
+			BUG();
+
+		}
+
+		printf("%d blocks %s: %s\n", n, argv[1], (n == cnt) ? "OK" : "ERROR");
+		return (n == cnt) ? 0 : 1;
+	}
+
+	return CMD_RET_USAGE;
+}
+
+
+
+U_BOOT_CMD(
+	emmc, 6, 1, do_emmcops,
+	"eMMC sub system",
+	"read part addr blk# cnt\n"
+	"emmc write part addr blk# cnt\n"
+	"emmc ecsd       - Dump ext csd\n"
+	"emmc pconf val  - Set Part Config val\n"
+	);
+
+#endif
+

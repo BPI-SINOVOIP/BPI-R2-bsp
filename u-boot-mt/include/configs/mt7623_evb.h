@@ -203,6 +203,10 @@
 /* Build error elimination*/
 #define CONFIG_SYS_NO_FLASH
 /**/
+
+
+#define FEATURE_MMC_BOOT_MODE
+
 #define CONFIG_ENV_IS_IN_MMC
 #define CONFIG_ENV_SIZE                     SZ_4K
 #define CONFIG_ENV_OFFSET                   0x600 

@@ -542,6 +542,143 @@ void mmc_dump_ext_csd(struct mmc_card *card)
 }
 
 
+void mmc_dump_ext_csd_p(struct mmc_card *card)
+{
+	u8 *ext_csd = &card->raw_ext_csd[0];
+	u32 tmp;
+	char *rev[] = {"4.0", "4.1", "4.2", "4.3", "Obsolete", "4.41", "4.5", "5.0", "5.1"};
+
+	printf("===========================================================\n");
+	printf("[EXT_CSD] EXT_CSD rev.              : v1.%d (MMCv%s)\n",
+				   ext_csd[EXT_CSD_REV], rev[ext_csd[EXT_CSD_REV]]);
+	printf("[EXT_CSD] CSD struct rev.           : v1.%d\n", ext_csd[EXT_CSD_STRUCT]);
+	printf("[EXT_CSD] Supported command sets    : %xh\n", ext_csd[EXT_CSD_S_CMD_SET]);
+	printf("[EXT_CSD] HPI features              : %xh\n", ext_csd[EXT_CSD_HPI_FEATURE]);
+	printf("[EXT_CSD] BG operations support     : %xh\n", ext_csd[EXT_CSD_BKOPS_SUPP]);
+	printf("[EXT_CSD] BG operations status      : %xh\n", ext_csd[EXT_CSD_BKOPS_STATUS]);
+	memcpy(&tmp, &ext_csd[EXT_CSD_CORRECT_PRG_SECTS_NUM], 4);
+	printf("[EXT_CSD] Correct prg. sectors      : %xh\n", tmp);
+	printf("[EXT_CSD] 1st init time after part. : %d ms\n", ext_csd[EXT_CSD_INI_TIMEOUT_AP] * 100);
+	printf("[EXT_CSD] Min. write perf.(DDR,52MH,8b): %xh\n", ext_csd[EXT_CSD_MIN_PERF_DDR_W_8_52]);
+	printf("[EXT_CSD] Min. read perf. (DDR,52MH,8b): %xh\n", ext_csd[EXT_CSD_MIN_PERF_DDR_R_8_52]);
+	printf("[EXT_CSD] TRIM timeout: %d ms\n", ext_csd[EXT_CSD_TRIM_MULT] & 0xFF * 300);
+	printf("[EXT_CSD] Secure feature support: %xh\n", ext_csd[EXT_CSD_SEC_FEATURE_SUPPORT]);
+	printf("[EXT_CSD] Secure erase timeout  : %d ms\n", 300 *
+				   ext_csd[EXT_CSD_ERASE_TIMEOUT_MULT] * ext_csd[EXT_CSD_SEC_ERASE_MULT]);
+	printf("[EXT_CSD] Secure trim timeout   : %d ms\n", 300 *
+				   ext_csd[EXT_CSD_ERASE_TIMEOUT_MULT] * ext_csd[EXT_CSD_SEC_TRIM_MULT]);
+	printf("[EXT_CSD] Access size           : %d bytes\n", ext_csd[EXT_CSD_ACC_SIZE] * 512);
+	printf("[EXT_CSD] HC erase unit size    : %d kbytes\n", ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE] * 512);
+	printf("[EXT_CSD] HC erase timeout      : %d ms\n", ext_csd[EXT_CSD_ERASE_TIMEOUT_MULT] * 300);
+	printf("[EXT_CSD] HC write prot grp size: %d kbytes\n", 512 *
+				   ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE] * ext_csd[EXT_CSD_HC_WP_GPR_SIZE]);
+	printf("[EXT_CSD] HC erase grp def.     : %xh\n", ext_csd[EXT_CSD_ERASE_GRP_DEF]);
+	printf("[EXT_CSD] Reliable write sect count: %xh\n", ext_csd[EXT_CSD_REL_WR_SEC_C]);
+	printf("[EXT_CSD] Sleep current (VCC) : %xh\n", ext_csd[EXT_CSD_S_C_VCC]);
+	printf("[EXT_CSD] Sleep current (VCCQ): %xh\n", ext_csd[EXT_CSD_S_C_VCCQ]);
+	printf("[EXT_CSD] Sleep/awake timeout : %d ns\n",
+				   100 *(2 << ext_csd[EXT_CSD_S_A_TIMEOUT]));
+	memcpy(&tmp, &ext_csd[EXT_CSD_SEC_CNT], 4);
+	printf("[EXT_CSD] Sector count : %xh\n", tmp);
+	printf("[EXT_CSD] Min. WR Perf.  (52MH,8b): %xh\n", ext_csd[EXT_CSD_MIN_PERF_W_8_52]);
+	printf("[EXT_CSD] Min. Read Perf.(52MH,8b): %xh\n", ext_csd[EXT_CSD_MIN_PERF_R_8_52]);
+	printf("[EXT_CSD] Min. WR Perf.  (26MH,8b,52MH,4b): %xh\n", ext_csd[EXT_CSD_MIN_PERF_W_8_26_4_25]);
+	printf("[EXT_CSD] Min. Read Perf.(26MH,8b,52MH,4b): %xh\n", ext_csd[EXT_CSD_MIN_PERF_R_8_26_4_25]);
+	printf("[EXT_CSD] Min. WR Perf.  (26MH,4b): %xh\n", ext_csd[EXT_CSD_MIN_PERF_W_4_26]);
+	printf("[EXT_CSD] Min. Read Perf.(26MH,4b): %xh\n", ext_csd[EXT_CSD_MIN_PERF_R_4_26]);
+	printf("[EXT_CSD] Power class: %x\n", ext_csd[EXT_CSD_PWR_CLASS]);
+	printf("[EXT_CSD] Power class(DDR,52MH,3.6V): %xh\n", ext_csd[EXT_CSD_PWR_CL_DDR_52_360]);
+	printf("[EXT_CSD] Power class(DDR,52MH,1.9V): %xh\n", ext_csd[EXT_CSD_PWR_CL_DDR_52_195]);
+	printf("[EXT_CSD] Power class(26MH,3.6V)    : %xh\n", ext_csd[EXT_CSD_PWR_CL_26_360]);
+	printf("[EXT_CSD] Power class(52MH,3.6V)    : %xh\n", ext_csd[EXT_CSD_PWR_CL_52_360]);
+	printf("[EXT_CSD] Power class(26MH,1.9V)    : %xh\n", ext_csd[EXT_CSD_PWR_CL_26_195]);
+	printf("[EXT_CSD] Power class(52MH,1.9V)    : %xh\n", ext_csd[EXT_CSD_PWR_CL_52_195]);
+	printf("[EXT_CSD] Part. switch timing    : %xh\n", ext_csd[EXT_CSD_PART_SWITCH_TIME]);
+	printf("[EXT_CSD] Out-of-INTR busy timing: %xh\n", ext_csd[EXT_CSD_OUT_OF_INTR_TIME]);
+	printf("[EXT_CSD] Card type       : %xh\n", ext_csd[EXT_CSD_CARD_TYPE]);
+	printf("[EXT_CSD] Command set     : %xh\n", ext_csd[EXT_CSD_CMD_SET]);
+	printf("[EXT_CSD] Command set rev.: %xh\n", ext_csd[EXT_CSD_CMD_SET_REV]);
+	printf("[EXT_CSD] HS timing       : %xh\n", ext_csd[EXT_CSD_HS_TIMING]);
+	printf("[EXT_CSD] Bus width       : %xh\n", ext_csd[EXT_CSD_BUS_WIDTH]);
+	printf("[EXT_CSD] Erase memory content : %xh\n", ext_csd[EXT_CSD_ERASED_MEM_CONT]);
+	printf("[EXT_CSD] Partition config      : %xh\n", ext_csd[EXT_CSD_PART_CFG]);
+	printf("[EXT_CSD] Boot partition size   : %d kbytes\n", ext_csd[EXT_CSD_BOOT_SIZE_MULT] * 128);
+	printf("[EXT_CSD] Boot information      : %xh\n", ext_csd[EXT_CSD_BOOT_INFO]);
+	printf("[EXT_CSD] Boot config protection: %xh\n", ext_csd[EXT_CSD_BOOT_CONFIG_PROT]);
+	printf("[EXT_CSD] Boot bus width        : %xh\n", ext_csd[EXT_CSD_BOOT_BUS_WIDTH]);
+	printf("[EXT_CSD] Boot area write prot  : %xh\n", ext_csd[EXT_CSD_BOOT_WP]);
+	printf("[EXT_CSD] User area write prot  : %xh\n", ext_csd[EXT_CSD_USR_WP]);
+	printf("[EXT_CSD] FW configuration      : %xh\n", ext_csd[EXT_CSD_FW_CONFIG]);
+	printf("[EXT_CSD] RPMB size : %d kbytes\n", ext_csd[EXT_CSD_RPMB_SIZE_MULT] * 128);
+	printf("[EXT_CSD] Write rel. setting  : %xh\n", ext_csd[EXT_CSD_WR_REL_SET]);
+	printf("[EXT_CSD] Write rel. parameter: %xh\n", ext_csd[EXT_CSD_WR_REL_PARAM]);
+	printf("[EXT_CSD] Start background ops : %xh\n", ext_csd[EXT_CSD_BKOPS_START]);
+	printf("[EXT_CSD] Enable background ops: %xh\n", ext_csd[EXT_CSD_BKOPS_EN]);
+	printf("[EXT_CSD] H/W reset function   : %xh\n", ext_csd[EXT_CSD_RST_N_FUNC]);
+	printf("[EXT_CSD] HPI management       : %xh\n", ext_csd[EXT_CSD_HPI_MGMT]);
+	memcpy(&tmp, &ext_csd[EXT_CSD_MAX_ENH_SIZE_MULT], 4);
+	printf("[EXT_CSD] Max. enhanced area size : %xh (%d kbytes)\n",
+				   tmp & 0x00FFFFFF, (tmp & 0x00FFFFFF) * 512 *
+				   ext_csd[EXT_CSD_HC_WP_GPR_SIZE] * ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE]);
+	printf("[EXT_CSD] Part. support  : %xh\n", ext_csd[EXT_CSD_PART_SUPPORT]);
+	printf("[EXT_CSD] Part. attribute: %xh\n", ext_csd[EXT_CSD_PART_ATTR]);
+	printf("[EXT_CSD] Part. setting  : %xh\n", ext_csd[EXT_CSD_PART_SET_COMPL]);
+	printf("[EXT_CSD] General purpose 1 size : %xh (%d kbytes)\n",
+				   (ext_csd[EXT_CSD_GP1_SIZE_MULT + 0] |
+				    ext_csd[EXT_CSD_GP1_SIZE_MULT + 1] << 8 |
+				    ext_csd[EXT_CSD_GP1_SIZE_MULT + 2] << 16),
+				   (ext_csd[EXT_CSD_GP1_SIZE_MULT + 0] |
+				    ext_csd[EXT_CSD_GP1_SIZE_MULT + 1] << 8 |
+				    ext_csd[EXT_CSD_GP1_SIZE_MULT + 2] << 16) * 512 *
+				   ext_csd[EXT_CSD_HC_WP_GPR_SIZE] *
+				   ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE]);
+	printf("[EXT_CSD] General purpose 2 size : %xh (%d kbytes)\n",
+				   (ext_csd[EXT_CSD_GP2_SIZE_MULT + 0] |
+				    ext_csd[EXT_CSD_GP2_SIZE_MULT + 1] << 8 |
+				    ext_csd[EXT_CSD_GP2_SIZE_MULT + 2] << 16),
+				   (ext_csd[EXT_CSD_GP2_SIZE_MULT + 0] |
+				    ext_csd[EXT_CSD_GP2_SIZE_MULT + 1] << 8 |
+				    ext_csd[EXT_CSD_GP2_SIZE_MULT + 2] << 16) * 512 *
+				   ext_csd[EXT_CSD_HC_WP_GPR_SIZE] *
+				   ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE]);
+	printf("[EXT_CSD] General purpose 3 size : %xh (%d kbytes)\n",
+				   (ext_csd[EXT_CSD_GP3_SIZE_MULT + 0] |
+				    ext_csd[EXT_CSD_GP3_SIZE_MULT + 1] << 8 |
+				    ext_csd[EXT_CSD_GP3_SIZE_MULT + 2] << 16),
+				   (ext_csd[EXT_CSD_GP3_SIZE_MULT + 0] |
+				    ext_csd[EXT_CSD_GP3_SIZE_MULT + 1] << 8 |
+				    ext_csd[EXT_CSD_GP3_SIZE_MULT + 2] << 16) * 512 *
+				   ext_csd[EXT_CSD_HC_WP_GPR_SIZE] *
+				   ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE]);
+	printf("[EXT_CSD] General purpose 4 size : %xh (%d kbytes)\n",
+				   (ext_csd[EXT_CSD_GP4_SIZE_MULT + 0] |
+				    ext_csd[EXT_CSD_GP4_SIZE_MULT + 1] << 8 |
+				    ext_csd[EXT_CSD_GP4_SIZE_MULT + 2] << 16),
+				   (ext_csd[EXT_CSD_GP4_SIZE_MULT + 0] |
+				    ext_csd[EXT_CSD_GP4_SIZE_MULT + 1] << 8 |
+				    ext_csd[EXT_CSD_GP4_SIZE_MULT + 2] << 16) * 512 *
+				   ext_csd[EXT_CSD_HC_WP_GPR_SIZE] *
+				   ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE]);
+	printf("[EXT_CSD] Enh. user area size : %xh (%d kbytes)\n",
+				   (ext_csd[EXT_CSD_ENH_SIZE_MULT + 0] |
+				    ext_csd[EXT_CSD_ENH_SIZE_MULT + 1] << 8 |
+				    ext_csd[EXT_CSD_ENH_SIZE_MULT + 2] << 16),
+				   (ext_csd[EXT_CSD_ENH_SIZE_MULT + 0] |
+				    ext_csd[EXT_CSD_ENH_SIZE_MULT + 1] << 8 |
+				    ext_csd[EXT_CSD_ENH_SIZE_MULT + 2] << 16) * 512 *
+				   ext_csd[EXT_CSD_HC_WP_GPR_SIZE] *
+				   ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE]);
+	printf("[EXT_CSD] Enh. user area start: %xh\n",
+				   (ext_csd[EXT_CSD_ENH_START_ADDR + 0] |
+				    ext_csd[EXT_CSD_ENH_START_ADDR + 1] << 8 |
+				    ext_csd[EXT_CSD_ENH_START_ADDR + 2] << 16 |
+				    ext_csd[EXT_CSD_ENH_START_ADDR + 3]) << 24);
+	printf("[EXT_CSD] Bad block mgmt mode: %xh\n", ext_csd[EXT_CSD_BADBLK_MGMT]);
+	printf("===========================================================\n");
+}
+
+
+
 int mmc_card_avail(struct mmc_host *host)
 {
     return msdc_card_avail(host);
@@ -4615,3 +4752,27 @@ int mmc_info_helper2(int id,
     return 0;
 }
 
+#ifdef FEATURE_MMC_BOOT_MODE
+int emmc_part_read(u8 partno, u32 blknr, u32 blkcnt, unsigned long *dst)
+{
+	struct mmc_card *mmc = &sd_card[0];
+	return mmc_part_read(mmc, partno, blknr, blkcnt, dst);
+
+}
+
+int emmc_part_write(u8 partno, u32 blknr, u32 blkcnt, unsigned long *src)
+{
+	struct mmc_card *mmc = &sd_card[0];
+	return mmc_part_write(mmc, partno, blknr, blkcnt, src);
+}
+
+void emmc_dump_ext_csd(void)
+{
+	mmc_dump_ext_csd_p(&sd_card[0]);
+}
+
+int emmc_set_part_config(u8 cfg)
+{
+	return mmc_set_part_config(&sd_card[0], cfg);
+}
+#endif
