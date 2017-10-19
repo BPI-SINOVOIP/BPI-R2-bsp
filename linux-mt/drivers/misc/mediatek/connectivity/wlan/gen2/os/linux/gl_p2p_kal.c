@@ -1076,6 +1076,8 @@ VOID kalP2PGOStationUpdate(IN P_GLUE_INFO_T prGlueInfo, IN P_STA_RECORD_T prCliS
 	P_GL_P2P_INFO_T prP2pGlueInfo = (P_GL_P2P_INFO_T) NULL;
 	struct station_info rStationInfo;
 
+	memset(&rStationInfo, 0, sizeof(struct station_info));
+
 	do {
 		if ((prGlueInfo == NULL) || (prCliStaRec == NULL))
 			break;
