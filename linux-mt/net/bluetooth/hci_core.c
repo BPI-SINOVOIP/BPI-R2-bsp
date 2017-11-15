@@ -848,6 +848,7 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 		hci_set_le_support(req);
 	}
 
+#if 0
 	/* Read features beyond page 1 if available */
 	for (p = 2; p < HCI_MAX_PAGES && p <= hdev->max_page; p++) {
 		struct hci_cp_read_local_ext_features cp;
@@ -856,6 +857,7 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 		hci_req_add(req, HCI_OP_READ_LOCAL_EXT_FEATURES,
 			    sizeof(cp), &cp);
 	}
+#endif
 }
 
 static void hci_init4_req(struct hci_request *req, unsigned long opt)

@@ -36,6 +36,13 @@
 
 MODULE_LICENSE("Dual BSD/GPL");
 
+#ifdef MTK_BT_HCI
+#define MTK_BT_DEBUG 0
+#include <net/bluetooth/bluetooth.h>
+#include <net/bluetooth/hci_core.h>
+#endif
+
+
 #define BT_DRIVER_NAME "mtk_stp_BT_chrdev"
 #define BT_DEV_MAJOR 192	/* Never used number */
 
@@ -51,7 +58,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 #define COMBO_IOCTL_BT_IC_FW_VER    _IOWR(COMBO_IOC_MAGIC, 2, void*)
 #define COMBO_IOC_BT_HWVER          _IOWR(COMBO_IOC_MAGIC, 3, void*)
 
-static UINT32 gDbgLevel = BT_LOG_INFO;
+static UINT32 gDbgLevel = BT_LOG_DBG;
 
 #define BT_DBG_FUNC(fmt, arg...)	\
 	do { if (gDbgLevel >= BT_LOG_DBG)	\
@@ -72,6 +79,19 @@ static UINT32 gDbgLevel = BT_LOG_INFO;
 
 #define VERSION "1.0"
 
+#ifdef MTK_BT_HCI
+
+#define   NUM_REASSEMBLY   32
+struct mtk_hci {
+	struct hci_dev *hdev;
+	struct work_struct work;
+	struct sk_buff_head txq;
+        struct sk_buff *reassembly[NUM_REASSEMBLY];
+};
+
+static struct mtk_hci   mtk_hci;
+
+#endif
 
 #if WMT_CREATE_NODE_DYNAMIC
 struct class *stpbt_class = NULL;
@@ -94,6 +114,351 @@ static DECLARE_WAIT_QUEUE_HEAD(BT_wq);
 static INT32 flag;
 /* Reset flag for whole chip reset senario */
 static volatile INT32 rstflag;
+
+#ifdef MTK_BT_HCI
+static int hci_reassembly(struct hci_dev *hdev, int type, void *data,
+	int count, __u8 index)
+{
+	int len = 0;
+	int hlen = 0;
+	int remain = count;
+	struct sk_buff *skb;
+	struct bt_skb_cb *scb;
+
+        struct mtk_hci *info = NULL;
+
+        info = hci_get_drvdata(hdev);
+        if ( NULL == info ) {
+            printk(KERN_ERR "mtk_bt_hci: invalid info point\n");
+            return 0;
+        }
+
+	if ((type < HCI_ACLDATA_PKT || type > HCI_EVENT_PKT) ||
+		index >= NUM_REASSEMBLY)
+		return -EILSEQ;
+
+	skb = info->reassembly[index];
+
+	if (!skb) {
+		switch (type) {
+		case HCI_ACLDATA_PKT:
+			len = HCI_MAX_FRAME_SIZE;
+			hlen = HCI_ACL_HDR_SIZE;
+			break;
+		case HCI_EVENT_PKT:
+			len = HCI_MAX_EVENT_SIZE;
+			hlen = HCI_EVENT_HDR_SIZE;
+			break;
+		case HCI_SCODATA_PKT:
+			len = HCI_MAX_SCO_SIZE;
+			hlen = HCI_SCO_HDR_SIZE;
+			break;
+		}
+
+		skb = bt_skb_alloc(len, GFP_ATOMIC);
+		if (!skb)
+			return -ENOMEM;
+
+		scb = (void *) skb->cb;
+		scb->expect = hlen;
+		scb->pkt_type = type;
+
+		info->reassembly[index] = skb;
+	}
+
+	while (count) {
+		scb = (void *) skb->cb;
+		len = min_t(uint, scb->expect, count);
+
+		memcpy(skb_put(skb, len), data, len);
+
+		count -= len;
+		data += len;
+		scb->expect -= len;
+		remain = count;
+
+		switch (type) {
+		case HCI_EVENT_PKT:
+			if (skb->len == HCI_EVENT_HDR_SIZE) {
+				struct hci_event_hdr *h = hci_event_hdr(skb);
+
+				scb->expect = h->plen;
+
+				if (skb_tailroom(skb) < scb->expect) {
+					kfree_skb(skb);
+					info->reassembly[index] = NULL;
+					return -ENOMEM;
+				}
+			}
+			break;
+
+		case HCI_ACLDATA_PKT:
+			if (skb->len  == HCI_ACL_HDR_SIZE) {
+				struct hci_acl_hdr *h = hci_acl_hdr(skb);
+
+				scb->expect = __le16_to_cpu(h->dlen);
+
+				if (skb_tailroom(skb) < scb->expect) {
+					kfree_skb(skb);
+					info->reassembly[index] = NULL;
+					return -ENOMEM;
+				}
+			}
+			break;
+
+		case HCI_SCODATA_PKT:
+			if (skb->len == HCI_SCO_HDR_SIZE) {
+				struct hci_sco_hdr *h = hci_sco_hdr(skb);
+
+				scb->expect = h->dlen;
+
+				if (skb_tailroom(skb) < scb->expect) {
+					kfree_skb(skb);
+					info->reassembly[index] = NULL;
+					return -ENOMEM;
+				}
+			}
+			break;
+		}
+
+		if (scb->expect == 0) {
+			/* Complete frame */
+
+			bt_cb(skb)->pkt_type = type;
+			hci_recv_frame(hdev, skb);
+
+			info->reassembly[index] = NULL;
+			return remain;
+		}
+	}
+
+	return remain;
+}
+
+int hci_recv_fragment(struct hci_dev *hdev, int type, void *data, int count)
+{
+	int rem = 0;
+
+	if (type < HCI_ACLDATA_PKT || type > HCI_EVENT_PKT)
+		return -EILSEQ;
+
+	while (count) {
+		rem = hci_reassembly(hdev, type, data, count, type - 1);
+		if (rem < 0)
+			return rem;
+
+		data += (count - rem);
+		count = rem;
+	}
+
+	return rem;
+}
+#endif
+
+#ifdef MTK_BT_HCI
+void
+hex_dump(char *prefix, char *p, int len)
+{
+	int i;
+
+	pr_err("%s ", prefix);
+	for (i = 0; i < len; i++)
+		pr_err("%02x ", (*p++ & 0xff));
+	pr_err("\n");
+}
+
+static int
+mtk_bt_hci_open(struct hci_dev *hdev)
+{
+	int err = 0;
+
+#if MTK_BT_DEBUG == 1
+	pr_err("# %s\n", __func__);
+#endif
+
+	err = mtk_wcn_wmt_func_on(WMTDRV_TYPE_BT);
+	if (err != MTK_WCN_BOOL_TRUE) {
+		pr_err("%s func on failed with %d\n", __func__, err);
+		return -ENODEV;
+	}
+
+	set_bit(HCI_RUNNING, &hdev->flags);
+
+	mtk_wcn_stp_set_bluez(1);
+
+	return 0;
+}
+
+static int
+mtk_bt_hci_close(struct hci_dev *hdev)
+{
+	int err = 0;
+
+#if MTK_BT_DEBUG == 1
+	pr_err("# %s\n", __func__);
+#endif
+
+	mtk_wcn_stp_set_bluez(0);
+
+	clear_bit(HCI_RUNNING, &hdev->flags);
+
+	err = mtk_wcn_wmt_func_off(WMTDRV_TYPE_BT);
+	if (err != MTK_WCN_BOOL_TRUE) {
+		pr_err("%s func off failed with %d\n", __func__, err);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static void
+mtk_bt_hci_work(struct work_struct *work)
+{
+	int err;
+	struct sk_buff *skb;
+
+#if MTK_BT_DEBUG == 1
+	pr_err("# %s\n", __func__);
+#endif
+
+	while ((skb = skb_dequeue(&mtk_hci.txq))) {
+		skb_push(skb, 1);
+		skb->data[0] = bt_cb(skb)->pkt_type;
+
+#if MTK_BT_DEBUG == 1
+		hex_dump(">>", skb->data, skb->len);
+#endif
+
+		err = mtk_wcn_stp_send_data(skb->data, skb->len, BT_TASK_INDX);
+		if (err < 0) {
+			pr_err("%s err=%d\n", __func__, err);
+			mtk_hci.hdev->stat.err_tx++;
+			skb_queue_head(&mtk_hci.txq, skb);
+			break;
+		}
+
+		mtk_hci.hdev->stat.byte_tx += skb->len;
+		kfree_skb(skb);
+	}
+}
+
+static int
+mtk_bt_hci_send(struct hci_dev *hdev, struct sk_buff *skb)
+{
+#if MTK_BT_DEBUG == 1
+	pr_err("# %s\n", __func__);
+#endif
+
+	if (mtk_hci.hdev && !test_bit(HCI_RUNNING, &mtk_hci.hdev->flags))
+		return -EBUSY;
+
+	switch (bt_cb(skb)->pkt_type) {
+	case HCI_COMMAND_PKT:
+		mtk_hci.hdev->stat.cmd_tx++;
+		break;
+
+	case HCI_ACLDATA_PKT:
+		mtk_hci.hdev->stat.acl_tx++;
+		break;
+
+	case HCI_SCODATA_PKT:
+		mtk_hci.hdev->stat.sco_tx++;
+		break;
+
+	default:
+		return -EILSEQ;
+	}
+
+	skb_queue_tail(&mtk_hci.txq, skb);
+	schedule_work(&mtk_hci.work);
+
+	return 0;
+}
+
+static int
+mtk_bt_hci_flush(struct hci_dev *hdev)
+{
+	pr_err("%s: todo\n", __func__);
+
+	return 0;
+}
+
+static void
+mtk_bt_hci_receive(const PUINT8 data, INT32 size)
+{
+	int err;
+
+#if MTK_BT_DEBUG == 1
+	pr_err("# %s\n", __func__);
+	hex_dump("<<", data, size);
+#endif
+
+	err = hci_recv_fragment(mtk_hci.hdev, data[0], (void *)&data[1], size - 1);
+	if (err < 0)
+		pr_err("%s: hci_recv_fragment failed with %d\n", __func__, err);
+
+	if (mtk_hci.hdev)
+		mtk_hci.hdev->stat.byte_rx += size - 1;
+}
+
+static void
+mtk_bt_hci_notify(struct hci_dev *hdev, unsigned int evt)
+{
+	static const char * const notify_str[] = {
+		"null",
+		"HCI_NOTIFY_CONN_ADD",
+		"HCI_NOTIFY_CONN_DEL",
+		"HCI_NOTIFY_VOICE_SETTING"
+	};
+
+	if (evt > HCI_NOTIFY_VOICE_SETTING)
+		pr_info("%s event=0x%x\n", __func__, evt);
+	else
+		pr_info("%s event(%d)=%s\n", __func__, evt, notify_str[evt]);
+}
+#endif
+
+#ifdef MTK_BT_HCI
+
+int mtk_bt_hci_init(void)
+{
+    	INT32 hci_err = 0;
+
+	mtk_hci.hdev = hci_alloc_dev();
+	if (!(mtk_hci.hdev)) {
+		mtk_hci.hdev = NULL;
+		BT_ERR_FUNC("%s hci_alloc_dev failed\n", __func__);
+		return -ENOMEM;
+	}
+	
+	mtk_hci.hdev->bus = HCI_SDIO;
+	mtk_hci.hdev->open = mtk_bt_hci_open;
+	mtk_hci.hdev->close = mtk_bt_hci_close;
+	mtk_hci.hdev->send = mtk_bt_hci_send;
+	mtk_hci.hdev->flush = mtk_bt_hci_flush;
+	mtk_hci.hdev->notify = mtk_bt_hci_notify;
+	SET_HCIDEV_DEV(mtk_hci.hdev, stpbt_dev);
+
+        hci_set_drvdata(mtk_hci.hdev, &mtk_hci);       
+
+	mtk_wcn_stp_register_if_rx(mtk_bt_hci_receive);
+
+	hci_err = hci_register_dev(mtk_hci.hdev);
+	if (hci_err) {
+		BT_ERR_FUNC("%s hci_register_dev failed with %d\n", __func__, hci_err);
+		hci_free_dev(mtk_hci.hdev);
+		mtk_hci.hdev = NULL;
+		return hci_err;
+	}
+
+	BT_ERR_FUNC("%s initial max_page : %d \n", __func__, mtk_hci.hdev->max_page);
+	skb_queue_head_init(&mtk_hci.txq);
+	INIT_WORK(&mtk_hci.work, mtk_bt_hci_work);
+
+	return 0;
+}
+#endif
+
 
 static VOID bt_cdev_rst_cb(ENUM_WMTDRV_TYPE_T src,
 			   ENUM_WMTDRV_TYPE_T dst, ENUM_WMTMSG_TYPE_T type, PVOID buf, UINT32 sz)
@@ -383,6 +748,7 @@ static int BT_close(struct inode *inode, struct file *file)
 	}
 
 	BT_INFO_FUNC("WMT turn off BT OK!\n");
+
 	return 0;
 }
 
@@ -397,12 +763,15 @@ const struct file_operations BT_fops = {
 	.poll = BT_poll
 };
 
+
+
 static int BT_init(void)
 {
 	dev_t dev = MKDEV(BT_major, 0);
 	INT32 alloc_ret = 0;
 	INT32 cdev_err = 0;
 
+        printk(KERN_ERR "Test gary BT_init 1\n");
 	/* Static allocate char device */
 	alloc_ret = register_chrdev_region(dev, 1, BT_DRIVER_NAME);
 	if (alloc_ret) {
@@ -410,6 +779,7 @@ static int BT_init(void)
 		return alloc_ret;
 	}
 
+        printk(KERN_ERR "Test gary BT_init 2\n");
 	cdev_init(&BT_cdev, &BT_fops);
 	BT_cdev.owner = THIS_MODULE;
 
@@ -426,10 +796,15 @@ static int BT_init(void)
 		goto error;
 #endif
 
+        printk(KERN_ERR "Test gary BT_init 3\n");
 	BT_INFO_FUNC("%s driver(major %d) installed\n", BT_DRIVER_NAME, BT_major);
 
 	/* Init wait queue */
 	init_waitqueue_head(&(inq));
+
+#ifdef MTK_BT_HCI
+ 	mtk_bt_hci_init();
+#endif
 
 	return 0;
 
@@ -476,6 +851,7 @@ static void BT_exit(void)
 
 int mtk_wcn_stpbt_drv_init(void)
 {
+	printk(KERN_ERR "Test gary mtk_wcn_stpbt_drv_init\n");
 	return BT_init();
 }
 EXPORT_SYMBOL(mtk_wcn_stpbt_drv_init);
