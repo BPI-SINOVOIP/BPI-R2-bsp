@@ -58,7 +58,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 #define COMBO_IOCTL_BT_IC_FW_VER    _IOWR(COMBO_IOC_MAGIC, 2, void*)
 #define COMBO_IOC_BT_HWVER          _IOWR(COMBO_IOC_MAGIC, 3, void*)
 
-static UINT32 gDbgLevel = BT_LOG_DBG;
+static UINT32 gDbgLevel = BT_LOG_INFO;
 
 #define BT_DBG_FUNC(fmt, arg...)	\
 	do { if (gDbgLevel >= BT_LOG_DBG)	\
@@ -771,7 +771,6 @@ static int BT_init(void)
 	INT32 alloc_ret = 0;
 	INT32 cdev_err = 0;
 
-        printk(KERN_ERR "Test gary BT_init 1\n");
 	/* Static allocate char device */
 	alloc_ret = register_chrdev_region(dev, 1, BT_DRIVER_NAME);
 	if (alloc_ret) {
@@ -779,7 +778,6 @@ static int BT_init(void)
 		return alloc_ret;
 	}
 
-        printk(KERN_ERR "Test gary BT_init 2\n");
 	cdev_init(&BT_cdev, &BT_fops);
 	BT_cdev.owner = THIS_MODULE;
 
@@ -796,7 +794,6 @@ static int BT_init(void)
 		goto error;
 #endif
 
-        printk(KERN_ERR "Test gary BT_init 3\n");
 	BT_INFO_FUNC("%s driver(major %d) installed\n", BT_DRIVER_NAME, BT_major);
 
 	/* Init wait queue */
@@ -851,7 +848,6 @@ static void BT_exit(void)
 
 int mtk_wcn_stpbt_drv_init(void)
 {
-	printk(KERN_ERR "Test gary mtk_wcn_stpbt_drv_init\n");
 	return BT_init();
 }
 EXPORT_SYMBOL(mtk_wcn_stpbt_drv_init);
