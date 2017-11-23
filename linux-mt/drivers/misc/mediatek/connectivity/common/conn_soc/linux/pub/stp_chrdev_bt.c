@@ -121,11 +121,17 @@ static int hci_reassembly(struct hci_dev *hdev, int type, void *data,
 {
 	int len = 0;
 	int hlen = 0;
+	int offset = 0;
 	int remain = count;
 	struct sk_buff *skb;
 	struct bt_skb_cb *scb;
+	u16 opcode = 0;
+	unsigned char *pdata = data;
 
         struct mtk_hci *info = NULL;
+	struct hci_event_hdr *ehdr = NULL;
+	struct hci_ev_cmd_complete *ev = NULL;
+	struct hci_rp_read_local_ext_features *ext  = NULL;
 
         info = hci_get_drvdata(hdev);
         if ( NULL == info ) {
@@ -170,6 +176,33 @@ static int hci_reassembly(struct hci_dev *hdev, int type, void *data,
 		scb = (void *) skb->cb;
 		len = min_t(uint, scb->expect, count);
 
+		/*
+		 * Workaround for MT7623+MT6625 BT: the max page in response of cmd READ_LOCAL_EXT_FEATURES
+                 * should be 1, instead of 2, so changing it to 1 here
+		 */
+
+		if (HCI_EVENT_PKT == type) 
+ 		{
+			ehdr = (void *)pdata;
+			offset = sizeof(struct hci_event_hdr);
+			if ( HCI_EV_CMD_COMPLETE == ehdr->evt) 
+			{
+				ev = (struct hci_ev_cmd_complete *)&pdata[offset];
+
+				offset += sizeof(struct hci_ev_cmd_complete);
+
+				opcode = __le16_to_cpu(ev->opcode);
+				if(HCI_OP_READ_LOCAL_EXT_FEATURES == opcode) {
+					ext = (struct hci_rp_read_local_ext_features *) &pdata[offset];
+					if( !ext->status && ext->max_page >= 2) {
+						pr_info("%s: this workaround is applied for mediatek BT\n", __func__);
+						ext->max_page = 1;
+					}						
+				}
+			
+			}
+		}
+
 		memcpy(skb_put(skb, len), data, len);
 
 		count -= len;
@@ -190,6 +223,7 @@ static int hci_reassembly(struct hci_dev *hdev, int type, void *data,
 					return -ENOMEM;
 				}
 			}
+
 			break;
 
 		case HCI_ACLDATA_PKT:
@@ -451,7 +485,6 @@ int mtk_bt_hci_init(void)
 		return hci_err;
 	}
 
-	BT_ERR_FUNC("%s initial max_page : %d \n", __func__, mtk_hci.hdev->max_page);
 	skb_queue_head_init(&mtk_hci.txq);
 	INIT_WORK(&mtk_hci.work, mtk_bt_hci_work);
 
