@@ -23,7 +23,7 @@ IMG_FILE=${U}/${BOARD}-2k.img
 LOOP_DEV=`sudo losetup -f --show ${TMP_FILE}`
 
 
-PRELOADER=$TOPDIR/mt-pack/mtk/${TARGET_PRODUCT}/bin/preloader_iotg7623Np1_sd_1600M.bin
+PRELOADER=$TOPDIR/mt-pack/mtk/${TARGET_PRODUCT}/bin/preloader_iotg7623Np1_sd_1333M.bin
 UBOOT=$TOPDIR/u-boot-mt/u-boot.bin
 
 (sudo dd if=$PRELOADER	of=${LOOP_DEV} bs=1k seek=2) >/dev/null 2>&1
