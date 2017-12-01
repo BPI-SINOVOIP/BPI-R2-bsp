@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2016 MediaTek Inc.
  * Author: Garlic Tseng <garlic.tseng@mediatek.com>
- *	     Ir Lian <ir.lian@mediatek.com>
+ *      Ir Lian <ir.lian@mediatek.c m>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -31,7 +31,7 @@
 #include "../common/mtk-afe-platform-driver.h"
 #include "../common/mtk-afe-fe-dai.h"
 
-#define AFE_IRQ_STATUS_BITS	0xff
+#define AFE_IRQ_STATUS_BITS 0xff
 
 static const struct snd_pcm_hardware mt2701_afe_hardware = {
 	.info = SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED
@@ -313,17 +313,20 @@ static int mt2701_afe_i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	int i2s_num = mt2701_dai_num_to_i2s(afe, dai->id);
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
 	struct mt2701_i2s_data *i2s_data =
-		(struct mt2701_i2s_data *)afe_priv->i2s_path[i2s_num].i2s_data;
+		(struct mt2701_i2s_data *)afe_priv->i2s_path[i2s_num].i2s_data[0];
+
+	struct mt2701_i2s_data *i2s_data_out =
+		(struct mt2701_i2s_data *)afe_priv->i2s_path[i2s_num].i2s_data[1];
 
 	int read1, read2, ret1, ret2;
 
-	dev_err(afe->dev, "%s, dai->id=%d, fmt=%d, i2s_num=%d, MT2701_IO_I2S=%d\n",
+	dev_err(afe->dev, "%s, dai->id=%d, fmt=%d, i2s_num=%d, MT2701_IO_I2S=%d \n",
 		__func__, dai->id, fmt, i2s_num, MT2701_IO_I2S);
-	ret1 = regmap_read(afe->regmap, i2s_data[0].i2s_ctrl_reg, &read1);
-	ret2 = regmap_read(afe->regmap, i2s_data[1].i2s_ctrl_reg, &read2);
+	ret1 = regmap_read(afe->regmap, i2s_data->i2s_ctrl_reg, &read1);
+	ret2 = regmap_read(afe->regmap, i2s_data_out->i2s_ctrl_reg, &read2);
 	dev_err(afe->dev, "%s , reg[OUT] 0x%x = 0x%x (%d) | reg[IN] 0x%x = 0x%x (%d)\n",
-		__func__, i2s_data[0].i2s_ctrl_reg, read1, ret1,
-		i2s_data[1].i2s_ctrl_reg, read2, ret2);
+		__func__, i2s_data->i2s_ctrl_reg, read1, ret1,
+		i2s_data_out->i2s_ctrl_reg, read2, ret2);
 
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -386,11 +389,11 @@ static int mt2701_afe_i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	dev_err(afe->dev, "%s , CLK INV update ret: %d | %d\n", __func__, ret1, ret2);
 
 
-	ret1 = regmap_read(afe->regmap, i2s_data[0].i2s_ctrl_reg, &read1);
-	ret2 = regmap_read(afe->regmap, i2s_data[1].i2s_ctrl_reg, &read2);
+	ret1 = regmap_read(afe->regmap, i2s_data->i2s_ctrl_reg, &read1);
+	ret2 = regmap_read(afe->regmap, i2s_data_out->i2s_ctrl_reg, &read2);
 	dev_err(afe->dev, "%s , reg[OUT] 0x%x = 0x%x (%d) | reg[IN] 0x%x = 0x%x (%d)\n",
-		__func__, i2s_data[0].i2s_ctrl_reg, read1, ret1,
-		i2s_data[1].i2s_ctrl_reg, read2, ret2);
+		__func__, i2s_data->i2s_ctrl_reg, read1, ret1,
+		i2s_data_out->i2s_ctrl_reg, read2, ret2);
 
 	return 0;
 }
