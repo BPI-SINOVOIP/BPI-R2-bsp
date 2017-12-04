@@ -34,18 +34,13 @@
 		regulator-max-microvolt = <1150000>;
 	};
 
-        sound2:sound {
-               compatible = "mediatek,mt2701-wm8960-machine";
-               mediatek,platform = <&afe>;
-               audio-routing =
-                       "Headphone", "HP_L",
-                       "Headphone", "HP_R",
-                       "LINPUT1", "AMIC",
-                       "RINPUT1", "AMIC";
-               mediatek,audio-codec = <&wm8960>;
-               pinctrl-names = "default";
-               pinctrl-0 = <&i2s0_pins_a>;
-        };
+};
+
+&sound {
+       compatible = "mediatek,mt7623-wm8960-machine";
+       pinctrl-names = "default";
+       pinctrl-0 = <&i2s0_pins_a>;
+       status = "okay";
 };
 
 &bch {
@@ -687,6 +682,10 @@
 	status = "okay";
 };
 
+&u3phy2 {
+	status = "okay";
+};
+
 &usb0 {
 	pinctrl-names = "iddig_irq_init", "drvvbus_init",
 			"drvvbus_low", "drvvbus_high";
@@ -712,6 +711,12 @@
 	vusb33-supply = <&mt6323_vusb_reg>;
 	status = "okay";
 };
+
+&usb2 {
+	vusb33-supply = <&mt6323_vusb_reg>;
+	status = "okay";
+};
+
 
 &ir {
         status = "okay";
