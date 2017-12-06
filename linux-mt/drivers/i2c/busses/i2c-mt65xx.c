@@ -628,6 +628,7 @@ static int mtk_i2c_transfer(struct i2c_adapter *adap,
 	int left_num = num;
 	struct mtk_i2c *i2c = i2c_get_adapdata(adap);
 
+	printk(KERN_ERR "%s start\n", __FUNCTION__);
 	ret = mtk_i2c_clock_enable(i2c);
 	if (ret)
 		return ret;
@@ -682,6 +683,7 @@ static int mtk_i2c_transfer(struct i2c_adapter *adap,
 
 err_exit:
 	mtk_i2c_clock_disable(i2c);
+	printk(KERN_ERR "%s end %d\n", __FUNCTION__, ret);
 	return ret;
 }
 
