@@ -457,6 +457,7 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 	dma_addr_t rpaddr = 0;
 	dma_addr_t wpaddr = 0;
 	int ret;
+        int i=0;
 
 	i2c->irq_stat = 0;
 
@@ -543,6 +544,12 @@ static int mtk_i2c_do_transfer(struct mtk_i2c *i2c, struct i2c_msg *msgs,
 
 		writel((u32)wpaddr, i2c->pdmabase + OFFSET_TX_MEM_ADDR);
 		writel(msgs->len, i2c->pdmabase + OFFSET_TX_LEN);
+		printk(KERN_ERR "write:");
+		for (i=0; i<msgs->len; i++) {
+			printk(KERN_ERR "%02x ", msgs->buf[i]);
+		}
+		printk(KERN_ERR "\r\n");
+
 	} else {
 		writel(I2C_DMA_CLR_FLAG, i2c->pdmabase + OFFSET_INT_FLAG);
 		writel(I2C_DMA_CLR_FLAG, i2c->pdmabase + OFFSET_CON);

@@ -128,7 +128,9 @@
 };
 
 &i2c1 {
-	status = "okay";
+	pinctrl-names = "default";
+        pinctrl-0 = <&i2c1_pins_a>;
+        status = "okay";
 
 	wm8960: wm8960@1a {
 		compatible = "wlf,wm8960";
@@ -138,6 +140,13 @@
                 wlf,shared-lrclk;
 	};
 };
+
+&i2c2 {
+	pinctrl-names = "default";
+        pinctrl-0 = <&i2c2_pins_a>;
+        status = "okay";
+};
+
 
 &mali {
 	vdd_g3d-supply = <&vdd_fixed_vgpu_reg>;
@@ -253,6 +262,16 @@
 		};
 	};
 
+/*
+ * PIN 57 and 58 are 1.8V IO, it's unstable when accessing WM8960
+        i2c1_pins_a: i2c1@0 {
+		pins1 {
+			pinmux = <MT7623_PIN_57_SDA1_FUNC_GPIO57>,
+				 <MT7623_PIN_58_SCL1_FUNC_GPIO58>;
+			bias-disable;
+		};
+	};
+/*
 	i2c2_pins_a: i2c2@0 {
 		pins1 {
 			pinmux = <MT7623_PIN_77_SDA2_FUNC_SDA2>,
