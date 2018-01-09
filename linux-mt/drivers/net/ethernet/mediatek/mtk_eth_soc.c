@@ -2009,6 +2009,7 @@ static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 	eth->netdev[id]->base_addr = (unsigned long)eth->base;
 	eth->netdev[id]->vlan_features = MTK_HW_FEATURES &
 		~(NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX);
+        /* Set user-changeable features (subset of all device features) */
 	eth->netdev[id]->features |= MTK_HW_FEATURES;
 	eth->netdev[id]->features  &= ~NETIF_F_GSO;
         eth->netdev[id]->hw_features = eth->netdev[id]->features;
