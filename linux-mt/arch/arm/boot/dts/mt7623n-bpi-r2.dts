@@ -271,7 +271,7 @@
 			bias-disable;
 		};
 	};
-/*
+*/
 	i2c2_pins_a: i2c2@0 {
 		pins1 {
 			pinmux = <MT7623_PIN_77_SDA2_FUNC_SDA2>,
@@ -694,10 +694,6 @@
 	status = "okay";
 };
 
-&u3phy2 {
-	status = "okay";
-};
-
 &usb0 {
 	pinctrl-names = "iddig_irq_init", "drvvbus_init",
 			"drvvbus_low", "drvvbus_high";
@@ -723,12 +719,6 @@
 	vusb33-supply = <&mt6323_vusb_reg>;
 	status = "okay";
 };
-
-&usb2 {
-	vusb33-supply = <&mt6323_vusb_reg>;
-	status = "okay";
-};
-
 
 &ir {
         status = "okay";

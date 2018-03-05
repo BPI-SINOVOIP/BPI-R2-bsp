@@ -410,6 +410,9 @@ static void mtk_pcie_preinit(struct mtk_pcie *pcie)
 			pcie->pcie_card_link++;
 			dev_info(pcie->dev, "%s: PCIE%d link up\n", __func__,
 					port->id);
+		} else {
+			dev_info(pcie->dev, "%s: PCIE%d link down\n", __func__,
+					port->id);
 		}
 	}
 	dev_dbg(pcie->dev, "%s: PCIe Link count=%d\n", __func__,
