@@ -21,4 +21,4 @@ obj-$(CONFIG_PCIE_ALTERA) += pcie-altera.o
 obj-$(CONFIG_PCIE_ALTERA_MSI) += pcie-altera-msi.o
 obj-$(CONFIG_PCI_HISI) += pcie-hisi.o
 obj-$(CONFIG_PCIE_MTK) += phy-mediatek-pcie.o pci-mediatek.o
-obj-$(CONFIG_PCI_MT2701) += pci-mt2701.o
+obj-$(CONFIG_PCIE_MEDIATEK) += pcie-mediatek.o

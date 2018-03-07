@@ -94,4 +94,6 @@ void mtk_register_reset_controller(struct device_node *np,
 		kfree(data);
 		return;
 	}
+
+	pr_err("debug register hifsys reset controller: %d\n", ret);
 }

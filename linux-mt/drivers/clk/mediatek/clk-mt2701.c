@@ -1090,7 +1090,7 @@ static void __init mtk_vdecsys_init(struct device_node *node)
 }
 
 static const struct mtk_gate_regs hif_cg_regs __initconst = {
-	.sta_ofs = 0x0008,
+	.sta_ofs = 0x0030,
 };
 
 #define GATE_HIF(_id, _name, _parent, _shift) {		\
