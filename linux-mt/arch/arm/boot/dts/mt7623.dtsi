@@ -1169,6 +1169,7 @@
 		};
 	};
 
+/*
 	usb2: usb@1a240000 {
 		compatible = "mediatek,mt7623-xhci", "mediatek,mt2701-xhci";
 		reg = <0 0x1a240000 0 0x1000>,
@@ -1182,9 +1183,9 @@
 		phys = <&u2port1 PHY_TYPE_USB2>, <&u3port1 PHY_TYPE_USB3>;
 		status = "disabled";
 	};
-
+*/
 	u3phy2: usb-phy@1a244000 {
-		compatible = "mediatek,mt7623-u3phy", "mediatek,mt2701-u3phy";
+		compatible = "mediatek,generic-tphy-v1";
 		reg = <0 0x1a244000 0 0x0700>;
 		clocks = <&clk26m>;
 		clock-names = "u3phya_ref";
