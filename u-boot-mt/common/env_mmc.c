@@ -22,7 +22,7 @@
 #endif
 
 char *env_name_spec = "MMC";
-
+int   g_mmc_devid = -1;
 #ifdef ENV_IS_EMBEDDED
 env_t *env_ptr = &environment;
 #else /* ! ENV_IS_EMBEDDED */
@@ -38,7 +38,8 @@ DECLARE_GLOBAL_DATA_PTR;
 __weak int mmc_get_env_addr(struct mmc *mmc, int copy, u32 *env_addr)
 {
 	s64 offset;
-
+        struct  mmc_data_priv *priv;
+        priv = mmc->priv;
 	offset = CONFIG_ENV_OFFSET;
 #ifdef CONFIG_ENV_OFFSET_REDUND
 	if (copy)
@@ -48,7 +49,11 @@ __weak int mmc_get_env_addr(struct mmc *mmc, int copy, u32 *env_addr)
 	if (offset < 0)
 		offset += mmc->capacity;
 
-	*env_addr = offset;
+        //If mmc is SD, then set offset 1Mb
+        if(priv->id == 1)
+	    *env_addr = offset + mmc->capacity;
+        else
+            *env_addr = offset;
 
 	return 0;
 }
@@ -76,7 +81,7 @@ static int init_mmc_for_env(struct mmc *mmc)
 
 #ifdef CONFIG_SYS_MMC_ENV_PART
 	if (CONFIG_SYS_MMC_ENV_PART != mmc->part_num) {
-		if (mmc_switch_part(CONFIG_SYS_MMC_ENV_DEV,
+		if (mmc_switch_part(g_mmc_devid,
 				    CONFIG_SYS_MMC_ENV_PART)) {
 			puts("MMC partition switch failed\n");
 			return -1;
@@ -91,7 +96,7 @@ static void fini_mmc_for_env(struct mmc *mmc)
 {
 #ifdef CONFIG_SYS_MMC_ENV_PART
 	if (CONFIG_SYS_MMC_ENV_PART != mmc->part_num)
-		mmc_switch_part(CONFIG_SYS_MMC_ENV_DEV,
+		mmc_switch_part(g_mmc_devid,
 				mmc->part_num);
 #endif
 }
@@ -110,7 +115,7 @@ printf("mmc->write_bl_len=%d\n", mmc->write_bl_len);
    // printf("write_env: size=%lu, offset=0x%x, blk_start=0x%x, blk_cnt=0x%x\n",
      //       size, offset, blk_start, blk_cnt);
 
-	n = mmc->block_dev.block_write(CONFIG_SYS_MMC_ENV_DEV, blk_start,
+	n = mmc->block_dev.block_write(g_mmc_devid, blk_start,
 					blk_cnt, (u_char *)buffer);
 
 	return (n == blk_cnt) ? 0 : -1;
@@ -125,7 +130,7 @@ int saveenv(void)
 	ALLOC_CACHE_ALIGN_BUFFER(env_t, env_new, 1);
 	ssize_t	len;
 	char	*res;
-	struct mmc *mmc = find_mmc_device(CONFIG_SYS_MMC_ENV_DEV);
+	struct mmc *mmc = find_mmc_device(g_mmc_devid);
 	u32	offset;
 	int	ret, copy = 0;
 
@@ -155,7 +160,7 @@ int saveenv(void)
 	}
 
 	printf("Writing to %sMMC(%d)... ", copy ? "redundant " : "",
-	       CONFIG_SYS_MMC_ENV_DEV);
+	       g_mmc_devid);
 	if (write_env(mmc, CONFIG_ENV_SIZE, offset, (u_char *)env_new)) {
 		puts("failed\n");
 		ret = 1;
@@ -186,7 +191,7 @@ static inline int read_env(struct mmc *mmc, unsigned long size,
     printf("***size=%lu, offset=%lu, blk_start=%d, blk_cnt=%d\n",
              size, offset, blk_start, blk_cnt);
 
-	n = mmc->block_dev.block_read(CONFIG_SYS_MMC_ENV_DEV, blk_start,
+	n = mmc->block_dev.block_read(g_mmc_devid, blk_start,
 					blk_cnt, (uchar *)buffer);
 
 	return (n == blk_cnt) ? 0 : -1;
@@ -196,7 +201,21 @@ static inline int read_env(struct mmc *mmc, unsigned long size,
 void env_relocate_spec(void)
 {
 #if !defined(ENV_IS_EMBEDDED)
-	struct mmc *mmc = find_mmc_device(CONFIG_SYS_MMC_ENV_DEV);
+
+        char *uflag = (char *)0x81DFFFF0;
+        
+        if((uflag[0] == 'e') && (uflag[1] == 'M') && (uflag[2] == 'M') && (uflag[3] == 'C'))
+        {
+            g_mmc_devid = 0;
+            printf("Boot From Emmc(id:%d)\n\n", g_mmc_devid);
+        }
+        else
+        {
+            g_mmc_devid = 1;
+            printf("Boot From SD(id:%d)\n\n", g_mmc_devid);
+        }
+
+	struct mmc *mmc = find_mmc_device(g_mmc_devid);
 	u32 offset1, offset2;
 	int read1_fail = 0, read2_fail = 0;
 	int crc1_ok = 0, crc2_ok = 0;
@@ -281,8 +300,21 @@ err:
 void env_relocate_spec(void)
 {
 #if !defined(ENV_IS_EMBEDDED)
+        char *uflag = (char *)0x81DFFFF0;
+        
+        if((uflag[0] == 'e') && (uflag[1] == 'M') && (uflag[2] == 'M') && (uflag[3] == 'C'))
+        {
+            g_mmc_devid = 0;
+            printf("Boot From Emmc(id:%d)\n\n", g_mmc_devid);
+        }
+        else
+        {
+            g_mmc_devid = 1;
+            printf("Boot From SD(id:%d)\n\n", g_mmc_devid);
+        }
+
 	ALLOC_CACHE_ALIGN_BUFFER(char, buf, CONFIG_ENV_SIZE);
-	struct mmc *mmc = find_mmc_device(CONFIG_SYS_MMC_ENV_DEV);
+	struct mmc *mmc = find_mmc_device(g_mmc_devid);
 	u32 offset;
 	int ret;
 

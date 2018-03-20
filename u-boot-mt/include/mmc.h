@@ -296,6 +296,10 @@ struct mmc {
 	uint op_cond_response;	/* the response byte from the last op_cond */
 };
 
+struct mmc_data_priv {
+    char id;
+};
+
 int mmc_register(struct mmc *mmc);
 int mmc_initialize(bd_t *bis);
 int mmc_init(struct mmc *mmc);

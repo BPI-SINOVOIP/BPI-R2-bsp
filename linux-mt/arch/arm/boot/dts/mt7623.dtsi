@@ -435,6 +435,26 @@
 		clock-names = "baud", "bus";
 		status = "disabled";
 	};
+
+       uart0: serial@11002000 {
+		compatible = "mediatek,mt7623-uart",
+			     "mediatek,mt6577-uart";
+		reg = <0 0x11002000 0 0x400>;
+		interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&pericfg CLK_PERI_UART0_SEL>, <&pericfg CLK_PERI_UART0>;
+		clock-names = "baud", "bus";
+		status = "disabled";
+	};
+
+        uart1: serial@11003000 {
+		compatible = "mediatek,mt7623-uart",
+			     "mediatek,mt6577-uart";
+		reg = <0 0x11003000 0 0x400>;
+		interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&pericfg CLK_PERI_UART1_SEL>, <&pericfg CLK_PERI_UART1>;
+		clock-names = "baud", "bus";
+		status = "disabled";
+	};
 	
        pwm: pwm@11006000 {
 		compatible = "mediatek,mt7623-pwm";
