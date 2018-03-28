@@ -58,6 +58,75 @@ static const u8 default_modem_addr[ETH_ALEN] = {0x02, 0x50, 0xf3};
 
 static const u8 buggy_fw_addr[ETH_ALEN] = {0x00, 0xa0, 0xc6, 0x00, 0x00, 0x00};
 
+//Add for Quectel
+#if 1
+#include<linux/etherdevice.h>
+
+struct sk_buff *qmi_wwan_tx_fixup(struct usbnet *dev, struct sk_buff* skb, gfp_t flags)
+{
+    if(dev->udev->descriptor.idVendor != cpu_to_le16(0x2C7C))
+        return skb;
+
+    //Skip Ethernet header from message
+    if(skb_pull(skb, ETH_HLEN))
+    {
+        return skb;
+    }else{
+         dev_err(&dev->intf->dev, "Packet Dropped");
+    }
+
+    //Filter the packet out, release it
+    dev_kfree_skb_any(skb);
+    return NULL;
+}
+
+#include<linux/version.h>
+#if(LINUX_VERSION_CODE < KERNEL_VERSION(3,9,1))
+static int qmi_wwan_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
+{
+    __be16 proto;
+    
+    if(dev->udev->descriptor.idVendor != cpu_to_le16(0x2C7C))
+        return 1;
+
+    /* This check is no longer done by usbnet */
+    if(skb->len < dev->net->hard_header_len)
+        return 0;
+
+    switch(skb->data[0] & 0xf0)
+    {
+        case 0x40:
+            proto = htons(ETH_P_IP);
+        break;
+        case 0x60:
+            proto = htons(ETH_P_IPV6);
+        break;
+        case 0x00:
+            if(is_multicast_ether_addr(skb->data))
+                return 1;
+            skb_reset_mac_header(skb);
+            goto fix_dest;
+        default:
+            return 1;
+    }
+
+    if(skb_headroom(skb) < ETH_HLEN)
+        return 0;
+    skb_push(skb, ETH_HLEN);
+    skb_reset_mac_header(skb);
+    eth_hdr(skb)->h_proto = proto;
+    memset(eth_hdr(skb)->h_source, 0, ETH_ALEN);
+fix_dest:
+    memcpy(eth_hdr(skb)->h_dest, dev->net->dev_addr, ETH_ALEN);
+    return 1;
+}
+
+static bool possibly_iphdr(const char *data)
+{
+    return (data[0] & 0xd0) == 0x40;
+}
+#endif
+#endif
 /* Make up an ethernet header if the packet doesn't have one.
  *
  * A firmware bug common among several devices cause them to send raw
@@ -294,9 +363,55 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 		dev->net->dev_addr[0] &= 0xbf;	/* clear "IP" bit */
 	}
 	dev->net->netdev_ops = &qmi_wwan_netdev_ops;
+
+        //Add for Quectel
+        #if 1
+
+        if(dev->udev->descriptor.idVendor == cpu_to_le16(0x2C7C))
+        {
+            dev_info(&intf->dev, "Quectel EC25 work on RawIP mode\n");
+            dev->net->flags |= IFF_NOARP;
+        #if(LINUX_VERSION_CODE < KERNEL_VERSION(3,9,1))
+        //make MAC addr easily distinguishable from IP header
+        
+        if(possibly_iphdr(dev->net->dev_addr))
+        {
+            dev->net->dev_addr[0] |= 0x02; //set local assignement bit
+            dev->net->dev_addr[0] &= 0xbf; //clear IP bit
+        }
+        #endif
+        usb_control_msg(interface_to_usbdev(intf), usb_sndctrlpipe(interface_to_usbdev(intf), 0), 
+        0x22, 0x21, 1, intf->cur_altsetting->desc.bInterfaceNumber, NULL, 0, 100);
+        }
+        #endif
+
 err:
 	return status;
 }
+
+#if 1 //Add for Quectel
+
+static int qmi_wwan_bind_shared(struct usbnet* dev, struct usb_interface *intf)
+{
+        if(dev->udev->descriptor.idVendor == cpu_to_le16(0x2C7C))
+        {
+            dev_info(&intf->dev, "Quectel EC25 work on RawIP mode\n");
+            dev->net->flags |= IFF_NOARP;
+        #if(LINUX_VERSION_CODE < KERNEL_VERSION(3,9,1))
+        //make MAC addr easily distinguishable from IP header
+        
+        if(possibly_iphdr(dev->net->dev_addr))
+        {
+            dev->net->dev_addr[0] |= 0x02; //set local assignement bit
+            dev->net->dev_addr[0] &= 0xbf; //clear IP bit
+        }
+        #endif
+        usb_control_msg(interface_to_usbdev(intf), usb_sndctrlpipe(interface_to_usbdev(intf), 0), 
+        0x22, 0x21, 1, intf->cur_altsetting->desc.bInterfaceNumber, NULL, 0, 100);
+        }
+}
+
+#endif
 
 static void qmi_wwan_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
@@ -379,7 +494,26 @@ static const struct driver_info	qmi_wwan_info = {
 	.unbind		= qmi_wwan_unbind,
 	.manage_power	= qmi_wwan_manage_power,
 	.rx_fixup       = qmi_wwan_rx_fixup,
+
+        #if 1 //Add for Quectel
+        .tx_fixup = qmi_wwan_tx_fixup,
+        .rx_fixup = qmi_wwan_rx_fixup,
+        #endif
 };
+
+#if 1 //Add for Quectel
+static const struct driver_info qmi_wwan_force_int4 = {
+        .tx_fixup = qmi_wwan_tx_fixup,
+        .rx_fixup = qmi_wwan_rx_fixup,
+};
+#endif
+
+#if 1 //Add for Quectel
+static const struct driver_info qmi_wwan_force_shared = {
+        .tx_fixup = qmi_wwan_tx_fixup,
+        .rx_fixup = qmi_wwan_rx_fixup,
+};
+#endif
 
 #define HUAWEI_VENDOR_ID	0x12D1
 
@@ -395,6 +529,7 @@ static const struct driver_info	qmi_wwan_info = {
 /* Gobi 2000/3000 QMI/wwan interface number is 0 according to qcserial */
 #define QMI_GOBI_DEVICE(vend, prod) \
 	QMI_FIXED_INTF(vend, prod, 0)
+
 
 static const struct usb_device_id products[] = {
 	/* 1. CDC ECM like devices match on the control interface */
@@ -496,6 +631,23 @@ static const struct usb_device_id products[] = {
 		USB_DEVICE_AND_INTERFACE_INFO(0x03f0, 0x581d, USB_CLASS_VENDOR_SPEC, 1, 7),
 		.driver_info = (unsigned long)&qmi_wwan_info,
 	},
+
+//Added for Quectel
+#if 1
+
+#ifndef QMI_FIXED_INTF
+#define QMI_FIXED_INTF(vend, prod, num) \
+        .match_flags        = USB_DEVICE_ID_MATCH_DEVICE | USB_DEVICE_ID_MATCH_INT_INFO, \
+        .idVendor           = vend, \
+        .idProduct          = prod, \
+        .bInterfaceClass    = 0xff, \
+        .bInterfaceSubClass = 0xff, \
+        .bInterfaceProtocol = 0xff, \
+        .driver_info        = (unsigned long)&qmi_wwan_force_int##num,
+#endif
+        {QMI_FIXED_INTF(0x2C7C, 0x0125, 4)},    /* Add VID and PID */
+
+#endif
 
 	/* 3. Combined interface devices matching on interface number */
 	{QMI_FIXED_INTF(0x0408, 0xea42, 4)},	/* Yota / Megafon M100-1 */
