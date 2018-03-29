@@ -138,6 +138,17 @@
 	status = "okay";
 };
 
+&spi0{
+        pinctrl-names = "default";
+        pinctrl-0     = <&spi0_pins_a>;
+        status        = "okay";
+        spidev: spidev@0{
+                compatible = "rohm,dh2228fv";
+                spi-max-frequency = <1000000>;
+                reg = <0>;
+    };
+};
+
 &mali {
 	vdd_g3d-supply = <&vdd_fixed_vgpu_reg>;
 	status = "okay";
@@ -261,6 +272,16 @@
 			bias-disable;
 		};
 	};
+
+        spi0_pins_a: spi0@0{
+            pins_spi{
+                    pinmux = <MT7623_PIN_53_SPI0_CSN_FUNC_SPI0_CS>,
+                             <MT7623_PIN_54_SPI0_CK_FUNC_SPI0_CK>,
+                             <MT7623_PIN_55_SPI0_MI_FUNC_SPI0_MI>,
+                             <MT7623_PIN_56_SPI0_MO_FUNC_SPI0_MO>;
+                        bias-disable;
+            };
+        };
 
 	nand_pins_default: nanddefault {
 		pins_dat {
@@ -653,6 +674,13 @@
 			};
 		};
 	};
+};
+&uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
 };
 
 &uart2 {

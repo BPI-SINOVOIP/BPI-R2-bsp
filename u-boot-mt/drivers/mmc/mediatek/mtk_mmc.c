@@ -160,9 +160,7 @@ block_dev_desc_t g_mtk_mmc_block_sd = {
     .block_erase = __mmc_block_erase
 };
 
-struct mmc_data_priv {
-    char id;
-};
+
 static int cur_dev_num = -1;
 static struct mmc mtk_mmc[1]; //0:emmc 1:sd
 static struct mmc_data_priv mtk_mmc_data_priv[1];
@@ -179,9 +177,9 @@ struct mmc *find_mmc_device(int dev_num)
         return 0;
     else {
         printf("dev_num = %d\n", dev_num);
-        mtk_mmc[dev_num].priv = &mtk_mmc_data_priv[dev_num];
-        mtk_mmc_data_priv[dev_num].id = dev_num;
-        return &mtk_mmc[dev_num];
+        mtk_mmc[0].priv = &mtk_mmc_data_priv[0];
+        mtk_mmc_data_priv[0].id = dev_num;
+        return &mtk_mmc[0];
         }
 }
 
@@ -210,6 +208,7 @@ int mmc_init(struct mmc *mmc){
        strcpy(mmc->name,"sdcard");
        mmc->block_dev = g_mtk_mmc_block_sd;
     }
+
     __mmc_init(id);
 
     mmc_info_helper2(
@@ -222,6 +221,11 @@ int mmc_init(struct mmc *mmc){
         &blk_num,
         &mmc->bus_width
     ) ; 
+    //If is SD, set offset 1Mb
+    if(id == 1)
+    {
+        blk_num+=0x100000;
+    }
 
     mmc->scr[0] = scr[0];
 	mmc->scr[1] = scr[1];
@@ -245,7 +249,7 @@ int mmc_init(struct mmc *mmc){
     mmc->capacity = blk_num;
     mmc->capacity =  mmc->capacity * (u64)mmc->read_bl_len;
     mmc->write_bl_len = mmc->read_bl_len;
-//printf("read_bl_len=%d, write_bl_len=%d\n", mmc->read_bl_len, mmc->write_bl_len);
+    //printf("read_bl_len=%d, write_bl_len=%d, blk_num=%d\n", mmc->read_bl_len, mmc->write_bl_len, blk_num);
 
 return 0;
 
