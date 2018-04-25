@@ -630,20 +630,30 @@ static int vidioc_venc_g_selection(struct file *file, void *priv,
 	struct mtk_vcodec_ctx *ctx = fh_to_ctx(priv);
 	struct mtk_q_data *q_data;
 
-	if (!V4L2_TYPE_IS_OUTPUT(s->type))
-		return -EINVAL;
-
-	if (s->target != V4L2_SEL_TGT_COMPOSE)
+	if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		return -EINVAL;
 
 	q_data = mtk_venc_get_q_data(ctx, s->type);
 	if (!q_data)
 		return -EINVAL;
 
+	switch (s->target) {
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		s->r.top = 0;
+		s->r.left = 0;
+		s->r.width = q_data->coded_width;
+		s->r.height = q_data->coded_height;
+		break;
+	case V4L2_SEL_TGT_CROP:
 		s->r.top = 0;
 		s->r.left = 0;
 		s->r.width = q_data->visible_width;
 		s->r.height = q_data->visible_height;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -654,22 +664,26 @@ static int vidioc_venc_s_selection(struct file *file, void *priv,
 	struct mtk_vcodec_ctx *ctx = fh_to_ctx(priv);
 	struct mtk_q_data *q_data;
 
-
-	if (!V4L2_TYPE_IS_OUTPUT(s->type))
-		return -EINVAL;
-
-	if (s->target != V4L2_SEL_TGT_COMPOSE)
+	if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		return -EINVAL;
 
 	q_data = mtk_venc_get_q_data(ctx, s->type);
 	if (!q_data)
 		return -EINVAL;
 
+	switch (s->target) {
+	case V4L2_SEL_TGT_CROP:
+		/* Only support crop from (0,0) */
 		s->r.top = 0;
 		s->r.left = 0;
+		s->r.width = min(s->r.width, q_data->coded_width);
+		s->r.height = min(s->r.height, q_data->coded_height);
 		q_data->visible_width = s->r.width;
 		q_data->visible_height = s->r.height;
-
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -737,10 +751,10 @@ const struct v4l2_ioctl_ops mtk_venc_ioctl_ops = {
 };
 
 static int vb2ops_venc_queue_setup(struct vb2_queue *vq,
-				   const void *parg,
 				   unsigned int *nbuffers,
 				   unsigned int *nplanes,
-				   unsigned int sizes[], void *alloc_ctxs[])
+				   unsigned int sizes[],
+				   struct device *alloc_devs[])
 {
 	struct mtk_vcodec_ctx *ctx = vb2_get_drv_priv(vq);
 	struct mtk_q_data *q_data;
@@ -752,17 +766,13 @@ static int vb2ops_venc_queue_setup(struct vb2_queue *vq,
 		return -EINVAL;
 
 	if (*nplanes) {
-		for (i = 0; i < *nplanes; i++) {
+		for (i = 0; i < *nplanes; i++)
 			if (sizes[i] < q_data->sizeimage[i])
 				return -EINVAL;
-			alloc_ctxs[i] = ctx->dev->alloc_ctx;
-		}
 	} else {
 		*nplanes = q_data->fmt->num_planes;
-		for (i = 0; i < *nplanes; i++) {
+		for (i = 0; i < *nplanes; i++)
 			sizes[i] = q_data->sizeimage[i];
-			alloc_ctxs[i] = ctx->dev->alloc_ctx;
-		}
 	}
 
 	return 0;
@@ -913,7 +923,7 @@ static void vb2ops_venc_stop_streaming(struct vb2_queue *q)
 	ctx->state = MTK_STATE_FREE;
 }
 
-static struct vb2_ops mtk_venc_vb2_ops = {
+static const struct vb2_ops mtk_venc_vb2_ops = {
 	.queue_setup		= vb2ops_venc_queue_setup,
 	.buf_prepare		= vb2ops_venc_buf_prepare,
 	.buf_queue		= vb2ops_venc_buf_queue,
@@ -965,7 +975,7 @@ static int mtk_venc_encode_header(void *priv)
 	if (src_buf) {
 		src_vb2_v4l2 = to_vb2_v4l2_buffer(src_buf);
 		dst_vb2_v4l2 = to_vb2_v4l2_buffer(dst_buf);
-		src_vb2_v4l2->timestamp = src_vb2_v4l2->timestamp;
+		dst_buf->timestamp = src_buf->timestamp;
 		dst_vb2_v4l2->timecode = src_vb2_v4l2->timecode;
 	} else {
 		mtk_v4l2_err("No timestamp for the header buffer.");
@@ -1105,7 +1115,7 @@ static void mtk_venc_worker(struct work_struct *work)
 	src_vb2_v4l2 = to_vb2_v4l2_buffer(src_buf);
 	dst_vb2_v4l2 = to_vb2_v4l2_buffer(dst_buf);
 
-	dst_vb2_v4l2->timestamp = src_vb2_v4l2->timestamp;
+	dst_buf->timestamp = src_buf->timestamp;
 	dst_vb2_v4l2->timecode = src_vb2_v4l2->timecode;
 
 	if (enc_result.is_key_frm)
@@ -1315,6 +1325,7 @@ int mtk_vcodec_enc_queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->mem_ops		= &vb2_dma_contig_memops;
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->lock		= &ctx->dev->dev_mutex;
+	src_vq->dev		= &ctx->dev->plat_dev->dev;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -1328,6 +1339,7 @@ int mtk_vcodec_enc_queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->mem_ops		= &vb2_dma_contig_memops;
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->lock		= &ctx->dev->dev_mutex;
+	dst_vq->dev		= &ctx->dev->plat_dev->dev;
 
 	return vb2_queue_init(dst_vq);
 }

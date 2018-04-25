@@ -1,17 +1,17 @@
 /*
-* Copyright (c) 2016 MediaTek Inc.
-* Author: PC Chen <pc.chen@mediatek.com>
-*         Tiffany Lin <tiffany.lin@mediatek.com>
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*/
+ * Copyright (c) 2016 MediaTek Inc.
+ * Author: PC Chen <pc.chen@mediatek.com>
+ *         Tiffany Lin <tiffany.lin@mediatek.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -28,7 +28,7 @@
 #include "mtk_vcodec_dec_pm.h"
 #include "mtk_vcodec_intr.h"
 #include "mtk_vcodec_util.h"
-#include "mtk_vcu.h"
+#include "mtk_vpu.h"
 
 #define VDEC_HW_ACTIVE	0x10
 #define VDEC_IRQ_CFG	0x11
@@ -85,17 +85,41 @@ static irqreturn_t mtk_vcodec_dec_irq_handler(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
+static void mtk_vcodec_dec_reset_handler(void *priv)
+{
+	struct mtk_vcodec_dev *dev = priv;
+	struct mtk_vcodec_ctx *ctx;
+
+	mtk_v4l2_err("Watchdog timeout!!");
+
+	mutex_lock(&dev->dev_mutex);
+	list_for_each_entry(ctx, &dev->ctx_list, list) {
+		ctx->state = MTK_STATE_ABORT;
+		mtk_v4l2_debug(0, "[%d] Change to state MTK_STATE_ERROR",
+				ctx->id);
+	}
+	mutex_unlock(&dev->dev_mutex);
+}
+
 static int fops_vcodec_open(struct file *file)
 {
 	struct mtk_vcodec_dev *dev = video_drvdata(file);
 	struct mtk_vcodec_ctx *ctx = NULL;
+	struct mtk_video_dec_buf *mtk_buf = NULL;
 	int ret = 0;
+	struct vb2_queue *src_vq;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
+	mtk_buf = kzalloc(sizeof(*mtk_buf), GFP_KERNEL);
+	if (!mtk_buf) {
+		kfree(ctx);
+		return -ENOMEM;
+	}
 
 	mutex_lock(&dev->dev_mutex);
+	ctx->empty_flush_buf = mtk_buf;
 	ctx->id = dev->id_counter++;
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
 	file->private_data = &ctx->fh;
@@ -119,35 +143,31 @@ static int fops_vcodec_open(struct file *file)
 			ret);
 		goto err_m2m_ctx_init;
 	}
+	src_vq = v4l2_m2m_get_vq(ctx->m2m_ctx,
+				V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
+	ctx->empty_flush_buf->vb.vb2_buf.vb2_queue = src_vq;
+	ctx->empty_flush_buf->lastframe = true;
 	mtk_vcodec_dec_set_default_params(ctx);
 
 	if (v4l2_fh_is_singular(&ctx->fh)) {
 		mtk_vcodec_dec_pw_on(&dev->pm);
 		/*
-		 * vcu_load_firmware checks if it was loaded already and
+		 * vpu_load_firmware checks if it was loaded already and
 		 * does nothing in that case
 		 */
-		ret = vcu_load_firmware(dev->vcu_plat_dev);
+		ret = vpu_load_firmware(dev->vpu_plat_dev);
 		if (ret < 0) {
 			/*
 			 * Return 0 if downloading firmware successfully,
 			 * otherwise it is failed
 			 */
-			mtk_v4l2_err("vcu_load_firmware failed!");
-			goto err_load_fw;
-		}
-
-		if (vcu_compare_version(dev->vcu_plat_dev,
-						 MTK_VCU_FW_VERSION) != 0) {
-			mtk_v4l2_err("Invalid vcu firmware, should be %s!",
-					MTK_VCU_FW_VERSION);
-			ret = -EPERM;
+			mtk_v4l2_err("vpu_load_firmware failed!");
 			goto err_load_fw;
 		}
 
 		dev->dec_capability =
-			vcu_get_vdec_hw_capa(dev->vcu_plat_dev);
-		mtk_v4l2_debug(1, "decoder capability %x", dev->dec_capability);
+			vpu_get_vdec_hw_capa(dev->vpu_plat_dev);
+		mtk_v4l2_debug(0, "decoder capability %x", dev->dec_capability);
 	}
 
 	list_add(&ctx->list, &dev->ctx_list);
@@ -165,6 +185,7 @@ err_m2m_ctx_init:
 err_ctrls_setup:
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
+	kfree(ctx->empty_flush_buf);
 	kfree(ctx);
 	mutex_unlock(&dev->dev_mutex);
 
@@ -195,6 +216,7 @@ static int fops_vcodec_release(struct file *file)
 	v4l2_ctrl_handler_free(&ctx->ctrl_hdl);
 
 	list_del_init(&ctx->list);
+	kfree(ctx->empty_flush_buf);
 	kfree(ctx);
 	mutex_unlock(&dev->dev_mutex);
 	return 0;
@@ -222,11 +244,15 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&dev->ctx_list);
 	dev->plat_dev = pdev;
-	dev->vcu_plat_dev = vcu_get_plat_device(dev->plat_dev);
-	if (dev->vcu_plat_dev == NULL) {
-		mtk_v4l2_err("[VCU] vcu device in not ready");
+
+	dev->vpu_plat_dev = vpu_get_plat_device(dev->plat_dev);
+	if (dev->vpu_plat_dev == NULL) {
+		mtk_v4l2_err("[VPU] vpu device in not ready");
 		return -EPROBE_DEFER;
 	}
+
+	vpu_wdt_reg_handler(dev->vpu_plat_dev, mtk_vcodec_dec_reset_handler,
+			dev, VPU_RST_DEC);
 
 	ret = mtk_vcodec_init_dec_pm(dev);
 	if (ret < 0) {
@@ -303,13 +329,6 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 	dev->vfd_dec = vfd_dec;
 	platform_set_drvdata(pdev, dev);
 
-	dev->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
-	if (IS_ERR(dev->alloc_ctx)) {
-		mtk_v4l2_err("Failed to alloc vb2 dma context 0\n");
-		ret = PTR_ERR(dev->alloc_ctx);
-		goto err_vb2_ctx_init;
-	}
-
 	dev->m2m_dev_dec = v4l2_m2m_init(&mtk_vdec_m2m_ops);
 	if (IS_ERR((__force void *)dev->m2m_dev_dec)) {
 		mtk_v4l2_err("Failed to init mem2mem dec device");
@@ -342,8 +361,6 @@ err_dec_reg:
 err_event_workq:
 	v4l2_m2m_release(dev->m2m_dev_dec);
 err_dec_mem_init:
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
-err_vb2_ctx_init:
 	video_unregister_device(vfd_dec);
 err_dec_alloc:
 	v4l2_device_unregister(&dev->v4l2_dev);
@@ -354,7 +371,6 @@ err_res:
 
 static const struct of_device_id mtk_vcodec_match[] = {
 	{.compatible = "mediatek,mt8173-vcodec-dec",},
-	{.compatible = "mediatek,mt2712-vcodec-dec",},
 	{},
 };
 
@@ -368,8 +384,6 @@ static int mtk_vcodec_dec_remove(struct platform_device *pdev)
 	destroy_workqueue(dev->decode_workqueue);
 	if (dev->m2m_dev_dec)
 		v4l2_m2m_release(dev->m2m_dev_dec);
-	if (dev->alloc_ctx)
-		vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
 
 	if (dev->vfd_dec)
 		video_unregister_device(dev->vfd_dec);

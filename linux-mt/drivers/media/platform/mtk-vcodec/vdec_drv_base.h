@@ -16,6 +16,7 @@
 #define _VDEC_DRV_BASE_
 
 #include "mtk_vcodec_drv.h"
+
 #include "vdec_drv_if.h"
 
 struct vdec_common_if {
@@ -45,14 +46,6 @@ struct vdec_common_if {
 	int (*get_param)(unsigned long h_vdec, enum vdec_get_param_type type,
 			 void *out);
 
-	/**
-	 * (*set_param)() - set driver's parameter
-	 * @h_vdec : [in] driver handle
-	 * @type   : [in] input parameter type
-	 * @in     : [in] buffer to store query
-	 */
-	int (*set_param)(unsigned long h_vdec, enum vdec_set_param_type type,
-			 void *in);
 	/**
 	 * (*deinit)() - deinitialize driver.
 	 * @h_vdec : [in] driver handle to be deinit

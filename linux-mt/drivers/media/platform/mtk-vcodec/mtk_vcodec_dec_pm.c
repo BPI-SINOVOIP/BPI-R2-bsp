@@ -1,16 +1,16 @@
 /*
-* Copyright (c) 2016 MediaTek Inc.
-* Author: Tiffany Lin <tiffany.lin@mediatek.com>
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*/
+ * Copyright (c) 2016 MediaTek Inc.
+ * Author: Tiffany Lin <tiffany.lin@mediatek.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 #include <linux/clk.h>
 #include <linux/of_address.h>
@@ -20,7 +20,7 @@
 
 #include "mtk_vcodec_dec_pm.h"
 #include "mtk_vcodec_util.h"
-#include "mtk_vcu.h"
+#include "mtk_vpu.h"
 
 int mtk_vcodec_init_dec_pm(struct mtk_vcodec_dev *mtkdev)
 {
@@ -32,7 +32,6 @@ int mtk_vcodec_init_dec_pm(struct mtk_vcodec_dev *mtkdev)
 	pdev = mtkdev->plat_dev;
 	pm = &mtkdev->pm;
 	pm->mtkdev = mtkdev;
-	pm->chip_node = of_find_compatible_node(NULL, NULL, "mediatek,mt8173-vcodec-dec");
 	node = of_parse_phandle(pdev->dev.of_node, "mediatek,larb", 0);
 	if (!node) {
 		mtk_v4l2_err("of_parse_phandle mediatek,larb fail!");
@@ -96,12 +95,6 @@ int mtk_vcodec_init_dec_pm(struct mtk_vcodec_dev *mtkdev)
 		ret = PTR_ERR(pm->vdec_bus_clk_src);
 	}
 
-	pm->img_resz = devm_clk_get(&pdev->dev, "img_resz");
-	if (IS_ERR(pm->img_resz)) {
-		mtk_v4l2_err();
-		ret = PTR_ERR(pm->img_resz);
-	}
-
 	pm_runtime_enable(&pdev->dev);
 
 	return ret;
@@ -134,15 +127,13 @@ void mtk_vcodec_dec_clock_on(struct mtk_vcodec_pm *pm)
 {
 	int ret;
 
-	if (pm->chip_node) {
-		ret = clk_set_rate(pm->vcodecpll, 1482 * 1000000);
-		if (ret)
-			mtk_v4l2_err("clk_set_rate vcodecpll fail %d", ret);
+	ret = clk_set_rate(pm->vcodecpll, 1482 * 1000000);
+	if (ret)
+		mtk_v4l2_err("clk_set_rate vcodecpll fail %d", ret);
 
-		ret = clk_set_rate(pm->vencpll, 800 * 1000000);
-		if (ret)
-			mtk_v4l2_err("clk_set_rate vencpll fail %d", ret);
-	}
+	ret = clk_set_rate(pm->vencpll, 800 * 1000000);
+	if (ret)
+		mtk_v4l2_err("clk_set_rate vencpll fail %d", ret);
 
 	ret = clk_prepare_enable(pm->vcodecpll);
 	if (ret)
@@ -191,10 +182,6 @@ void mtk_vcodec_dec_clock_on(struct mtk_vcodec_pm *pm)
 	if (ret)
 		mtk_v4l2_err("clk_set_parent vdec_sel vdecpll fail %d", ret);
 
-	ret = clk_prepare_enable(pm->img_resz);
-	if (ret)
-		mtk_v4l2_err("clk_prepare_enable img_resz fail %d", ret);
-
 	ret = mtk_smi_larb_get(pm->larbvdec);
 	if (ret)
 		mtk_v4l2_err("mtk_smi_larb_get larbvdec fail %d", ret);
@@ -212,6 +199,4 @@ void mtk_vcodec_dec_clock_off(struct mtk_vcodec_pm *pm)
 	clk_disable_unprepare(pm->vdec_bus_clk_src);
 	clk_disable_unprepare(pm->vencpll);
 	clk_disable_unprepare(pm->vcodecpll);
-	clk_disable_unprepare(pm->img_resz);
 }
-

@@ -20,6 +20,7 @@
 #include "mtk_vcodec_dec.h"
 #include "mtk_vcodec_util.h"
 
+
 /**
  * struct vdec_fb_status  - decoder frame buffer status
  * @FB_ST_NORMAL	: initial state
@@ -41,36 +42,13 @@ enum vdec_fb_status {
  * GET_PARAM_PIC_INFO		: get picture info, struct vdec_pic_info*
  * GET_PARAM_CROP_INFO		: get crop info, struct v4l2_crop*
  * GET_PARAM_DPB_SIZE		: get dpb size, unsigned int*
- * GET_PARAM_FRAME_INTERVAL	: get frame interval info*
- * GET_PARAM_ERRORMB_MAP	: get error mocroblock when decode error*
  */
 enum vdec_get_param_type {
 	GET_PARAM_DISP_FRAME_BUFFER,
 	GET_PARAM_FREE_FRAME_BUFFER,
 	GET_PARAM_PIC_INFO,
 	GET_PARAM_CROP_INFO,
-	GET_PARAM_DPB_SIZE,
-	GET_PARAM_FRAME_INTERVAL,
-	GET_PARAM_ERRORMB_MAP
-};
-
-/*
- * enum vdec_set_param_type - The type of set parameter used in vdec_if_set_param()
- * (VCU related: If you change the order, you must also update the VCU codes.)
- * VDEC_SET_PARAM_DECODE_MODE			: set decoder mode*
- * VDEC_SET_PARAM_FRAME_SIZE			: set container frame size*
- * VDEC_SET_PARAM_FIXED_MAX_OUTPUT_BUFFER	: set fixed maximum buffer size*
- * VDEC_SET_PARAM_UFO_MODE			: set UFO mode*
- * SET_PARAM_CRC_PATH				: CRC path*
- * SET_PARAM_GOLDEN_PATH			: GOLDEN path*
- */
-enum vdec_set_param_type {
-	SET_PARAM_DECODE_MODE,
-	SET_PARAM_FRAME_SIZE,
-	SET_PARAM_SET_FIXED_MAX_OUTPUT_BUFFER,
-	SET_PARAM_UFO_MODE,
-	SET_PARAM_CRC_PATH,
-	SET_PARAM_GOLDEN_PATH
+	GET_PARAM_DPB_SIZE
 };
 
 /**
@@ -107,6 +85,8 @@ void vdec_if_deinit(struct mtk_vcodec_ctx *ctx);
  * @res_chg	: [out] resolution change happens if current bs have different
  *	picture width/height
  * Note: To flush the decoder when reaching EOF, set input bitstream as NULL.
+ *
+ * Return: 0 on success. -EIO on unrecoverable error.
  */
 int vdec_if_decode(struct mtk_vcodec_ctx *ctx, struct mtk_vcodec_mem *bs,
 		   struct vdec_fb *fb, bool *res_chg);
@@ -120,14 +100,4 @@ int vdec_if_decode(struct mtk_vcodec_ctx *ctx, struct mtk_vcodec_mem *bs,
 int vdec_if_get_param(struct mtk_vcodec_ctx *ctx, enum vdec_get_param_type type,
 		      void *out);
 
-/*
- * vdec_if_set_param - Set parameter to driver
- * @ctx	: [in] v4l2 context
- * @type	: [in] input parameter type
- * @out	: [in] input parameter
- * Return: 0 if setting param successfully, otherwise it is failed.
- */
-int vdec_if_set_param(struct mtk_vcodec_ctx *ctx,
-		      enum vdec_set_param_type type,
-		      void *in);
 #endif
