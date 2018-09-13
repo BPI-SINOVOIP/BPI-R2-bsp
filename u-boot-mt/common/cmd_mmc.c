@@ -12,6 +12,7 @@
 static int curr_device = -1;
 #ifndef CONFIG_GENERIC_MMC
 static int do_mmcops(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
+extern int g_mmc_devid;
 int do_mmc (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	int dev;
@@ -30,7 +31,7 @@ int do_mmc (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		} else {
 			return CMD_RET_USAGE;
 		}
-
+		dev = g_mmc_devid;
 		if (mmc_legacy_init(dev) != 0) {
 			puts("No MMC card found\n");
 			return 1;
