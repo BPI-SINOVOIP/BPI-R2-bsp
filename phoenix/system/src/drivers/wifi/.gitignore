@@ -1,0 +1,9 @@
+toolchain
+Module.symvers
+modules.order
+.*.cmd
+*.o
+*.ko
+*.mod
+*.mod.c
+*~

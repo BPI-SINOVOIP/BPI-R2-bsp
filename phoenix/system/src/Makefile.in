@@ -1,0 +1,91 @@
+.PHONY: all dis clean force
+
+Q = @
+
+ifeq (1,$(SHARED_LIB))
+COMMON_FLAGS += -fPIC -DSHARED_LIB
+LDFLAGS += -shared
+endif
+
+INCLUDE_DIR	+= $(LOCAL_INCLUDE)
+
+CFLAGS		+= $(COMMON_FLAGS) $(INCLUDE_DIR) $(CFLAGS_DEBUG) $(LOCAL_CFLAGS)
+CPPFLAGS	+= $(INCLUDE_DIR)
+CXXFLAGS	+= $(COMMON_FLAGS) $(INCLUDE_DIR)
+
+LDFLAGS		+= -L$(LIB_DIR)
+
+
+#---------------------------------------
+# Implicit rules
+#---------------------------------------
+OBJ=obj
+$(OBJ)/%.o: $(OBJ)/%.d
+
+$(OBJ)/%.d: %.c
+	@mkdir -p $(dir $@)
+	@$(ECHO) "   [DEP] $<"
+	@$(XCC) -MM -MT '$(@:.d=.o) $@' $(CFLAGS) -o $@ $<
+
+$(OBJ)/%.d: %.cpp
+	@mkdir -p $(dir $@)
+	@$(ECHO) "   [DEP] $<"
+	@$(XCC) -MM -MT $(@:.d=.o) $(CXXFLAGS) -o $@ $<
+
+$(OBJ)/%.o: %.c
+	@$(ECHO) "   [C] $<"
+	$(Q)$(XCC) -c $(CFLAGS) -o $@ $< > /dev/null 2>&1
+
+$(OBJ)/%.o: %.cpp
+	@$(ECHO) "   [CXX] $<"
+	$(Q)$(XCC) -c $(CXXFLAGS) -o $@ $< > /dev/null 2>&1
+
+#---------------------------------------
+# Explicit rules
+#---------------------------------------
+#OBJS := $(OBJS:%.cpp=%.o)
+OBJS := $(shell echo $(SOURCES) | sed -e 's,\.c\>,\.o,g' -e 's,\.cpp,\.o,g')
+OBJS := $(addprefix $(OBJ)/,$(OBJS))
+OBJS := $(OBJS)
+
+DEPENDS := $(shell echo $(OBJS) | sed -e 's,\.o,\.d,g')
+
+LINK_OBJS := $(OBJS) $(OBJS_MOD)
+
+all: $(TARGET)
+
+ifneq ($(APP),Y)
+$(TARGET): $(LINK_OBJS)
+ifeq (1,$(SHARED_LIB))
+	@$(ECHO) "    [SO] $@.so"
+	@$(XCC) -shared -Wl,-soname,$(shell basename $@.so) -o $@.so $(OBJS)
+else
+	@$(ECHO) "    [AR] $@"
+	@$(XAR) ru $@ $(OBJS)
+	$(Q)$(XSTRIP) $@
+endif
+else
+$(TARGET): $(LINK_OBJS) $(LOCAL_LIBS)
+	@$(ECHO) "    [LINK] $(BIN)/$@"
+	@$(XLD) $(LDFLAGS) -Wl,-Map,$(BIN)/$@.map $(LIBS) $(LOCAL_LIBS) $(OBJS) -o $(BIN)/$@
+	$(Q)$(XSTRIP) $@
+endif
+
+dis:
+	@$(ECHO) "[DISASM] $(TARGET).text"
+	@cp $(BIN)/$(TARGET) $(BIN)/__tmp_$(TARGET)_tmp__
+	@$(XOBJCOPY) -g $(BIN)/$(TARGET)
+	@$(XOBJDUMP) -CDhpr $(BIN)/$(TARGET) > $(BIN)/$(TARGET).text
+	@mv $(BIN)/__tmp_$(TARGET)_tmp__ $(BIN)/$(TARGET)
+	@$(XNM) -C $(BIN)/$(TARGET) > $(BIN)/$(TARGET).symbol
+
+clean:
+	@$(ECHO) "  [CLEAN]"
+	@rm -f $(DEPENDS) $(OBJS) $(TARGET)
+ifneq ($(OBJ),.)
+	@rm -rf $(OBJ)
+endif
+
+ifneq ($(MAKECMDGOALS),clean)
+sinclude $(DEPENDS)
+endif

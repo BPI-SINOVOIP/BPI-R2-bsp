@@ -1,0 +1,6 @@
+config RTL8814AE
+	tristate "Realtek 8814A PCI WiFi"
+	depends on PCI
+	---help---
+	  Help message of RTL8814AE
+

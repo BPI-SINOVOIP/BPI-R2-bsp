@@ -9,7 +9,9 @@ CROSS_COMPILE?=arm-linux-gnueabi-
 U_CROSS_COMPILE=$(CROSS_COMPILE)
 K_CROSS_COMPILE=$(CROSS_COMPILE)
 
-OUTPUT_DIR=$(CURDIR)/output
+OUTPUT_DIR=$(CURDIR)/linux-mt/output
+TARGET_KDIR=$(CURDIR)
+RTKDIR=$(TOPDIR)/phoenix/system/src/drivers
 
 U_O_PATH=u-boot-mt
 K_O_PATH=linux-mt
@@ -50,6 +52,10 @@ kernel: $(K_DOT_CONFIG)
 	$(Q)$(MAKE) -C linux-mt ARCH=arm CROSS_COMPILE=${K_CROSS_COMPILE} -j$J INSTALL_MOD_PATH=output UIMAGE_LOADADDR=0x80008000 uImage dtbs
 	$(Q)$(MAKE) -C linux-mt ARCH=arm CROSS_COMPILE=${K_CROSS_COMPILE} -j$J INSTALL_MOD_PATH=output modules
 	$(Q)$(MAKE) -C linux-mt ARCH=arm CROSS_COMPILE=${K_CROSS_COMPILE} -j$J INSTALL_MOD_PATH=output modules_install
+	mkdir $(OUTPUT_DIR)/lib/modules/4.4.70-BPI-R2-Kernel/kernel/extra
+	$(Q)$(MAKE) -C phoenix/system/src/drivers ARCH=arm CROSS_COMPILE=${K_CROSS_COMPILE} TARGET_KDIR=$(TARGET_KDIR) -j$J INSTALL_MOD_PATH=output
+	$(Q)$(MAKE) -C phoenix/system/src/drivers ARCH=arm CROSS_COMPILE=${K_CROSS_COMPILE} TARGET_KDIR=$(TARGET_KDIR) -j$J INSTALL_MOD_PATH=output install
+	$(Q)$(MAKE) -C linux-mt ARCH=arm CROSS_COMPILE=${K_CROSS_COMPILE} -j$J INSTALL_MOD_PATH=output _depmod
 #	$(Q)$(MAKE) -C linux-mt ARCH=arm CROSS_COMPILE=${K_CROSS_COMPILE} -j$J headers_install
 
 kernel-clean:

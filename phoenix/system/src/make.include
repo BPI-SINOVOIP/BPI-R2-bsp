@@ -1,0 +1,37 @@
+#---------------------------------------
+# Define Toolchains
+#---------------------------------------
+CROSS	?= arm-linux-gnueabihf-
+
+XCC			= $(CROSS)gcc
+XCXX		= $(CROSS)g++
+XCPP		= $(CROSS)cpp
+XAR			= $(CROSS)ar
+XLD			= $(CROSS)gcc
+XOBJCOPY	= $(CROSS)objcopy
+XOBJDUMP	= $(CROSS)objdump
+XNM			= $(CROSS)nm
+XSTRIP		= $(CROSS)strip
+ECHO		= echo
+MAKE		= make
+
+BIN			= $(TOP)/bin
+LIB_DIR		= $(TOP)/lib
+
+#---------------------------------------
+# Compiler options
+#---------------------------------------
+COMMON_FLAGS = -Wall -Werror -O2
+
+INCLUDE_DIR		= -I$(TOP)/include
+#LINUX_KERNEL_DIR       = -I$(TOP)/../linux/linux-3.10.9/include
+#LINUX_KERNEL_PATH      = "/home/barry/work/Phoenix/kernel/linux/linux-3.10.9"
+LINUX_KERNEL_DIR	= -I$(TOP)/../../../linux-kernel/include
+LINUX_KERNEL_PATH	= "$(TOP)/../../../linux-kernel"
+
+#---------------------------------------
+# Linker options
+#---------------------------------------
+LIBS = -lpthread -lrt
+
+LIB_OSAL	= $(LIB_DIR)/libosal.so
