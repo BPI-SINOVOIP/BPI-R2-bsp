@@ -23,8 +23,9 @@
 #include <linux/mfd/mt6397/registers.h>
 #include <linux/mfd/mt6323/registers.h>
 
-#define MT6397_RTC_BASE		0xe000
 #define MT6323_RTC_BASE		0x8000
+#define MT6323_RTC_SIZE         0x3e
+#define MT6397_RTC_BASE		0xe000
 #define MT6397_RTC_SIZE		0x3e
 
 #define MT6323_CID_CODE		0x23
@@ -47,7 +48,7 @@ static const struct resource mt6397_rtc_resources[] = {
 static const struct resource mt6323_rtc_resources[] = {
 	{
 		.start = MT6323_RTC_BASE,
-		.end   = MT6323_RTC_BASE + MT6397_RTC_SIZE,
+		.end   = MT6323_RTC_BASE + MT6323_RTC_SIZE,
 		.flags = IORESOURCE_MEM,
 	},
 	{
