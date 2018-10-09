@@ -23,6 +23,8 @@ obj-$(CONFIG_BT_WILINK)		+= btwilink.o
 obj-$(CONFIG_BT_BCM)		+= btbcm.o
 obj-$(CONFIG_BT_RTL)		+= btrtl.o
 obj-$(CONFIG_BT_QCA)		+= btqca.o
+obj-$(CONFIG_BT_RTK8723BU)	+= rtk_8723_bt_usb.o
+rtk_8723_bt_usb-y 		= rtk_coex.o rtk_bt.o
 
 btmrvl-y			:= btmrvl_main.o
 btmrvl-$(CONFIG_DEBUG_FS)	+= btmrvl_debugfs.o
