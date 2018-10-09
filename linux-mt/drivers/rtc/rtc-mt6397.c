@@ -11,7 +11,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
+#include <linux/rtc/mt6397.h>
+#include <linux/of_platform.h>
+#include <linux/mutex.h>
+#include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -125,9 +128,38 @@ struct mt6397_rtc {
 
 static struct mt6397_rtc *mt_rtc;
 
+static void devm_of_platform_populate_release(struct device *dev, void *res)
+{
+       of_platform_depopulate(*(struct device **)res);
+}
+
+int devm_of_platform_populate(struct device *dev)
+{
+       struct device **ptr;
+       int ret;
+
+       if (!dev)
+               return -EINVAL;
+
+       ptr = devres_alloc(devm_of_platform_populate_release,
+                          sizeof(*ptr), GFP_KERNEL);
+       if (!ptr)
+               return -ENOMEM;
+ 
+       ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+       if (ret) {
+               devres_free(ptr);
+       } else {
+               *ptr = dev;
+               devres_add(dev, ptr);
+       }
+
+       return ret;
+}
+
+
 static int mtk_rtc_write_trigger(struct mt6397_rtc *rtc)
 {
-	unsigned long timeout = jiffies + HZ;
 	int ret;
 	u32 data;
 
@@ -135,19 +167,13 @@ static int mtk_rtc_write_trigger(struct mt6397_rtc *rtc)
 	if (ret < 0)
 		return ret;
 
-	while (1) {
-		ret = regmap_read(rtc->regmap, rtc->addr_base + RTC_BBPU,
-				  &data);
-		if (ret < 0)
-			break;
-		if (!(data & RTC_BBPU_CBUSY))
-			break;
-		if (time_after(jiffies, timeout)) {
-			ret = -ETIMEDOUT;
-			break;
-		}
-		cpu_relax();
-	}
+	ret = regmap_read_poll_timeout(rtc->regmap, 
+                               rtc->addr_base + RTC_BBPU, data, 
+                               !(data & RTC_BBPU_CBUSY), 
+                               MTK_RTC_POLL_DELAY_US, MTK_RTC_POLL_TIMEOUT);
+        if (ret)
+               dev_err(rtc->dev, "failed to write WRTGE: %d\n");
+	
 
 	return ret;
 }
@@ -916,10 +942,11 @@ static int mtk_rtc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rtc->addr_base = res->start;
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	rtc->irq = irq_create_mapping(mt6397_chip->irq_domain, res->start);
-	if (rtc->irq <= 0)
-		return -EINVAL;
+	rtc->irq = platform_get_irq(pdev, 0);
+        if(rtc->irq < 0)
+        {
+               return rtc->irq;
+        }
 
 	rtc->regmap = mt6397_chip->regmap;
 	rtc->dev = &pdev->dev;
@@ -927,35 +954,29 @@ static int mtk_rtc_probe(struct platform_device *pdev)
 
 	mt_rtc = rtc;
 	platform_set_drvdata(pdev, rtc);
+	
+	ret = devm_request_threaded_irq(&pdev->dev, rtc->irq, NULL,
+                                       mtk_rtc_irq_handler_thread,
+                                       IRQF_ONESHOT | IRQF_TRIGGER_HIGH,
+                                       "mt6397-rtc", rtc);
 
-	ret = request_threaded_irq(rtc->irq, NULL,
-				   mtk_rtc_irq_handler_thread,
-				   IRQF_ONESHOT | IRQF_TRIGGER_HIGH,
-				   "mt6397-rtc", rtc);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request alarm IRQ: %d: %d\n",
 			rtc->irq, ret);
-		goto out_dispose_irq;
+		return ret;
 	}
 
 	device_init_wakeup(&pdev->dev, 1);
+	
+	rtc->rtc_dev = devm_rtc_device_register(&pdev->dev, "mt6397-rtc",&mtk_rtc_ops, THIS_MODULE);
 
-	rtc->rtc_dev = rtc_device_register("mt6397-rtc", &pdev->dev,
-					   &mtk_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc_dev)) {
 		dev_err(&pdev->dev, "register rtc device failed\n");
 		ret = PTR_ERR(rtc->rtc_dev);
-		goto out_free_irq;
+		return ret;
 	}
 
-	mtk_rtc_init();
-	return 0;
-
-out_free_irq:
-	free_irq(rtc->irq, rtc->rtc_dev);
-out_dispose_irq:
-	irq_dispose_mapping(rtc->irq);
-	return ret;
+	return devm_of_platform_populate(&pdev->dev);
 }
 
 static int mtk_rtc_remove(struct platform_device *pdev)
@@ -964,7 +985,6 @@ static int mtk_rtc_remove(struct platform_device *pdev)
 
 	rtc_device_unregister(rtc->rtc_dev);
 	free_irq(rtc->irq, rtc->rtc_dev);
-	irq_dispose_mapping(rtc->irq);
 
 	return 0;
 }

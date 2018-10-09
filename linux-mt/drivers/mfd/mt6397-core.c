@@ -321,9 +321,12 @@ static int mt6397_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 
-		ret = devm_mfd_add_devices(&pdev->dev, -1, mt6323_devs,
+		/*ret = devm_mfd_add_devices(&pdev->dev, -1, mt6323_devs,
 					   ARRAY_SIZE(mt6323_devs), NULL,
-					   0, NULL);
+					   0, NULL);*/
+		ret = devm_mfd_add_devices(&pdev->dev, -1, mt6323_devs,
+                                           ARRAY_SIZE(mt6323_devs), NULL,
+					   0, pmic->irq_domain);
 		break;
 
 	case MT6397_CID_CODE:
@@ -336,9 +339,12 @@ static int mt6397_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 
-		ret = devm_mfd_add_devices(&pdev->dev, -1, mt6397_devs,
+		/*ret = devm_mfd_add_devices(&pdev->dev, -1, mt6397_devs,
 					   ARRAY_SIZE(mt6397_devs), NULL,
-					   0, NULL);
+					   0, NULL);*/
+		ret = devm_mfd_add_devices(&pdev->dev, -1, mt6397_devs,
+                                           ARRAY_SIZE(mt6397_devs), NULL,
+                                           0, pmic->irq_domain);
 		break;
 
 	default:
