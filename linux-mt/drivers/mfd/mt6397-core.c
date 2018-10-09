@@ -23,8 +23,9 @@
 #include <linux/mfd/mt6397/registers.h>
 #include <linux/mfd/mt6323/registers.h>
 
-#define MT6397_RTC_BASE		0xe000
 #define MT6323_RTC_BASE		0x8000
+#define MT6323_RTC_SIZE         0x3e
+#define MT6397_RTC_BASE		0xe000
 #define MT6397_RTC_SIZE		0x3e
 
 #define MT6323_CID_CODE		0x23
@@ -47,7 +48,7 @@ static const struct resource mt6397_rtc_resources[] = {
 static const struct resource mt6323_rtc_resources[] = {
 	{
 		.start = MT6323_RTC_BASE,
-		.end   = MT6323_RTC_BASE + MT6397_RTC_SIZE,
+		.end   = MT6323_RTC_BASE + MT6323_RTC_SIZE,
 		.flags = IORESOURCE_MEM,
 	},
 	{
@@ -321,9 +322,12 @@ static int mt6397_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 
-		ret = devm_mfd_add_devices(&pdev->dev, -1, mt6323_devs,
+		/*ret = devm_mfd_add_devices(&pdev->dev, -1, mt6323_devs,
 					   ARRAY_SIZE(mt6323_devs), NULL,
-					   0, NULL);
+					   0, NULL);*/
+		ret = devm_mfd_add_devices(&pdev->dev, -1, mt6323_devs,
+                                           ARRAY_SIZE(mt6323_devs), NULL,
+					   0, pmic->irq_domain);
 		break;
 
 	case MT6397_CID_CODE:
@@ -336,9 +340,12 @@ static int mt6397_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 
-		ret = devm_mfd_add_devices(&pdev->dev, -1, mt6397_devs,
+		/*ret = devm_mfd_add_devices(&pdev->dev, -1, mt6397_devs,
 					   ARRAY_SIZE(mt6397_devs), NULL,
-					   0, NULL);
+					   0, NULL);*/
+		ret = devm_mfd_add_devices(&pdev->dev, -1, mt6397_devs,
+                                           ARRAY_SIZE(mt6397_devs), NULL,
+                                           0, pmic->irq_domain);
 		break;
 
 	default:
